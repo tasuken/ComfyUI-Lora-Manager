@@ -196,7 +196,7 @@ class UpdateRoutes:
         Download latest release ZIP from GitHub and replace plugin files.
         Skips settings.json and civitai folder. Writes extracted file list to .tracking.
         """
-        repo_owner = "willmiao"
+        repo_owner = "tasuken"
         repo_name = "ComfyUI-Lora-Manager"
         github_api = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
 
@@ -312,7 +312,7 @@ class UpdateRoutes:
         """
         Fetch latest commit from main branch
         """
-        repo_owner = "willmiao"
+        repo_owner = "tasuken"
         repo_name = "ComfyUI-Lora-Manager"
         
         # Use GitHub API to fetch the latest commit from main branch
@@ -505,7 +505,7 @@ class UpdateRoutes:
         Returns:
             tuple: (version string, changelog list, releases list)
         """
-        repo_owner = "willmiao"
+        repo_owner = "tasuken"
         repo_name = "ComfyUI-Lora-Manager"
         
         # Use GitHub API to fetch the last 5 releases

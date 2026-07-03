@@ -12,6 +12,7 @@ const removeStorageItemMock = vi.fn();
 const RecipeContextMenuMock = vi.fn();
 const refreshVirtualScrollMock = vi.fn();
 const refreshRecipesMock = vi.fn();
+const fetchRecipeDetailsMock = vi.fn();
 const fetchUnifiedFolderTreeMock = vi.fn();
 const fetchModelFoldersMock = vi.fn();
 
@@ -73,6 +74,7 @@ vi.mock('../../../static/js/utils/infiniteScroll.js', () => ({
 
 vi.mock('../../../static/js/api/recipeApi.js', () => ({
   refreshRecipes: refreshRecipesMock,
+  fetchRecipeDetails: fetchRecipeDetailsMock,
   RecipeSidebarApiClient: vi.fn(() => ({
     apiConfig: { config: { displayName: 'Recipes', supportsMove: true } },
     fetchUnifiedFolderTree: fetchUnifiedFolderTreeMock.mockResolvedValue({ success: true, tree: {} }),
@@ -127,6 +129,7 @@ describe('RecipeManager', () => {
     refreshVirtualScrollMock.mockReset();
     refreshVirtualScrollMock.mockImplementation(() => { });
     refreshRecipesMock.mockResolvedValue('refreshed');
+    fetchRecipeDetailsMock.mockResolvedValue({ id: '42', title: 'Test Recipe' });
 
     getSessionItemMock.mockImplementation((key) => {
       const map = {
@@ -306,5 +309,32 @@ describe('RecipeManager', () => {
     expect(filterText.innerHTML).toContain('Recipes using checkpoint:');
     expect(filterText.innerHTML).toContain('Flux Base');
     expect(filterText.getAttribute('title')).toBe('Flux Base');
+  });
+
+  it('reads recipe id from ?recipe= query param and opens details', async () => {
+    getSessionItemMock.mockImplementation(() => null);
+
+    const originalLocation = window.location;
+    delete window.location;
+    window.location = new URL('http://localhost/loras/recipes?recipe=url-recipe-id');
+
+    const manager = new RecipeManager();
+    await manager.initialize();
+
+    expect(pageState.customFilter).toEqual({
+      active: true,
+      loraName: null,
+      loraHash: null,
+      checkpointName: null,
+      checkpointHash: null,
+      recipeId: 'url-recipe-id',
+    });
+    expect(fetchRecipeDetailsMock).toHaveBeenCalledWith('url-recipe-id');
+    expect(recipeModalInstance.showRecipeDetails).toHaveBeenCalledWith({
+      id: '42',
+      title: 'Test Recipe',
+    });
+
+    window.location = originalLocation;
   });
 });

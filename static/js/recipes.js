@@ -91,6 +91,25 @@ class RecipeManager {
 
         // Initialize common page features
         appCore.initializePageFeatures();
+
+        if (this.pageState.customFilter.recipeId) {
+            await this._openRecipeFromFilter();
+        }
+    }
+
+    async _openRecipeFromFilter() {
+        const recipeId = this.pageState.customFilter.recipeId;
+        if (!recipeId) {
+            return;
+        }
+
+        try {
+            const { fetchRecipeDetails } = await import('./api/recipeApi.js');
+            const recipe = await fetchRecipeDetails(recipeId);
+            this.showRecipeDetails(recipe);
+        } catch (error) {
+            console.warn('Failed to open recipe from filter:', error);
+        }
     }
 
     async _initSidebar() {
@@ -129,8 +148,9 @@ class RecipeManager {
         const filterCheckpointName = getSessionItem('checkpoint_to_recipe_filterCheckpointName');
         const filterCheckpointHash = getSessionItem('checkpoint_to_recipe_filterCheckpointHash');
 
-        // Check for specific recipe ID
-        const viewRecipeId = getSessionItem('viewRecipeId');
+        // Check for specific recipe ID (session storage or ?recipe= query param)
+        const urlRecipeId = new URLSearchParams(window.location.search).get('recipe');
+        const viewRecipeId = getSessionItem('viewRecipeId') || urlRecipeId;
 
         // Set custom filter if any parameter is present
         if (filterLoraName || filterLoraHash || filterCheckpointName || filterCheckpointHash || viewRecipeId) {
