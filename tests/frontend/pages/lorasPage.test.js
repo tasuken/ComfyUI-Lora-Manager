@@ -5,6 +5,7 @@ const initializeAppMock = vi.fn();
 const initializePageFeaturesMock = vi.fn();
 const updateCardsForBulkModeMock = vi.fn();
 const createPageControlsMock = vi.fn();
+const openPendingLoraDetailMock = vi.fn();
 const confirmDeleteMock = vi.fn();
 const closeDeleteModalMock = vi.fn();
 const confirmExcludeMock = vi.fn();
@@ -58,7 +59,12 @@ describe('LoraPageManager', () => {
     };
 
     duplicatesManagerMock.mockReturnValue(duplicatesManagerInstance);
-    createPageControlsMock.mockReturnValue({ destroy: vi.fn() });
+    createPageControlsMock.mockReturnValue({
+      destroy: vi.fn(),
+      pageState: {},
+      openPendingLoraDetail: openPendingLoraDetailMock,
+    });
+    openPendingLoraDetailMock.mockResolvedValue(undefined);
     initializeAppMock.mockResolvedValue(undefined);
 
     renderLorasPage();
@@ -96,6 +102,21 @@ describe('LoraPageManager', () => {
 
     expect(updateCardsForBulkModeMock).toHaveBeenCalledWith(false);
     expect(initializePageFeaturesMock).toHaveBeenCalledTimes(1);
+    expect(openPendingLoraDetailMock).not.toHaveBeenCalled();
+  });
+
+  it('opens pending LoRA detail after page features initialize', async () => {
+    createPageControlsMock.mockReturnValue({
+      destroy: vi.fn(),
+      pageState: { pendingLoraHash: 'abc123' },
+      openPendingLoraDetail: openPendingLoraDetailMock,
+    });
+
+    const manager = new LoraPageManager();
+
+    await manager.initialize();
+
+    expect(openPendingLoraDetailMock).toHaveBeenCalledTimes(1);
   });
 
   it('boots the page when DOMContentLoaded handler runs', async () => {

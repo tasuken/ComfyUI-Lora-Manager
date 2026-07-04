@@ -3,12 +3,14 @@ import { describe, it, beforeEach, afterEach, expect, vi } from 'vitest';
 const loadMoreWithVirtualScrollMock = vi.fn();
 const refreshModelsMock = vi.fn();
 const fetchCivitaiMetadataMock = vi.fn();
+const fetchModelsPageMock = vi.fn();
 const resetAndReloadMock = vi.fn();
 const getModelApiClientMock = vi.fn();
 const apiClientMock = {
   loadMoreWithVirtualScroll: loadMoreWithVirtualScrollMock,
   refreshModels: refreshModelsMock,
   fetchCivitaiMetadata: fetchCivitaiMetadataMock,
+  fetchModelsPage: fetchModelsPageMock,
 };
 
 const showToastMock = vi.fn();
@@ -61,6 +63,12 @@ vi.mock('../../../static/js/utils/updateCheckHelpers.js', () => ({
   performModelUpdateCheck: performModelUpdateCheckMock,
 }));
 
+const showModelModalMock = vi.fn();
+
+vi.mock('../../../static/js/components/shared/ModelModal.js', () => ({
+  showModelModal: showModelModalMock,
+}));
+
 beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
@@ -70,6 +78,7 @@ beforeEach(() => {
   loadMoreWithVirtualScrollMock.mockResolvedValue(undefined);
   refreshModelsMock.mockResolvedValue(undefined);
   fetchCivitaiMetadataMock.mockResolvedValue(undefined);
+  fetchModelsPageMock.mockResolvedValue({ items: [], totalItems: 0, hasMore: false });
   resetAndReloadMock.mockResolvedValue(undefined);
   getModelApiClientMock.mockReturnValue(apiClientMock);
   performModelUpdateCheckMock.mockResolvedValue({ status: 'success', displayName: 'LoRA', records: [] });
@@ -847,6 +856,39 @@ describe('PageControls favorites, sorting, and duplicates scenarios', () => {
     expect(sessionStorage.getItem('lora_manager_filterCheckpointRecipeName')).toBeNull();
     expect(indicator.classList.contains('hidden')).toBe(true);
     expect(resetAndReloadMock).toHaveBeenCalled();
+  });
+
+  it('reads lora_hash URL params and opens detail modal from pending hash', async () => {
+    window.history.replaceState({}, '', '/loras?lora_hash=abc123def&view=detail&from_recipe=Test+Recipe');
+
+    renderControlsDom('loras');
+    const stateModule = await import('../../../static/js/state/index.js');
+    stateModule.initPageState('loras');
+    const { LorasControls } = await import('../../../static/js/components/controls/LorasControls.js');
+
+    const model = {
+      sha256: 'ABC123DEF',
+      model_name: 'Filtered LoRA',
+      file_path: '/models/loras/test.safetensors',
+    };
+    fetchModelsPageMock.mockResolvedValue({
+      items: [model],
+      totalItems: 1,
+      hasMore: false,
+    });
+
+    const controls = new LorasControls();
+
+    expect(sessionStorage.getItem('lora_manager_recipe_to_lora_filterLoraHash')).toBe('abc123def');
+    expect(sessionStorage.getItem('lora_manager_viewLoraDetail')).toBe('true');
+    expect(controls.pageState.pendingLoraHash).toBe('abc123def');
+
+    await controls.openPendingLoraDetail();
+
+    expect(controls.pageState.pendingLoraHash).toBeUndefined();
+    expect(sessionStorage.getItem('lora_manager_viewLoraDetail')).toBeNull();
+    expect(fetchModelsPageMock).toHaveBeenCalledWith(1, 100);
+    expect(showModelModalMock).toHaveBeenCalledWith(model, 'loras');
   });
 
   it('updates duplicate badge after refresh and toggles duplicate mode from controls', async () => {

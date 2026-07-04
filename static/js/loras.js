@@ -41,6 +41,10 @@ export class LoraPageManager {
 
         // Initialize common page features (including context menus and virtual scroll)
         appCore.initializePageFeatures();
+
+        if (this.pageControls.pageState?.pendingLoraHash) {
+            await this.pageControls.openPendingLoraDetail();
+        }
     }
 }
 

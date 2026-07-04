@@ -1,7 +1,8 @@
 // LorasControls.js - Specific implementation for the LoRAs page
 import { PageControls } from './PageControls.js';
 import { getModelApiClient, resetAndReload } from '../../api/modelApiFactory.js';
-import { getSessionItem, removeSessionItem } from '../../utils/storageHelpers.js';
+import { MODEL_TYPES } from '../../api/apiConfig.js';
+import { getSessionItem, removeSessionItem, setSessionItem } from '../../utils/storageHelpers.js';
 import { createAlphabetBar } from '../alphabet/index.js';
 import { downloadManager } from '../../managers/DownloadManager.js';
 
@@ -71,6 +72,21 @@ export class LorasControls extends PageControls {
      * Check for custom filter parameters in session storage (e.g., from recipe page navigation)
      */
     checkCustomFilters() {
+        const params = new URLSearchParams(window.location.search);
+        const urlLoraHash = params.get('lora_hash');
+        if (urlLoraHash) {
+            setSessionItem('recipe_to_lora_filterLoraHash', urlLoraHash.toLowerCase());
+            if (params.get('view') === 'detail') {
+                setSessionItem('viewLoraDetail', 'true');
+            }
+            const fromRecipe = params.get('from_recipe');
+            if (fromRecipe) {
+                setSessionItem('filterRecipeName', fromRecipe);
+            } else if (!getSessionItem('filterRecipeName')) {
+                setSessionItem('filterRecipeName', 'External link');
+            }
+        }
+
         const filterLoraHash = getSessionItem('recipe_to_lora_filterLoraHash');
         const filterLoraHashes = getSessionItem('recipe_to_lora_filterLoraHashes');
         const filterRecipeName = getSessionItem('filterRecipeName');
@@ -105,6 +121,38 @@ export class LorasControls extends PageControls {
             if (filterLoraHash && viewLoraDetail) {
                 this.pageState.pendingLoraHash = filterLoraHash;
             }
+        }
+    }
+
+    /**
+     * Open the LoRA detail modal when navigated with view=detail (mirrors recipes _openRecipeFromFilter).
+     */
+    async openPendingLoraDetail() {
+        const loraHash = this.pageState.pendingLoraHash;
+        if (!loraHash) {
+            return;
+        }
+
+        delete this.pageState.pendingLoraHash;
+        removeSessionItem('viewLoraDetail');
+
+        const normalizedHash = loraHash.toLowerCase();
+
+        try {
+            const result = await getModelApiClient().fetchModelsPage(1, this.pageState.pageSize || 100);
+            const model = result.items.find(
+                (item) => item.sha256?.toLowerCase() === normalizedHash
+            );
+
+            if (!model) {
+                console.warn('Failed to open LoRA from filter: model not found for hash', loraHash);
+                return;
+            }
+
+            const { showModelModal } = await import('../shared/ModelModal.js');
+            await showModelModal(model, MODEL_TYPES.LORA);
+        } catch (error) {
+            console.warn('Failed to open LoRA from filter:', error);
         }
     }
     
