@@ -3,7 +3,7 @@
   try {
     if (typeof document != "undefined") {
       var elementStyle = document.createElement("style");
-      elementStyle.appendChild(document.createTextNode(`.filter-chip[data-v-7e36267d] {
+      elementStyle.appendChild(document.createTextNode(`.filter-chip[data-v-cce47ba0] {
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -16,16 +16,16 @@
   color: var(--fg-color);
   white-space: nowrap;
 }
-.filter-chip__text[data-v-7e36267d] {
+.filter-chip__text[data-v-cce47ba0] {
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.filter-chip__count[data-v-7e36267d] {
+.filter-chip__count[data-v-cce47ba0] {
   opacity: 0.6;
   font-size: 10px;
 }
-.filter-chip__remove[data-v-7e36267d] {
+.filter-chip__remove[data-v-cce47ba0] {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -42,35 +42,35 @@
   opacity: 0.6;
   transition: opacity 0.15s;
 }
-.filter-chip__remove[data-v-7e36267d]:hover {
+.filter-chip__remove[data-v-cce47ba0]:hover {
   opacity: 1;
 }
 
 /* Variants */
-.filter-chip--include[data-v-7e36267d] {
-  background: rgba(66, 153, 225, 0.15);
-  border-color: rgba(66, 153, 225, 0.4);
-  color: #4299e1;
+.filter-chip--include[data-v-cce47ba0] {
+  background: var(--lm-accent-soft);
+  border-color: var(--lm-accent-border);
+  color: var(--lm-accent);
 }
-.filter-chip--exclude[data-v-7e36267d] {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #ef4444;
+.filter-chip--exclude[data-v-cce47ba0] {
+  background: var(--lm-danger-soft);
+  border-color: var(--lm-danger-border);
+  color: var(--lm-danger-text);
 }
-.filter-chip--neutral[data-v-7e36267d] {
-  background: rgba(100, 100, 100, 0.3);
-  border-color: rgba(150, 150, 150, 0.4);
+.filter-chip--neutral[data-v-cce47ba0] {
+  background: var(--lm-surface-raised);
+  border-color: var(--lm-border);
   color: var(--fg-color);
 }
-.filter-chip--path[data-v-7e36267d] {
-  background: rgba(30, 30, 30, 0.8);
-  border-color: rgba(255, 255, 255, 0.15);
+.filter-chip--path[data-v-cce47ba0] {
+  background: var(--lm-surface);
+  border-color: var(--lm-border-soft);
   color: var(--fg-color);
   font-family: monospace;
   font-size: 10px;
 }
 
-.edit-button[data-v-8da8aa4b] {
+.edit-button[data-v-1cb95afc] {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -84,158 +84,158 @@
   transition: opacity 0.15s;
   border-radius: 3px;
 }
-.edit-button[data-v-8da8aa4b]:hover {
+.edit-button[data-v-1cb95afc]:hover {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--lm-surface-hover);
 }
-.edit-button__icon[data-v-8da8aa4b] {
+.edit-button__icon[data-v-1cb95afc] {
   width: 10px;
   height: 10px;
 }
-.edit-button__text[data-v-8da8aa4b] {
+.edit-button__text[data-v-1cb95afc] {
   font-weight: 400;
 }
 
-.section[data-v-12f059e2] {
+.section[data-v-41d2aa1b] {
   margin-bottom: 16px;
 }
-.section__header[data-v-12f059e2] {
+.section__header[data-v-41d2aa1b] {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
 }
-.section__title[data-v-12f059e2] {
+.section__title[data-v-41d2aa1b] {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.6;
 }
-.section__content[data-v-12f059e2] {
+.section__content[data-v-41d2aa1b] {
   min-height: 32px;
   display: flex;
   align-items: center;
 }
-.section__placeholder[data-v-12f059e2] {
+.section__placeholder[data-v-41d2aa1b] {
   width: 100%;
   padding: 8px 12px;
-  background: var(--comfy-input-bg, #333);
+  background: var(--lm-surface);
   border-radius: 4px;
   font-size: 12px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
   text-align: center;
   box-sizing: border-box;
 }
-.section__chips[data-v-12f059e2] {
+.section__chips[data-v-41d2aa1b] {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.section[data-v-b869b780] {
+.section[data-v-3c494bd5] {
   margin-bottom: 16px;
 }
-.section__header[data-v-b869b780] {
+.section__header[data-v-3c494bd5] {
   margin-bottom: 8px;
 }
-.section__title[data-v-b869b780] {
+.section__title[data-v-3c494bd5] {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.6;
 }
-.section__columns[data-v-b869b780] {
+.section__columns[data-v-3c494bd5] {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
-.section__column[data-v-b869b780] {
+.section__column[data-v-3c494bd5] {
   min-width: 0;
 }
-.section__column-header[data-v-b869b780] {
+.section__column-header[data-v-3c494bd5] {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
 }
-.section__column-title[data-v-b869b780] {
+.section__column-title[data-v-3c494bd5] {
   font-size: 9px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
-.section__column-title--include[data-v-b869b780] {
-  color: #4299e1;
+.section__column-title--include[data-v-3c494bd5] {
+  color: var(--lm-accent-text);
 }
-.section__column-title--exclude[data-v-b869b780] {
-  color: #ef4444;
+.section__column-title--exclude[data-v-3c494bd5] {
+  color: var(--lm-danger-text);
 }
-.section__column-content[data-v-b869b780] {
+.section__column-content[data-v-3c494bd5] {
   min-height: 28px;
 }
-.section__empty[data-v-b869b780] {
+.section__empty[data-v-3c494bd5] {
   width: 100%;
   padding: 8px 12px;
-  background: var(--comfy-input-bg, #333);
+  background: var(--lm-surface);
   border-radius: 4px;
   font-size: 12px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
   text-align: center;
   box-sizing: border-box;
 }
-.section__chips[data-v-b869b780] {
+.section__chips[data-v-3c494bd5] {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
 }
 
-.section[data-v-af9caf84] {
+.section[data-v-899728b5] {
   margin-bottom: 16px;
 }
-.section__header[data-v-af9caf84] {
+.section__header[data-v-899728b5] {
   margin-bottom: 8px;
 }
-.section__title[data-v-af9caf84] {
+.section__title[data-v-899728b5] {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.6;
 }
-.section__columns[data-v-af9caf84] {
+.section__columns[data-v-899728b5] {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
-.section__column[data-v-af9caf84] {
+.section__column[data-v-899728b5] {
   min-width: 0;
 }
-.section__column-header[data-v-af9caf84] {
+.section__column-header[data-v-899728b5] {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
 }
-.section__column-title[data-v-af9caf84] {
+.section__column-title[data-v-899728b5] {
   font-size: 9px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
-.section__column-title--include[data-v-af9caf84] {
-  color: #4299e1;
+.section__column-title--include[data-v-899728b5] {
+  color: var(--lm-accent-text);
 }
-.section__column-title--exclude[data-v-af9caf84] {
-  color: #ef4444;
+.section__column-title--exclude[data-v-899728b5] {
+  color: var(--lm-danger-text);
 }
-.section__edit-btn[data-v-af9caf84] {
+.section__edit-btn[data-v-899728b5] {
   width: 20px;
   height: 20px;
   display: flex;
@@ -243,39 +243,39 @@
   justify-content: center;
   background: transparent;
   border: none;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   cursor: pointer;
   opacity: 0.5;
   border-radius: 3px;
   padding: 0;
   transition: all 0.15s;
 }
-.section__edit-btn svg[data-v-af9caf84] {
+.section__edit-btn svg[data-v-899728b5] {
   width: 12px;
   height: 12px;
 }
-.section__edit-btn[data-v-af9caf84]:hover {
+.section__edit-btn[data-v-899728b5]:hover {
   opacity: 1;
-  background: var(--comfy-input-bg, #333);
+  background: var(--lm-surface);
 }
-.section__edit-btn--include[data-v-af9caf84]:hover {
-  color: #4299e1;
+.section__edit-btn--include[data-v-899728b5]:hover {
+  color: var(--lm-accent-text);
 }
-.section__edit-btn--exclude[data-v-af9caf84]:hover {
-  color: #ef4444;
+.section__edit-btn--exclude[data-v-899728b5]:hover {
+  color: var(--lm-danger-text);
 }
-.section__content[data-v-af9caf84] {
+.section__content[data-v-899728b5] {
   min-height: 22px;
 }
-.section__paths[data-v-af9caf84] {
+.section__paths[data-v-899728b5] {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   min-height: 22px;
 }
-.section__empty[data-v-af9caf84] {
+.section__empty[data-v-899728b5] {
   font-size: 10px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.3;
   font-style: italic;
   min-height: 22px;
@@ -283,114 +283,114 @@
   align-items: center;
 }
 
-.section[data-v-9995b5ed] {
+.section[data-v-54f65fc1] {
   margin-bottom: 16px;
 }
-.section__header[data-v-9995b5ed] {
+.section__header[data-v-54f65fc1] {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
 }
-.section__title[data-v-9995b5ed] {
+.section__title[data-v-54f65fc1] {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.6;
 }
-.section__toggle[data-v-9995b5ed] {
+.section__toggle[data-v-54f65fc1] {
   display: flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
   font-size: 11px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.7;
 }
-.section__toggle input[type="checkbox"][data-v-9995b5ed] {
+.section__toggle input[type="checkbox"][data-v-54f65fc1] {
   margin: 0;
   width: 14px;
   height: 14px;
   cursor: pointer;
 }
-.section__toggle-label[data-v-9995b5ed] {
+.section__toggle-label[data-v-54f65fc1] {
   font-weight: 500;
 }
-.section__columns[data-v-9995b5ed] {
+.section__columns[data-v-54f65fc1] {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
-.section__column[data-v-9995b5ed] {
+.section__column[data-v-54f65fc1] {
   min-width: 0;
 }
-.section__column-header[data-v-9995b5ed] {
+.section__column-header[data-v-54f65fc1] {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
 }
-.section__column-title[data-v-9995b5ed] {
+.section__column-title[data-v-54f65fc1] {
   font-size: 9px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
-.section__column-title--include[data-v-9995b5ed] {
-  color: #4299e1;
+.section__column-title--include[data-v-54f65fc1] {
+  color: var(--lm-accent-text);
 }
-.section__column-title--exclude[data-v-9995b5ed] {
-  color: #ef4444;
+.section__column-title--exclude[data-v-54f65fc1] {
+  color: var(--lm-danger-text);
 }
-.section__input-wrapper[data-v-9995b5ed] {
+.section__input-wrapper[data-v-54f65fc1] {
   display: flex;
   gap: 4px;
   margin-bottom: 8px;
 }
-.section__input[data-v-9995b5ed] {
+.section__input[data-v-54f65fc1] {
   flex: 1;
   min-width: 0;
   padding: 6px 8px;
-  background: var(--comfy-input-bg, #333);
+  background: var(--lm-surface);
   border: 1px solid var(--comfy-input-border, #444);
   border-radius: 4px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   font-size: 12px;
   outline: none;
 }
-.section__input[data-v-9995b5ed]:focus {
-  border-color: #4299e1;
+.section__input[data-v-54f65fc1]:focus {
+  border-color: var(--lm-accent);
 }
-.section__add-btn[data-v-9995b5ed] {
+.section__add-btn[data-v-54f65fc1] {
   width: 28px;
   height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--comfy-input-bg, #333);
+  background: var(--lm-surface);
   border: 1px solid var(--comfy-input-border, #444);
   border-radius: 4px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
 }
-.section__add-btn[data-v-9995b5ed]:hover {
+.section__add-btn[data-v-54f65fc1]:hover {
   background: var(--comfy-input-bg-hover, #444);
-  border-color: #4299e1;
+  border-color: var(--lm-accent);
 }
-.section__patterns[data-v-9995b5ed] {
+.section__patterns[data-v-54f65fc1] {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   min-height: 22px;
 }
-.section__empty[data-v-9995b5ed] {
+.section__empty[data-v-54f65fc1] {
   font-size: 10px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.3;
   font-style: italic;
   min-height: 22px;
@@ -398,35 +398,35 @@
   align-items: center;
 }
 
-.section[data-v-07ddd3df] {
+.section[data-v-c6ebd825] {
   margin-bottom: 16px;
 }
-.section__header[data-v-07ddd3df] {
+.section__header[data-v-c6ebd825] {
   margin-bottom: 8px;
 }
-.section__title[data-v-07ddd3df] {
+.section__title[data-v-c6ebd825] {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.6;
 }
-.section__toggles[data-v-07ddd3df] {
+.section__toggles[data-v-c6ebd825] {
   display: flex;
   gap: 16px;
 }
-.toggle-item[data-v-07ddd3df] {
+.toggle-item[data-v-c6ebd825] {
   display: flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
 }
-.toggle-item__label[data-v-07ddd3df] {
+.toggle-item__label[data-v-c6ebd825] {
   font-size: 12px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
 }
-.toggle-switch[data-v-07ddd3df] {
+.toggle-switch[data-v-c6ebd825] {
   position: relative;
   width: 36px;
   height: 20px;
@@ -435,55 +435,55 @@
   border: none;
   cursor: pointer;
 }
-.toggle-switch__track[data-v-07ddd3df] {
+.toggle-switch__track[data-v-c6ebd825] {
   position: absolute;
   inset: 0;
-  background: var(--comfy-input-bg, #333);
-  border: 1px solid var(--border-color, #444);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border);
   border-radius: 10px;
   transition: all 0.2s;
 }
-.toggle-switch--active .toggle-switch__track[data-v-07ddd3df] {
-  background: rgba(66, 153, 225, 0.3);
-  border-color: rgba(66, 153, 225, 0.6);
+.toggle-switch--active .toggle-switch__track[data-v-c6ebd825] {
+  background: var(--lm-accent-soft);
+  border-color: var(--lm-accent-border);
 }
-.toggle-switch__thumb[data-v-07ddd3df] {
+.toggle-switch__thumb[data-v-c6ebd825] {
   position: absolute;
   top: 3px;
   left: 2px;
   width: 14px;
   height: 14px;
-  background: var(--fg-color, #fff);
+  background: var(--lm-fg);
   border-radius: 50%;
   transition: all 0.2s;
   opacity: 0.6;
 }
-.toggle-switch--active .toggle-switch__thumb[data-v-07ddd3df] {
+.toggle-switch--active .toggle-switch__thumb[data-v-c6ebd825] {
   transform: translateX(16px);
-  background: #4299e1;
+  background: var(--lm-accent);
   opacity: 1;
 }
-.toggle-switch:hover .toggle-switch__thumb[data-v-07ddd3df] {
+.toggle-switch:hover .toggle-switch__thumb[data-v-c6ebd825] {
   opacity: 1;
 }
 
-.preview[data-v-6a4b50a1] {
+.preview[data-v-4a803b5a] {
   padding-top: 12px;
-  border-top: 1px solid var(--border-color, #444);
+  border-top: 1px solid var(--lm-border);
   position: relative;
 }
-.preview__header[data-v-6a4b50a1] {
+.preview__header[data-v-4a803b5a] {
   display: flex;
   align-items: center;
   justify-content: space-between;
   cursor: default;
 }
-.preview__title[data-v-6a4b50a1] {
+.preview__title[data-v-4a803b5a] {
   font-size: 12px;
   font-weight: 500;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
 }
-.preview__refresh[data-v-6a4b50a1] {
+.preview__refresh[data-v-4a803b5a] {
   width: 24px;
   height: 24px;
   display: flex;
@@ -491,27 +491,27 @@
   justify-content: center;
   background: transparent;
   border: none;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   cursor: pointer;
   opacity: 0.6;
   border-radius: 4px;
   transition: all 0.15s;
 }
-.preview__refresh[data-v-6a4b50a1]:hover {
+.preview__refresh[data-v-4a803b5a]:hover {
   opacity: 1;
-  background: var(--comfy-input-bg, #333);
+  background: var(--lm-surface);
 }
-.preview__refresh[data-v-6a4b50a1]:disabled {
+.preview__refresh[data-v-4a803b5a]:disabled {
   cursor: not-allowed;
 }
-.preview__refresh-icon[data-v-6a4b50a1] {
+.preview__refresh-icon[data-v-4a803b5a] {
   width: 14px;
   height: 14px;
 }
-.preview__refresh--loading .preview__refresh-icon[data-v-6a4b50a1] {
-  animation: spin-6a4b50a1 1s linear infinite;
+.preview__refresh--loading .preview__refresh-icon[data-v-4a803b5a] {
+  animation: spin-4a803b5a 1s linear infinite;
 }
-@keyframes spin-6a4b50a1 {
+@keyframes spin-4a803b5a {
 from { transform: rotate(0deg);
 }
 to { transform: rotate(360deg);
@@ -519,7 +519,7 @@ to { transform: rotate(360deg);
 }
 
 /* Tooltip styles */
-.preview__tooltip[data-v-6a4b50a1] {
+.preview__tooltip[data-v-4a803b5a] {
   position: absolute;
   bottom: 100%;
   left: 0;
@@ -527,73 +527,73 @@ to { transform: rotate(360deg);
   margin-bottom: 8px;
   z-index: 100;
 }
-.preview__tooltip-content[data-v-6a4b50a1] {
+.preview__tooltip-content[data-v-4a803b5a] {
   background: var(--comfy-menu-bg, #1a1a1a);
-  border: 1px solid var(--border-color, #444);
+  border: 1px solid var(--lm-border);
   border-radius: 6px;
   padding: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--lm-shadow);
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.preview__item[data-v-6a4b50a1] {
+.preview__item[data-v-4a803b5a] {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 4px 6px;
-  background: var(--comfy-input-bg, #333);
+  background: var(--lm-surface);
   border-radius: 4px;
 }
-.preview__thumb[data-v-6a4b50a1] {
+.preview__thumb[data-v-4a803b5a] {
   width: 28px;
   height: 28px;
   object-fit: cover;
   border-radius: 3px;
   flex-shrink: 0;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--lm-surface-hover);
 }
-.preview__thumb--placeholder[data-v-6a4b50a1] {
+.preview__thumb--placeholder[data-v-4a803b5a] {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.2;
 }
-.preview__thumb--placeholder svg[data-v-6a4b50a1] {
+.preview__thumb--placeholder svg[data-v-4a803b5a] {
   width: 14px;
   height: 14px;
 }
-.preview__name[data-v-6a4b50a1] {
+.preview__name[data-v-4a803b5a] {
   flex: 1;
   font-size: 11px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.preview__more[data-v-6a4b50a1] {
+.preview__more[data-v-4a803b5a] {
   font-size: 11px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
   text-align: center;
   padding: 4px;
 }
-.preview__empty[data-v-6a4b50a1] {
+.preview__empty[data-v-4a803b5a] {
   font-size: 11px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.4;
   text-align: center;
   padding: 8px 0 0 0;
 }
 
 /* Tooltip transitions */
-.tooltip-enter-active[data-v-6a4b50a1],
-.tooltip-leave-active[data-v-6a4b50a1] {
+.tooltip-enter-active[data-v-4a803b5a],
+.tooltip-leave-active[data-v-4a803b5a] {
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
-.tooltip-enter-from[data-v-6a4b50a1],
-.tooltip-leave-to[data-v-6a4b50a1] {
+.tooltip-enter-from[data-v-4a803b5a],
+.tooltip-leave-to[data-v-4a803b5a] {
   opacity: 0;
   transform: translateY(4px);
 }
@@ -612,50 +612,50 @@ to { transform: rotate(360deg);
   min-height: 0;
 }
 
-.lora-pool-modal-backdrop[data-v-7b4de03d] {
+.lora-pool-modal-backdrop[data-v-d7a07432] {
   position: fixed;
   inset: 0;
   z-index: 9998;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--lm-scrim);
   display: flex;
   align-items: center;
   justify-content: center;
   backdrop-filter: blur(2px);
 }
-.lora-pool-modal[data-v-7b4de03d] {
+.lora-pool-modal[data-v-d7a07432] {
   background: var(--comfy-menu-bg, #1a1a1a);
-  border: 1px solid var(--border-color, #444);
+  border: 1px solid var(--lm-border);
   border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--lm-shadow-lg);
   max-width: 400px;
   width: 90%;
   max-height: 70vh;
   display: flex;
   flex-direction: column;
 }
-.lora-pool-modal__header[data-v-7b4de03d] {
+.lora-pool-modal__header[data-v-d7a07432] {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   padding: 16px;
-  border-bottom: 1px solid var(--border-color, #444);
+  border-bottom: 1px solid var(--lm-border);
 }
-.lora-pool-modal__title-container[data-v-7b4de03d] {
+.lora-pool-modal__title-container[data-v-d7a07432] {
   flex: 1;
 }
-.lora-pool-modal__title[data-v-7b4de03d] {
+.lora-pool-modal__title[data-v-d7a07432] {
   font-size: 16px;
   font-weight: 600;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   margin: 0;
 }
-.lora-pool-modal__subtitle[data-v-7b4de03d] {
+.lora-pool-modal__subtitle[data-v-d7a07432] {
   font-size: 12px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.6;
   margin: 4px 0 0 0;
 }
-.lora-pool-modal__close[data-v-7b4de03d] {
+.lora-pool-modal__close[data-v-d7a07432] {
   width: 28px;
   height: 28px;
   display: flex;
@@ -663,7 +663,7 @@ to { transform: rotate(360deg);
   justify-content: center;
   background: transparent;
   border: none;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   font-size: 22px;
   cursor: pointer;
   opacity: 0.7;
@@ -672,69 +672,69 @@ to { transform: rotate(360deg);
   padding: 0;
   margin: -4px -4px 0 0;
 }
-.lora-pool-modal__close[data-v-7b4de03d]:hover {
+.lora-pool-modal__close[data-v-d7a07432]:hover {
   opacity: 1;
-  background: var(--comfy-input-bg, #333);
+  background: var(--lm-surface);
 }
-.lora-pool-modal__search[data-v-7b4de03d] {
+.lora-pool-modal__search[data-v-d7a07432] {
   padding: 12px 16px;
-  border-bottom: 1px solid var(--border-color, #444);
+  border-bottom: 1px solid var(--lm-border);
 }
-.lora-pool-modal__body[data-v-7b4de03d] {
+.lora-pool-modal__body[data-v-d7a07432] {
   flex: 1;
   overflow-y: auto;
   padding: 12px 16px 16px;
 }
 
 /* Transitions */
-.modal-enter-active[data-v-7b4de03d],
-.modal-leave-active[data-v-7b4de03d] {
+.modal-enter-active[data-v-d7a07432],
+.modal-leave-active[data-v-d7a07432] {
   transition: opacity 0.2s ease;
 }
-.modal-enter-from[data-v-7b4de03d],
-.modal-leave-to[data-v-7b4de03d] {
+.modal-enter-from[data-v-d7a07432],
+.modal-leave-to[data-v-d7a07432] {
   opacity: 0;
 }
-.modal-enter-active .lora-pool-modal[data-v-7b4de03d],
-.modal-leave-active .lora-pool-modal[data-v-7b4de03d] {
+.modal-enter-active .lora-pool-modal[data-v-d7a07432],
+.modal-leave-active .lora-pool-modal[data-v-d7a07432] {
   transition: transform 0.2s ease;
 }
-.modal-enter-from .lora-pool-modal[data-v-7b4de03d],
-.modal-leave-to .lora-pool-modal[data-v-7b4de03d] {
+.modal-enter-from .lora-pool-modal[data-v-d7a07432],
+.modal-leave-to .lora-pool-modal[data-v-d7a07432] {
   transform: scale(0.95);
 }
 
-.search-container[data-v-e02ca44a] {
+.search-container[data-v-1b5c130c] {
   position: relative;
 }
-.search-icon[data-v-e02ca44a] {
+.search-icon[data-v-1b5c130c] {
   position: absolute;
   left: 10px;
   top: 50%;
   transform: translateY(-50%);
   width: 14px;
   height: 14px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
 }
-.search-input[data-v-e02ca44a] {
+.search-input[data-v-1b5c130c] {
   width: 100%;
   padding: 8px 12px 8px 32px;
-  background: var(--comfy-input-bg, #333);
-  border: 1px solid var(--border-color, #444);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border);
   border-radius: 6px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   font-size: 13px;
   outline: none;
 }
-.search-input[data-v-e02ca44a]:focus {
-  border-color: var(--fg-color, #fff);
+.search-input[data-v-1b5c130c]:focus {
+  border-color: var(--lm-fg);
 }
-.search-input[data-v-e02ca44a]::placeholder {
-  color: var(--fg-color, #fff);
+.search-input[data-v-1b5c130c]::placeholder {
+  color: var(--lm-fg);
   opacity: 0.4;
 }
-.clear-button[data-v-e02ca44a] {
+.clear-button[data-v-1b5c130c] {
   position: absolute;
   right: 8px;
   top: 50%;
@@ -751,20 +751,20 @@ to { transform: rotate(360deg);
   opacity: 0.5;
   transition: opacity 0.15s;
 }
-.clear-button[data-v-e02ca44a]:hover {
+.clear-button[data-v-1b5c130c]:hover {
   opacity: 0.8;
 }
-.clear-button svg[data-v-e02ca44a] {
+.clear-button svg[data-v-1b5c130c] {
   width: 12px;
   height: 12px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
 }
-.model-list[data-v-e02ca44a] {
+.model-list[data-v-1b5c130c] {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.model-item[data-v-e02ca44a] {
+.model-item[data-v-1b5c130c] {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -773,87 +773,87 @@ to { transform: rotate(360deg);
   cursor: pointer;
   transition: background 0.15s;
 }
-.model-item[data-v-e02ca44a]:hover {
-  background: var(--comfy-input-bg, #333);
+.model-item[data-v-1b5c130c]:hover {
+  background: var(--lm-surface);
 }
-.model-checkbox[data-v-e02ca44a] {
+.model-checkbox[data-v-1b5c130c] {
   position: absolute;
   opacity: 0;
   pointer-events: none;
 }
-.model-checkbox-visual[data-v-e02ca44a] {
+.model-checkbox-visual[data-v-1b5c130c] {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 18px;
   height: 18px;
-  background: var(--comfy-input-bg, #333);
-  border: 1px solid var(--border-color, #555);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border);
   border-radius: 4px;
   flex-shrink: 0;
   transition: all 0.15s;
 }
-.model-item:hover .model-checkbox-visual[data-v-e02ca44a] {
-  border-color: var(--fg-color, #fff);
+.model-item:hover .model-checkbox-visual[data-v-1b5c130c] {
+  border-color: var(--lm-fg);
 }
-.model-checkbox:checked + .model-checkbox-visual[data-v-e02ca44a] {
-  background: var(--fg-color, #fff);
-  border-color: var(--fg-color, #fff);
+.model-checkbox:checked + .model-checkbox-visual[data-v-1b5c130c] {
+  background: var(--lm-fg);
+  border-color: var(--lm-fg);
 }
-.check-icon[data-v-e02ca44a] {
+.check-icon[data-v-1b5c130c] {
   width: 12px;
   height: 12px;
   color: var(--comfy-menu-bg, #1a1a1a);
 }
-.model-name[data-v-e02ca44a] {
+.model-name[data-v-1b5c130c] {
   flex: 1;
   font-size: 13px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
 }
-.model-count[data-v-e02ca44a] {
+.model-count[data-v-1b5c130c] {
   font-size: 12px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
 }
-.no-results[data-v-e02ca44a] {
+.no-results[data-v-1b5c130c] {
   padding: 20px;
   text-align: center;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
   font-size: 13px;
 }
 
-.search-container[data-v-48c2535d] {
+.search-container[data-v-a0dc8a6b] {
   position: relative;
 }
-.search-icon[data-v-48c2535d] {
+.search-icon[data-v-a0dc8a6b] {
   position: absolute;
   left: 10px;
   top: 50%;
   transform: translateY(-50%);
   width: 14px;
   height: 14px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
 }
-.search-input[data-v-48c2535d] {
+.search-input[data-v-a0dc8a6b] {
   width: 100%;
   padding: 8px 12px 8px 32px;
-  background: var(--comfy-input-bg, #333);
-  border: 1px solid var(--border-color, #444);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border);
   border-radius: 6px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   font-size: 13px;
   outline: none;
 }
-.search-input[data-v-48c2535d]:focus {
-  border-color: var(--fg-color, #fff);
+.search-input[data-v-a0dc8a6b]:focus {
+  border-color: var(--lm-fg);
 }
-.search-input[data-v-48c2535d]::placeholder {
-  color: var(--fg-color, #fff);
+.search-input[data-v-a0dc8a6b]::placeholder {
+  color: var(--lm-fg);
   opacity: 0.4;
 }
-.clear-button[data-v-48c2535d] {
+.clear-button[data-v-a0dc8a6b] {
   position: absolute;
   right: 8px;
   top: 50%;
@@ -870,91 +870,91 @@ to { transform: rotate(360deg);
   opacity: 0.5;
   transition: opacity 0.15s;
 }
-.clear-button[data-v-48c2535d]:hover {
+.clear-button[data-v-a0dc8a6b]:hover {
   opacity: 0.8;
 }
-.clear-button svg[data-v-48c2535d] {
+.clear-button svg[data-v-a0dc8a6b] {
   width: 12px;
   height: 12px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
 }
-.tags-container[data-v-48c2535d] {
+.tags-container[data-v-a0dc8a6b] {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-.tag-chip[data-v-48c2535d] {
+.tag-chip[data-v-a0dc8a6b] {
   padding: 6px 12px;
-  background: var(--comfy-input-bg, #333);
-  border: 1px solid var(--border-color, #555);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border);
   border-radius: 16px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 /* Default hover (gray for neutral) */
-.tag-chip[data-v-48c2535d]:hover:not(.tag-chip--selected) {
-  border-color: rgba(226, 232, 240, 0.5);
-  background: rgba(255, 255, 255, 0.05);
+.tag-chip[data-v-a0dc8a6b]:hover:not(.tag-chip--selected) {
+  border-color: var(--lm-fg-subtle);
+  background: var(--lm-surface-hover);
 }
 
 /* Include variant hover - blue tint */
-.tags-modal--include .tag-chip[data-v-48c2535d]:hover:not(.tag-chip--selected) {
-  border-color: rgba(66, 153, 225, 0.4);
-  background: rgba(66, 153, 225, 0.08);
+.tags-modal--include .tag-chip[data-v-a0dc8a6b]:hover:not(.tag-chip--selected) {
+  border-color: var(--lm-accent-border);
+  background: var(--lm-accent-soft);
 }
 
 /* Exclude variant hover - red tint */
-.tags-modal--exclude .tag-chip[data-v-48c2535d]:hover:not(.tag-chip--selected) {
-  border-color: rgba(239, 68, 68, 0.4);
-  background: rgba(239, 68, 68, 0.08);
+.tags-modal--exclude .tag-chip[data-v-a0dc8a6b]:hover:not(.tag-chip--selected) {
+  border-color: var(--lm-danger-border);
+  background: var(--lm-danger-soft);
 }
 
 /* Selected chips hover - slightly deepen the color */
-.tags-modal--include .tag-chip--selected[data-v-48c2535d]:hover {
-  background: rgba(66, 153, 225, 0.25);
-  border-color: rgba(66, 153, 225, 0.7);
+.tags-modal--include .tag-chip--selected[data-v-a0dc8a6b]:hover {
+  background: var(--lm-accent-soft);
+  border-color: var(--lm-accent);
 }
-.tags-modal--exclude .tag-chip--selected[data-v-48c2535d]:hover {
-  background: rgba(239, 68, 68, 0.25);
-  border-color: rgba(239, 68, 68, 0.7);
+.tags-modal--exclude .tag-chip--selected[data-v-a0dc8a6b]:hover {
+  background: var(--lm-danger-soft);
+  border-color: var(--lm-danger-border);
 }
 
 /* Include variant - blue when selected */
-.tags-modal--include .tag-chip--selected[data-v-48c2535d],
-.tag-chip--selected[data-v-48c2535d] {
-  background: rgba(66, 153, 225, 0.2);
-  border-color: rgba(66, 153, 225, 0.6);
-  color: #4299e1;
+.tags-modal--include .tag-chip--selected[data-v-a0dc8a6b],
+.tag-chip--selected[data-v-a0dc8a6b] {
+  background: var(--lm-surface-selected);
+  border-color: var(--lm-accent-border);
+  color: var(--lm-accent-text);
 }
 
 /* Exclude variant - red when selected */
-.tags-modal--exclude .tag-chip--selected[data-v-48c2535d] {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: rgba(239, 68, 68, 0.6);
-  color: #ef4444;
+.tags-modal--exclude .tag-chip--selected[data-v-a0dc8a6b] {
+  background: var(--lm-danger-soft);
+  border-color: var(--lm-danger-border);
+  color: var(--lm-danger-text);
 }
-.no-results[data-v-48c2535d] {
+.no-results[data-v-a0dc8a6b] {
   width: 100%;
   padding: 20px;
   text-align: center;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
   font-size: 13px;
 }
-.load-more-hint[data-v-48c2535d] {
+.load-more-hint[data-v-a0dc8a6b] {
   width: 100%;
   padding: 12px;
   text-align: center;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.4;
   font-size: 12px;
   font-style: italic;
 }
 
-.tree-node__item[data-v-90187dd4] {
+.tree-node__item[data-v-e6f673b4] {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -963,10 +963,10 @@ to { transform: rotate(360deg);
   cursor: pointer;
   transition: background 0.15s;
 }
-.tree-node__item[data-v-90187dd4]:hover {
-  background: var(--comfy-input-bg, #333);
+.tree-node__item[data-v-e6f673b4]:hover {
+  background: var(--lm-surface);
 }
-.tree-node__toggle[data-v-90187dd4] {
+.tree-node__toggle[data-v-e6f673b4] {
   width: 16px;
   height: 16px;
   display: flex;
@@ -974,129 +974,131 @@ to { transform: rotate(360deg);
   justify-content: center;
   background: transparent;
   border: none;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   cursor: pointer;
   opacity: 0.5;
   padding: 0;
   flex-shrink: 0;
 }
-.tree-node__toggle[data-v-90187dd4]:hover {
+.tree-node__toggle[data-v-e6f673b4]:hover {
   opacity: 1;
 }
-.tree-node__toggle-icon[data-v-90187dd4] {
+.tree-node__toggle-icon[data-v-e6f673b4] {
   width: 10px;
   height: 10px;
   transition: transform 0.15s;
 }
-.tree-node__toggle-icon--expanded[data-v-90187dd4] {
+.tree-node__toggle-icon--expanded[data-v-e6f673b4] {
   transform: rotate(90deg);
 }
-.tree-node__toggle-spacer[data-v-90187dd4] {
+.tree-node__toggle-spacer[data-v-e6f673b4] {
   width: 16px;
   flex-shrink: 0;
 }
-.tree-node__checkbox-label[data-v-90187dd4] {
+.tree-node__checkbox-label[data-v-e6f673b4] {
   display: flex;
   align-items: center;
   cursor: pointer;
 }
-.tree-node__checkbox[data-v-90187dd4] {
+.tree-node__checkbox[data-v-e6f673b4] {
   position: absolute;
   opacity: 0;
   pointer-events: none;
 }
-.tree-node__checkbox-visual[data-v-90187dd4] {
+.tree-node__checkbox-visual[data-v-e6f673b4] {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 16px;
   height: 16px;
-  background: var(--comfy-input-bg, #333);
-  border: 1px solid var(--border-color, #555);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border);
   border-radius: 3px;
   flex-shrink: 0;
   transition: all 0.15s;
 }
-.tree-node__item:hover .tree-node__checkbox-visual[data-v-90187dd4] {
-  border-color: var(--fg-color, #fff);
+.tree-node__item:hover .tree-node__checkbox-visual[data-v-e6f673b4] {
+  border-color: var(--lm-fg);
 }
-.tree-node__checkbox:checked + .tree-node__checkbox-visual--include[data-v-90187dd4] {
-  background: #4299e1;
-  border-color: #4299e1;
+.tree-node__checkbox:checked + .tree-node__checkbox-visual--include[data-v-e6f673b4] {
+  background: var(--lm-accent);
+  border-color: var(--lm-accent);
 }
-.tree-node__checkbox:checked + .tree-node__checkbox-visual--exclude[data-v-90187dd4] {
-  background: #ef4444;
-  border-color: #ef4444;
+.tree-node__checkbox:checked + .tree-node__checkbox-visual--exclude[data-v-e6f673b4] {
+  background: var(--lm-danger);
+  border-color: var(--lm-danger);
 }
-.tree-node__check-icon[data-v-90187dd4] {
+.tree-node__check-icon[data-v-e6f673b4] {
   width: 10px;
   height: 10px;
-  color: #fff;
+  color: var(--lm-fg);
 }
-.tree-node__folder-icon[data-v-90187dd4] {
+.tree-node__folder-icon[data-v-e6f673b4] {
   width: 14px;
   height: 14px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.6;
   flex-shrink: 0;
 }
-.tree-node__label[data-v-90187dd4] {
+.tree-node__label[data-v-e6f673b4] {
   flex: 1;
   font-size: 13px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tree-node__children[data-v-90187dd4] {
+.tree-node__children[data-v-e6f673b4] {
   /* Children already indented via padding */
 }
 
-.search-container[data-v-046dcbf4] {
+.search-container[data-v-5c36d37b] {
   position: relative;
 }
-.search-icon[data-v-046dcbf4] {
+.search-icon[data-v-5c36d37b] {
   position: absolute;
   left: 10px;
   top: 50%;
   transform: translateY(-50%);
   width: 14px;
   height: 14px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
 }
-.search-input[data-v-046dcbf4] {
+.search-input[data-v-5c36d37b] {
   width: 100%;
   padding: 8px 12px 8px 32px;
-  background: var(--comfy-input-bg, #333);
-  border: 1px solid var(--border-color, #444);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border);
   border-radius: 6px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   font-size: 13px;
   outline: none;
 }
-.search-input[data-v-046dcbf4]:focus {
-  border-color: var(--fg-color, #fff);
+.search-input[data-v-5c36d37b]:focus {
+  border-color: var(--lm-fg);
 }
-.search-input[data-v-046dcbf4]::placeholder {
-  color: var(--fg-color, #fff);
+.search-input[data-v-5c36d37b]::placeholder {
+  color: var(--lm-fg);
   opacity: 0.4;
 }
-.folder-tree[data-v-046dcbf4] {
+.folder-tree[data-v-5c36d37b] {
   display: flex;
   flex-direction: column;
 }
-.no-results[data-v-046dcbf4] {
+.no-results[data-v-5c36d37b] {
   padding: 20px;
   text-align: center;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
   font-size: 13px;
 }
 
-.lora-pool-widget[data-v-ed73eab5] {
+.lora-pool-widget[data-v-271afb29] {
   padding: 12px;
-  background: rgba(40, 44, 52, 0.6);
+  /* The node surface shows through; only interactive controls and cards are
+     painted, so the widget never looks like a darkened slab on light themes. */
+  background: transparent;
   border-radius: 4px;
   height: 100%;
   display: flex;
@@ -1105,7 +1107,7 @@ to { transform: rotate(360deg);
   box-sizing: border-box;
 }
 
-.last-used-preview[data-v-b940502e] {
+.last-used-preview[data-v-3d04a7a0] {
   position: absolute;
   bottom: 100%;
   right: 0;
@@ -1113,71 +1115,71 @@ to { transform: rotate(360deg);
   z-index: 100;
   width: 280px;
 }
-.last-used-preview__content[data-v-b940502e] {
+.last-used-preview__content[data-v-3d04a7a0] {
   background: var(--comfy-menu-bg, #1a1a1a);
-  border: 1px solid var(--border-color, #444);
+  border: 1px solid var(--lm-border);
   border-radius: 6px;
   padding: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--lm-shadow);
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.last-used-preview__item[data-v-b940502e] {
+.last-used-preview__item[data-v-3d04a7a0] {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 6px;
-  background: var(--comfy-input-bg, #333);
+  background: var(--lm-surface);
   border-radius: 6px;
 }
-.last-used-preview__thumb[data-v-b940502e] {
+.last-used-preview__thumb[data-v-3d04a7a0] {
   width: 28px;
   height: 28px;
   object-fit: cover;
   border-radius: 3px;
   flex-shrink: 0;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--lm-surface-hover);
 }
-.last-used-preview__thumb--placeholder[data-v-b940502e] {
+.last-used-preview__thumb--placeholder[data-v-3d04a7a0] {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.2;
 }
-.last-used-preview__thumb--placeholder svg[data-v-b940502e] {
+.last-used-preview__thumb--placeholder svg[data-v-3d04a7a0] {
   width: 14px;
   height: 14px;
 }
-.last-used-preview__info[data-v-b940502e] {
+.last-used-preview__info[data-v-3d04a7a0] {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 1px;
   min-width: 0;
 }
-.last-used-preview__name[data-v-b940502e] {
+.last-used-preview__name[data-v-3d04a7a0] {
   font-size: 11px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.last-used-preview__strength[data-v-b940502e] {
+.last-used-preview__strength[data-v-3d04a7a0] {
   font-size: 10px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
 }
-.last-used-preview__more[data-v-b940502e] {
+.last-used-preview__more[data-v-3d04a7a0] {
   font-size: 11px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
   text-align: center;
   padding: 4px;
 }
 
-.single-slider[data-v-04874dd7] {
+.single-slider[data-v-4a65bc92] {
   position: relative;
   width: 100%;
   height: 24px;
@@ -1185,46 +1187,46 @@ to { transform: rotate(360deg);
   cursor: default !important;
   touch-action: none;
 }
-.single-slider.disabled[data-v-04874dd7] {
+.single-slider.disabled[data-v-4a65bc92] {
   opacity: 0.4;
   pointer-events: none;
 }
-.single-slider.is-dragging[data-v-04874dd7] {
+.single-slider.is-dragging[data-v-4a65bc92] {
   cursor: ew-resize !important;
 }
-.slider-track[data-v-04874dd7] {
+.slider-track[data-v-4a65bc92] {
   position: absolute;
   top: 12px;
   left: 0;
   right: 0;
   height: 4px;
-  background: var(--comfy-input-bg, #333);
+  background: var(--lm-surface);
   border-radius: 4px;
   cursor: default !important;
 }
-.slider-track__bg[data-v-04874dd7] {
+.slider-track__bg[data-v-4a65bc92] {
   position: absolute;
   inset: 0;
-  background: rgba(66, 153, 225, 0.15);
+  background: var(--lm-accent-track);
   border-radius: 2px;
 }
-.slider-track__active[data-v-04874dd7] {
+.slider-track__active[data-v-4a65bc92] {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
-  background: rgba(66, 153, 225, 0.6);
+  background: var(--lm-accent-fill);
   border-radius: 2px;
   transition: width 0.05s linear;
 }
-.slider-track__default[data-v-04874dd7] {
+.slider-track__default[data-v-4a65bc92] {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(66, 153, 225, 0.1);
+  background: var(--lm-accent-track);
   border-radius: 2px;
 }
-.slider-handle[data-v-04874dd7] {
+.slider-handle[data-v-4a65bc92] {
   position: absolute;
   top: 0;
   transform: translateX(-50%);
@@ -1232,38 +1234,38 @@ to { transform: rotate(360deg);
   z-index: 2;
   touch-action: none;
 }
-.slider-handle__thumb[data-v-04874dd7] {
+.slider-handle__thumb[data-v-4a65bc92] {
   width: 14px;
   height: 14px;
-  background: var(--fg-color, #fff);
+  background: var(--lm-fg);
   border-radius: 50%;
   position: absolute;
   top: 7px;
   left: 0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--lm-shadow);
   transition: transform 0.15s ease;
 }
-.slider-handle:hover .slider-handle__thumb[data-v-04874dd7] {
+.slider-handle:hover .slider-handle__thumb[data-v-4a65bc92] {
   transform: scale(1.1);
 }
-.slider-handle:active .slider-handle__thumb[data-v-04874dd7] {
+.slider-handle:active .slider-handle__thumb[data-v-4a65bc92] {
   transform: scale(1.15);
 }
-.slider-handle__value[data-v-04874dd7] {
+.slider-handle__value[data-v-4a65bc92] {
   position: absolute;
   top: -6px;
   left: 50%;
   transform: translateX(-50%);
   font-size: 12px;
   font-family: 'SF Mono', 'Roboto Mono', monospace;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.8;
   white-space: nowrap;
   pointer-events: none;
   line-height: 14px;
 }
 
-.dual-range-slider[data-v-e0c8dc9f] {
+.dual-range-slider[data-v-e2333f13] {
   position: relative;
   width: 100%;
   height: 24px;
@@ -1271,64 +1273,64 @@ to { transform: rotate(360deg);
   cursor: default !important;
   touch-action: none;
 }
-.dual-range-slider.disabled[data-v-e0c8dc9f] {
+.dual-range-slider.disabled[data-v-e2333f13] {
   opacity: 0.4;
   pointer-events: none;
 }
-.dual-range-slider.is-dragging[data-v-e0c8dc9f] {
+.dual-range-slider.is-dragging[data-v-e2333f13] {
   cursor: ew-resize !important;
 }
-.slider-track[data-v-e0c8dc9f] {
+.slider-track[data-v-e2333f13] {
   position: absolute;
   top: 12px;
   left: 0;
   right: 0;
   height: 4px;
-  background: var(--comfy-input-bg, #333);
+  background: var(--lm-surface);
   border-radius: 4px;
   cursor: default !important;
 }
-.slider-track__bg[data-v-e0c8dc9f] {
+.slider-track__bg[data-v-e2333f13] {
   position: absolute;
   inset: 0;
-  background: rgba(66, 153, 225, 0.15);
+  background: var(--lm-accent-track);
   border-radius: 2px;
 }
-.slider-track__active[data-v-e0c8dc9f] {
+.slider-track__active[data-v-e2333f13] {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(66, 153, 225, 0.6);
+  background: var(--lm-accent-fill);
   border-radius: 2px;
   transition: left 0.05s linear, width 0.05s linear;
 }
-.slider-track__default[data-v-e0c8dc9f] {
+.slider-track__default[data-v-e2333f13] {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(66, 153, 225, 0.1);
+  background: var(--lm-accent-track);
   border-radius: 2px;
 }
-.slider-track__segment[data-v-e0c8dc9f] {
+.slider-track__segment[data-v-e2333f13] {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(66, 153, 225, 0.08);
+  background: var(--lm-accent-track);
   border-radius: 2px;
 }
-.slider-track__segment--expanded[data-v-e0c8dc9f] {
-  background: rgba(66, 153, 225, 0.15);
+.slider-track__segment--expanded[data-v-e2333f13] {
+  background: var(--lm-accent-soft);
 }
-.slider-track__segment[data-v-e0c8dc9f]:not(:last-child)::after {
+.slider-track__segment[data-v-e2333f13]:not(:last-child)::after {
   content: '';
   position: absolute;
   top: -1px;
   bottom: -1px;
   right: 0;
   width: 1px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--lm-border-soft);
 }
-.slider-handle[data-v-e0c8dc9f] {
+.slider-handle[data-v-e2333f13] {
   position: absolute;
   top: 0;
   transform: translateX(-50%);
@@ -1336,91 +1338,91 @@ to { transform: rotate(360deg);
   z-index: 2;
   touch-action: none;
 }
-.slider-handle__thumb[data-v-e0c8dc9f] {
+.slider-handle__thumb[data-v-e2333f13] {
   width: 14px;
   height: 14px;
-  background: var(--fg-color, #fff);
+  background: var(--lm-fg);
   border-radius: 50%;
   position: absolute;
   top: 7px;
   left: 0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--lm-shadow);
   transition: transform 0.15s ease;
 }
-.slider-handle:hover .slider-handle__thumb[data-v-e0c8dc9f] {
+.slider-handle:hover .slider-handle__thumb[data-v-e2333f13] {
   transform: scale(1.1);
 }
-.slider-handle:active .slider-handle__thumb[data-v-e0c8dc9f] {
+.slider-handle:active .slider-handle__thumb[data-v-e2333f13] {
   transform: scale(1.15);
 }
-.slider-handle__value[data-v-e0c8dc9f] {
+.slider-handle__value[data-v-e2333f13] {
   position: absolute;
   top: -6px;
   left: 50%;
   transform: translateX(-50%);
   font-size: 12px;
   font-family: 'SF Mono', 'Roboto Mono', monospace;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.8;
   white-space: nowrap;
   pointer-events: none;
   line-height: 14px;
 }
-.slider-handle--min .slider-handle__value[data-v-e0c8dc9f] {
+.slider-handle--min .slider-handle__value[data-v-e2333f13] {
   text-align: center;
 }
-.slider-handle--max .slider-handle__value[data-v-e0c8dc9f] {
+.slider-handle--max .slider-handle__value[data-v-e2333f13] {
   text-align: center;
 }
 
-.randomizer-settings[data-v-f7a531b6] {
+.randomizer-settings[data-v-59071d72] {
   display: flex;
   flex-direction: column;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  color: #e4e4e7;
+  color: var(--lm-fg);
 }
-.settings-header[data-v-f7a531b6] {
+.settings-header[data-v-59071d72] {
   margin-bottom: 8px;
 }
-.settings-title[data-v-f7a531b6] {
+.settings-title[data-v-59071d72] {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.05em;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.6;
   margin: 0;
   text-transform: uppercase;
 }
-.setting-section[data-v-f7a531b6] {
+.setting-section[data-v-59071d72] {
   margin-bottom: 6px;
 }
-.setting-label[data-v-f7a531b6] {
+.setting-label[data-v-59071d72] {
   font-size: 13px;
   font-weight: 500;
-  color: rgba(226, 232, 240, 0.8);
+  color: var(--lm-fg-muted);
   display: block;
   margin-bottom: 8px;
 }
-.section-header-with-toggle[data-v-f7a531b6] {
+.section-header-with-toggle[data-v-59071d72] {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
 }
-.section-header-with-toggle .setting-label[data-v-f7a531b6] {
+.section-header-with-toggle .setting-label[data-v-59071d72] {
   margin-bottom: 4px;
 }
 
 /* Count Mode Tabs */
-.count-mode-tabs[data-v-f7a531b6] {
+.count-mode-tabs[data-v-59071d72] {
   display: flex;
-  background: rgba(26, 32, 44, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.2);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border-soft);
   border-radius: 6px;
   overflow: hidden;
   margin-bottom: 8px;
 }
-.count-mode-tab[data-v-f7a531b6] {
+.count-mode-tab[data-v-59071d72] {
   flex: 1;
   position: relative;
   padding: 8px 12px;
@@ -1428,50 +1430,50 @@ to { transform: rotate(360deg);
   cursor: pointer;
   transition: all 0.2s ease;
 }
-.count-mode-tab input[type="radio"][data-v-f7a531b6] {
+.count-mode-tab input[type="radio"][data-v-59071d72] {
   position: absolute;
   opacity: 0;
   width: 0;
   height: 0;
 }
-.count-mode-tab-label[data-v-f7a531b6] {
+.count-mode-tab-label[data-v-59071d72] {
   font-size: 13px;
   font-weight: 500;
-  color: rgba(226, 232, 240, 0.7);
+  color: var(--lm-fg-muted);
   transition: all 0.2s ease;
 }
-.count-mode-tab:hover .count-mode-tab-label[data-v-f7a531b6] {
-  color: rgba(226, 232, 240, 0.9);
+.count-mode-tab:hover .count-mode-tab-label[data-v-59071d72] {
+  color: var(--lm-fg);
 }
-.count-mode-tab.active .count-mode-tab-label[data-v-f7a531b6] {
-  color: rgba(191, 219, 254, 1);
+.count-mode-tab.active .count-mode-tab-label[data-v-59071d72] {
+  color: var(--lm-accent-text);
   font-weight: 600;
 }
-.count-mode-tab.active[data-v-f7a531b6] {
-  background: rgba(66, 153, 225, 0.2);
+.count-mode-tab.active[data-v-59071d72] {
+  background: var(--lm-surface-selected);
 }
-.count-mode-tab.active[data-v-f7a531b6]::after {
+.count-mode-tab.active[data-v-59071d72]::after {
   content: '';
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   height: 2px;
-  background: rgba(66, 153, 225, 0.9);
+  background: var(--lm-accent);
 }
-.slider-container[data-v-f7a531b6] {
-  background: rgba(26, 32, 44, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.2);
+.slider-container[data-v-59071d72] {
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border-soft);
   border-radius: 6px;
   padding: 6px;
 }
-.slider-container--disabled[data-v-f7a531b6] {
+.slider-container--disabled[data-v-59071d72] {
   opacity: 0.5;
   pointer-events: none;
 }
 
 /* Toggle Switch (same style as LicenseSection) */
-.toggle-switch[data-v-f7a531b6] {
+.toggle-switch[data-v-59071d72] {
   position: relative;
   width: 36px;
   height: 20px;
@@ -1480,106 +1482,107 @@ to { transform: rotate(360deg);
   border: none;
   cursor: pointer;
 }
-.toggle-switch__track[data-v-f7a531b6] {
+.toggle-switch__track[data-v-59071d72] {
   position: absolute;
   inset: 0;
-  background: var(--comfy-input-bg, #333);
-  border: 1px solid var(--border-color, #444);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border);
   border-radius: 10px;
   transition: all 0.2s;
 }
-.toggle-switch--active .toggle-switch__track[data-v-f7a531b6] {
-  background: rgba(66, 153, 225, 0.3);
-  border-color: rgba(66, 153, 225, 0.6);
+.toggle-switch--active .toggle-switch__track[data-v-59071d72] {
+  background: var(--lm-surface-selected);
+  border-color: var(--lm-accent-border);
 }
-.toggle-switch__thumb[data-v-f7a531b6] {
+.toggle-switch__thumb[data-v-59071d72] {
   position: absolute;
   top: 3px;
   left: 2px;
   width: 14px;
   height: 14px;
-  background: var(--fg-color, #fff);
+  background: var(--lm-fg);
   border-radius: 50%;
   transition: all 0.2s;
   opacity: 0.6;
 }
-.toggle-switch--active .toggle-switch__thumb[data-v-f7a531b6] {
+.toggle-switch--active .toggle-switch__thumb[data-v-59071d72] {
   transform: translateX(16px);
-  background: #4299e1;
+  background: var(--lm-accent);
   opacity: 1;
 }
-.toggle-switch:hover .toggle-switch__thumb[data-v-f7a531b6] {
+.toggle-switch:hover .toggle-switch__thumb[data-v-59071d72] {
   opacity: 1;
 }
 
 /* Roll buttons with tooltip container */
-.roll-buttons-with-tooltip[data-v-f7a531b6] {
+.roll-buttons-with-tooltip[data-v-59071d72] {
   position: relative;
 }
 
 /* Roll buttons container */
-.roll-buttons[data-v-f7a531b6] {
+.roll-buttons[data-v-59071d72] {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 6px;
 }
-.roll-button[data-v-f7a531b6] {
+.roll-button[data-v-59071d72] {
   padding: 6px 8px;
-  background: rgba(30, 30, 36, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border-soft);
   border-radius: 6px;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  color: #e4e4e7;
+  color: var(--lm-fg);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
 }
-.roll-button[data-v-f7a531b6]:hover:not(:disabled) {
-  background: rgba(66, 153, 225, 0.2);
-  border-color: rgba(66, 153, 225, 0.4);
-  color: #bfdbfe;
+.roll-button[data-v-59071d72]:hover:not(:disabled) {
+  background: var(--lm-accent-soft);
+  border-color: var(--lm-accent-border);
+  color: var(--lm-accent-text);
 }
-.roll-button.selected[data-v-f7a531b6] {
-  background: rgba(66, 153, 225, 0.3);
-  border-color: rgba(66, 153, 225, 0.6);
-  color: #e4e4e7;
-  box-shadow: 0 0 0 1px rgba(66, 153, 225, 0.3);
+.roll-button.selected[data-v-59071d72] {
+  background: var(--lm-surface-selected);
+  border-color: var(--lm-accent-border);
+  color: var(--lm-fg);
+  box-shadow: 0 0 0 1px var(--lm-accent-soft);
 }
-.roll-button[data-v-f7a531b6]:disabled {
+.roll-button[data-v-59071d72]:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
-.roll-button__icon[data-v-f7a531b6] {
+.roll-button__icon[data-v-59071d72] {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
 }
-.roll-button__text[data-v-f7a531b6] {
+.roll-button__text[data-v-59071d72] {
   font-size: 12px;
   text-align: center;
   line-height: 1.2;
 }
 
 /* Tooltip transitions */
-.tooltip-enter-active[data-v-f7a531b6],
-.tooltip-leave-active[data-v-f7a531b6] {
+.tooltip-enter-active[data-v-59071d72],
+.tooltip-leave-active[data-v-59071d72] {
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
-.tooltip-enter-from[data-v-f7a531b6],
-.tooltip-leave-to[data-v-f7a531b6] {
+.tooltip-enter-from[data-v-59071d72],
+.tooltip-leave-to[data-v-59071d72] {
   opacity: 0;
   transform: translateY(4px);
 }
 
-.lora-randomizer-widget[data-v-ca6e8cec] {
+.lora-randomizer-widget[data-v-54f2f3a9] {
   padding: 6px;
-  background: rgba(40, 44, 52, 0.6);
+  /* Let the node surface show through; only inner controls are painted. */
+  background: transparent;
   border-radius: 6px;
   height: 100%;
   display: flex;
@@ -1588,42 +1591,42 @@ to { transform: rotate(360deg);
   box-sizing: border-box;
 }
 
-.cycler-settings[data-v-f0663be4] {
+.cycler-settings[data-v-a772e649] {
   display: flex;
   flex-direction: column;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  color: #e4e4e7;
+  color: var(--lm-fg);
 }
-.settings-header[data-v-f0663be4] {
+.settings-header[data-v-a772e649] {
   margin-bottom: 8px;
 }
-.settings-title[data-v-f0663be4] {
+.settings-title[data-v-a772e649] {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.05em;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.6;
   margin: 0;
   text-transform: uppercase;
 }
-.setting-section[data-v-f0663be4] {
+.setting-section[data-v-a772e649] {
   margin-bottom: 8px;
 }
-.setting-label[data-v-f0663be4] {
+.setting-label[data-v-a772e649] {
   font-size: 13px;
   font-weight: 500;
-  color: rgba(226, 232, 240, 0.8);
+  color: var(--lm-fg-muted);
   display: block;
   margin-bottom: 6px;
 }
 
 /* Progress Display */
-.progress-section[data-v-f0663be4] {
+.progress-section[data-v-a772e649] {
   margin-bottom: 12px;
 }
-.progress-display[data-v-f0663be4] {
-  background: rgba(26, 32, 44, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.2);
+.progress-display[data-v-a772e649] {
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border-soft);
   border-radius: 6px;
   padding: 8px 10px;
   display: flex;
@@ -1631,39 +1634,39 @@ to { transform: rotate(360deg);
   align-items: center;
   transition: border-color 0.3s ease;
 }
-.progress-display.executing[data-v-f0663be4] {
-  border-color: rgba(66, 153, 225, 0.5);
-  animation: pulse-f0663be4 2s ease-in-out infinite;
+.progress-display.executing[data-v-a772e649] {
+  border-color: var(--lm-accent-border);
+  animation: pulse-a772e649 2s ease-in-out infinite;
 }
-@keyframes pulse-f0663be4 {
-0%, 100% { border-color: rgba(66, 153, 225, 0.3);
+@keyframes pulse-a772e649 {
+0%, 100% { border-color: var(--lm-accent-soft);
 }
-50% { border-color: rgba(66, 153, 225, 0.7);
+50% { border-color: var(--lm-accent);
 }
 }
-.progress-info[data-v-f0663be4] {
+.progress-info[data-v-a772e649] {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
   flex: 1;
 }
-.progress-label[data-v-f0663be4] {
+.progress-label[data-v-a772e649] {
   font-size: 10px;
   font-weight: 500;
-  color: rgba(226, 232, 240, 0.5);
+  color: var(--lm-fg-subtle);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
-.progress-name[data-v-f0663be4] {
+.progress-name[data-v-a772e649] {
   font-size: 13px;
   font-weight: 500;
-  color: rgba(191, 219, 254, 1);
+  color: var(--lm-accent-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.progress-name.clickable[data-v-f0663be4] {
+.progress-name.clickable[data-v-a772e649] {
   cursor: pointer;
   padding: 2px 6px;
   margin: -2px -6px;
@@ -1673,59 +1676,59 @@ to { transform: rotate(360deg);
   align-items: center;
   gap: 4px;
 }
-.progress-name.clickable[data-v-f0663be4]:hover:not(.disabled) {
-  background: rgba(66, 153, 225, 0.2);
-  color: rgba(191, 219, 254, 1);
+.progress-name.clickable[data-v-a772e649]:hover:not(.disabled) {
+  background: var(--lm-accent-soft);
+  color: var(--lm-accent-text);
 }
-.progress-name.no-lora[data-v-f0663be4] {
+.progress-name.no-lora[data-v-a772e649] {
   font-style: italic;
-  color: rgba(226, 232, 240, 0.6);
+  color: var(--lm-fg-subtle);
 }
-.progress-name.clickable.no-lora[data-v-f0663be4]:hover:not(.disabled) {
-  background: rgba(160, 174, 192, 0.2);
-  color: rgba(226, 232, 240, 0.8);
+.progress-name.clickable.no-lora[data-v-a772e649]:hover:not(.disabled) {
+  background: var(--lm-surface-hover);
+  color: var(--lm-fg-muted);
 }
-.progress-name.clickable.disabled[data-v-f0663be4] {
+.progress-name.clickable.disabled[data-v-a772e649] {
   cursor: not-allowed;
   opacity: 0.5;
 }
-.progress-info.disabled[data-v-f0663be4] {
+.progress-info.disabled[data-v-a772e649] {
   cursor: not-allowed;
 }
-.selector-icon[data-v-f0663be4] {
+.selector-icon[data-v-a772e649] {
   width: 16px;
   height: 16px;
   opacity: 0.5;
   flex-shrink: 0;
 }
-.progress-name.clickable:hover .selector-icon[data-v-f0663be4] {
+.progress-name.clickable:hover .selector-icon[data-v-a772e649] {
   opacity: 0.8;
 }
-.progress-counter[data-v-f0663be4] {
+.progress-counter[data-v-a772e649] {
   display: flex;
   align-items: center;
   gap: 4px;
   padding-left: 12px;
   flex-shrink: 0;
 }
-.progress-index[data-v-f0663be4] {
+.progress-index[data-v-a772e649] {
   font-size: 18px;
   font-weight: 600;
-  color: rgba(66, 153, 225, 1);
+  color: var(--lm-accent);
   font-family: 'SF Mono', 'Roboto Mono', monospace;
   min-width: 4ch;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-.progress-separator[data-v-f0663be4] {
+.progress-separator[data-v-a772e649] {
   font-size: 14px;
-  color: rgba(226, 232, 240, 0.4);
+  color: var(--lm-fg-subtle);
   margin: 0 2px;
 }
-.progress-total[data-v-f0663be4] {
+.progress-total[data-v-a772e649] {
   font-size: 14px;
   font-weight: 500;
-  color: rgba(226, 232, 240, 0.6);
+  color: var(--lm-fg-subtle);
   font-family: 'SF Mono', 'Roboto Mono', monospace;
   min-width: 4ch;
   text-align: left;
@@ -1733,123 +1736,123 @@ to { transform: rotate(360deg);
 }
 
 /* Repeat Progress */
-.repeat-progress[data-v-f0663be4] {
+.repeat-progress[data-v-a772e649] {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-left: 8px;
   padding: 2px 6px;
-  background: rgba(26, 32, 44, 0.6);
-  border: 1px solid rgba(226, 232, 240, 0.1);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border-soft);
   border-radius: 4px;
 }
-.repeat-progress-track[data-v-f0663be4] {
+.repeat-progress-track[data-v-a772e649] {
   width: 32px;
   height: 4px;
-  background: rgba(226, 232, 240, 0.15);
+  background: var(--lm-border-soft);
   border-radius: 2px;
   overflow: hidden;
 }
-.repeat-progress-fill[data-v-f0663be4] {
+.repeat-progress-fill[data-v-a772e649] {
   height: 100%;
-  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  background: var(--lm-warning-progress);
   border-radius: 2px;
   transition: width 0.3s ease;
 }
-.repeat-progress-fill.is-complete[data-v-f0663be4] {
-  background: linear-gradient(90deg, #10b981, #34d399);
+.repeat-progress-fill.is-complete[data-v-a772e649] {
+  background: var(--lm-ok-progress);
 }
-.repeat-progress-text[data-v-f0663be4] {
+.repeat-progress-text[data-v-a772e649] {
   font-size: 10px;
   font-family: 'SF Mono', 'Roboto Mono', monospace;
-  color: rgba(253, 230, 138, 0.9);
+  color: var(--lm-warning);
   min-width: 3ch;
   font-variant-numeric: tabular-nums;
 }
 
 /* Index Controls Row - Grouped Layout */
-.index-controls-row[data-v-f0663be4] {
+.index-controls-row[data-v-a772e649] {
   display: flex;
   align-items: flex-end;
   gap: 16px;
 }
 
 /* Control Group */
-.control-group[data-v-f0663be4] {
+.control-group[data-v-a772e649] {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.control-group-label[data-v-f0663be4] {
+.control-group-label[data-v-a772e649] {
   font-size: 11px;
   font-weight: 500;
-  color: rgba(226, 232, 240, 0.5);
+  color: var(--lm-fg-subtle);
   text-transform: uppercase;
   letter-spacing: 0.03em;
   line-height: 1;
 }
-.control-group-content[data-v-f0663be4] {
+.control-group-content[data-v-a772e649] {
   display: flex;
   align-items: baseline;
   gap: 4px;
   height: 32px;
 }
-.index-input[data-v-f0663be4] {
+.index-input[data-v-a772e649] {
   width: 50px;
   height: 32px;
   padding: 0 8px;
-  background: rgba(26, 32, 44, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.2);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border-soft);
   border-radius: 6px;
-  color: #e4e4e7;
+  color: var(--lm-fg);
   font-size: 13px;
   font-family: 'SF Mono', 'Roboto Mono', monospace;
   line-height: 32px;
   box-sizing: border-box;
 }
-.index-input[data-v-f0663be4]:focus {
+.index-input[data-v-a772e649]:focus {
   outline: none;
-  border-color: rgba(66, 153, 225, 0.6);
+  border-color: var(--lm-accent-border);
 }
-.index-input[data-v-f0663be4]:disabled {
+.index-input[data-v-a772e649]:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
-.index-hint[data-v-f0663be4] {
+.index-hint[data-v-a772e649] {
   font-size: 12px;
-  color: rgba(226, 232, 240, 0.4);
+  color: var(--lm-fg-subtle);
   font-variant-numeric: tabular-nums;
   line-height: 32px;
 }
 
 /* Repeat Controls */
-.repeat-input[data-v-f0663be4] {
+.repeat-input[data-v-a772e649] {
   width: 50px;
   height: 32px;
   padding: 0 6px;
-  background: rgba(26, 32, 44, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.2);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border-soft);
   border-radius: 6px;
-  color: #e4e4e7;
+  color: var(--lm-fg);
   font-size: 13px;
   font-family: 'SF Mono', 'Roboto Mono', monospace;
   text-align: center;
   line-height: 32px;
   box-sizing: border-box;
 }
-.repeat-input[data-v-f0663be4]:focus {
+.repeat-input[data-v-a772e649]:focus {
   outline: none;
-  border-color: rgba(66, 153, 225, 0.6);
+  border-color: var(--lm-accent-border);
 }
-.repeat-suffix[data-v-f0663be4] {
+.repeat-suffix[data-v-a772e649] {
   font-size: 13px;
-  color: rgba(226, 232, 240, 0.4);
+  color: var(--lm-fg-subtle);
   font-weight: 500;
   line-height: 32px;
 }
 
 /* Action Buttons */
-.action-buttons[data-v-f0663be4] {
+.action-buttons[data-v-a772e649] {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1857,7 +1860,7 @@ to { transform: rotate(360deg);
 }
 
 /* Control Buttons */
-.control-btn[data-v-f0663be4] {
+.control-btn[data-v-a772e649] {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1865,58 +1868,58 @@ to { transform: rotate(360deg);
   height: 24px;
   padding: 0;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--lm-border-soft);
   border-radius: 4px;
-  color: rgba(226, 232, 240, 0.6);
+  color: var(--lm-fg-subtle);
   cursor: pointer;
   transition: all 0.2s;
 }
-.control-btn[data-v-f0663be4]:hover:not(:disabled) {
-  background: rgba(66, 153, 225, 0.2);
-  border-color: rgba(66, 153, 225, 0.4);
-  color: rgba(191, 219, 254, 1);
+.control-btn[data-v-a772e649]:hover:not(:disabled) {
+  background: var(--lm-accent-soft);
+  border-color: var(--lm-accent-border);
+  color: var(--lm-accent-text);
 }
-.control-btn[data-v-f0663be4]:disabled {
+.control-btn[data-v-a772e649]:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
-.control-btn.active[data-v-f0663be4] {
-  background: rgba(245, 158, 11, 0.2);
-  border-color: rgba(245, 158, 11, 0.5);
-  color: rgba(253, 230, 138, 1);
+.control-btn.active[data-v-a772e649] {
+  background: var(--lm-warning-soft);
+  border-color: var(--lm-warning-border);
+  color: var(--lm-warning);
 }
-.control-btn.active[data-v-f0663be4]:hover {
-  background: rgba(245, 158, 11, 0.3);
-  border-color: rgba(245, 158, 11, 0.6);
+.control-btn.active[data-v-a772e649]:hover {
+  background: var(--lm-warning-soft);
+  border-color: var(--lm-warning-border);
 }
-.control-icon[data-v-f0663be4] {
+.control-icon[data-v-a772e649] {
   width: 14px;
   height: 14px;
 }
 
 /* Slider Container */
-.slider-container[data-v-f0663be4] {
-  background: rgba(26, 32, 44, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.2);
+.slider-container[data-v-a772e649] {
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border-soft);
   border-radius: 6px;
   padding: 6px;
 }
-.slider-container--disabled[data-v-f0663be4] {
+.slider-container--disabled[data-v-a772e649] {
   opacity: 0.5;
   pointer-events: none;
 }
-.section-header-with-toggle[data-v-f0663be4] {
+.section-header-with-toggle[data-v-a772e649] {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
 }
-.section-header-with-toggle .setting-label[data-v-f0663be4] {
+.section-header-with-toggle .setting-label[data-v-a772e649] {
   margin-bottom: 4px;
 }
 
 /* Toggle Switch */
-.toggle-switch[data-v-f0663be4] {
+.toggle-switch[data-v-a772e649] {
   position: relative;
   width: 36px;
   height: 20px;
@@ -1925,70 +1928,70 @@ to { transform: rotate(360deg);
   border: none;
   cursor: pointer;
 }
-.toggle-switch__track[data-v-f0663be4] {
+.toggle-switch__track[data-v-a772e649] {
   position: absolute;
   inset: 0;
-  background: var(--comfy-input-bg, #333);
-  border: 1px solid var(--border-color, #444);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border);
   border-radius: 10px;
   transition: all 0.2s;
 }
-.toggle-switch--active .toggle-switch__track[data-v-f0663be4] {
-  background: rgba(66, 153, 225, 0.3);
-  border-color: rgba(66, 153, 225, 0.6);
+.toggle-switch--active .toggle-switch__track[data-v-a772e649] {
+  background: var(--lm-accent-soft);
+  border-color: var(--lm-accent-border);
 }
-.toggle-switch__thumb[data-v-f0663be4] {
+.toggle-switch__thumb[data-v-a772e649] {
   position: absolute;
   top: 3px;
   left: 2px;
   width: 14px;
   height: 14px;
-  background: var(--fg-color, #fff);
+  background: var(--lm-fg);
   border-radius: 50%;
   transition: all 0.2s;
   opacity: 0.6;
 }
-.toggle-switch--active .toggle-switch__thumb[data-v-f0663be4] {
+.toggle-switch--active .toggle-switch__thumb[data-v-a772e649] {
   transform: translateX(16px);
-  background: #4299e1;
+  background: var(--lm-accent);
   opacity: 1;
 }
-.toggle-switch:hover .toggle-switch__thumb[data-v-f0663be4] {
+.toggle-switch:hover .toggle-switch__thumb[data-v-a772e649] {
   opacity: 1;
 }
 
-.search-container[data-v-83f6f852] {
+.search-container[data-v-4794e456] {
   position: relative;
 }
-.search-icon[data-v-83f6f852] {
+.search-icon[data-v-4794e456] {
   position: absolute;
   left: 10px;
   top: 50%;
   transform: translateY(-50%);
   width: 14px;
   height: 14px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
 }
-.search-input[data-v-83f6f852] {
+.search-input[data-v-4794e456] {
   width: 100%;
   padding: 8px 32px;
-  background: var(--comfy-input-bg, #333);
-  border: 1px solid var(--border-color, #444);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border);
   border-radius: 6px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   font-size: 13px;
   outline: none;
   box-sizing: border-box;
 }
-.search-input[data-v-83f6f852]:focus {
-  border-color: rgba(66, 153, 225, 0.6);
+.search-input[data-v-4794e456]:focus {
+  border-color: var(--lm-accent-border);
 }
-.search-input[data-v-83f6f852]::placeholder {
-  color: var(--fg-color, #fff);
+.search-input[data-v-4794e456]::placeholder {
+  color: var(--lm-fg);
   opacity: 0.4;
 }
-.clear-button[data-v-83f6f852] {
+.clear-button[data-v-4794e456] {
   position: absolute;
   right: 8px;
   top: 50%;
@@ -2005,22 +2008,22 @@ to { transform: rotate(360deg);
   opacity: 0.5;
   transition: opacity 0.15s;
 }
-.clear-button[data-v-83f6f852]:hover {
+.clear-button[data-v-4794e456]:hover {
   opacity: 0.8;
 }
-.clear-button svg[data-v-83f6f852] {
+.clear-button svg[data-v-4794e456] {
   width: 12px;
   height: 12px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
 }
-.lora-list[data-v-83f6f852] {
+.lora-list[data-v-4794e456] {
   display: flex;
   flex-direction: column;
   gap: 2px;
   max-height: 400px;
   overflow-y: auto;
 }
-.lora-item[data-v-83f6f852] {
+.lora-item[data-v-4794e456] {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -2030,56 +2033,57 @@ to { transform: rotate(360deg);
   transition: all 0.15s;
   border-left: 3px solid transparent;
 }
-.lora-item[data-v-83f6f852]:hover {
-  background: rgba(66, 153, 225, 0.15);
+.lora-item[data-v-4794e456]:hover {
+  background: var(--lm-accent-soft);
 }
-.lora-item.active[data-v-83f6f852] {
-  background: rgba(66, 153, 225, 0.25);
-  border-left-color: rgba(66, 153, 225, 0.8);
+.lora-item.active[data-v-4794e456] {
+  background: var(--lm-surface-selected);
+  border-left-color: var(--lm-accent);
 }
-.lora-index[data-v-83f6f852] {
+.lora-index[data-v-4794e456] {
   font-family: 'SF Mono', 'Roboto Mono', monospace;
   font-size: 12px;
-  color: rgba(226, 232, 240, 0.5);
+  color: var(--lm-fg-subtle);
   min-width: 3ch;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-.lora-name[data-v-83f6f852] {
+.lora-name[data-v-4794e456] {
   flex: 1;
   font-size: 13px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.current-badge[data-v-83f6f852] {
+.current-badge[data-v-4794e456] {
   font-size: 11px;
   padding: 2px 8px;
-  background: rgba(66, 153, 225, 0.3);
-  border: 1px solid rgba(66, 153, 225, 0.5);
+  background: var(--lm-accent-soft);
+  border: 1px solid var(--lm-accent-border);
   border-radius: 4px;
-  color: rgba(191, 219, 254, 1);
+  color: var(--lm-accent-text);
   font-weight: 500;
 }
-.lora-item.no-lora-item .lora-name[data-v-83f6f852] {
+.lora-item.no-lora-item .lora-name[data-v-4794e456] {
   font-style: italic;
-  color: rgba(226, 232, 240, 0.6);
+  color: var(--lm-fg-subtle);
 }
-.lora-item.no-lora-item:hover .lora-name[data-v-83f6f852] {
-  color: rgba(226, 232, 240, 0.8);
+.lora-item.no-lora-item:hover .lora-name[data-v-4794e456] {
+  color: var(--lm-fg-muted);
 }
-.no-results[data-v-83f6f852] {
+.no-results[data-v-4794e456] {
   padding: 32px 20px;
   text-align: center;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
   font-size: 13px;
 }
 
-.lora-cycler-widget[data-v-3f46897a] {
+.lora-cycler-widget[data-v-39cb48c3] {
   padding: 6px;
-  background: rgba(40, 44, 52, 0.6);
+  /* Let the node surface show through; only inner controls are painted. */
+  background: transparent;
   border-radius: 6px;
   height: 100%;
   display: flex;
@@ -2088,9 +2092,10 @@ to { transform: rotate(360deg);
   box-sizing: border-box;
 }
 
-.json-display-widget[data-v-0f202476] {
+.json-display-widget[data-v-a4dd3912] {
   padding: 8px;
-  background: rgba(40, 44, 52, 0.6);
+  /* Let the node surface show through; only inner controls are painted. */
+  background: transparent;
   border-radius: 6px;
   height: 100%;
   display: flex;
@@ -2098,75 +2103,77 @@ to { transform: rotate(360deg);
   overflow: hidden;
   box-sizing: border-box;
 }
-.json-content[data-v-0f202476] {
+.json-content[data-v-a4dd3912] {
   flex: 1;
   overflow: auto;
   font-family: monospace;
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
-  color: rgba(226, 232, 240, 0.9);
+  color: var(--lm-fg);
 }
-.json-content pre[data-v-0f202476] {
+.json-content pre[data-v-a4dd3912] {
   margin: 0;
   padding: 0;
 }
-.placeholder[data-v-0f202476] {
+.placeholder[data-v-a4dd3912] {
   font-style: italic;
-  color: rgba(226, 232, 240, 0.6);
+  color: var(--lm-fg-subtle);
   text-align: center;
   padding: 20px 0;
 }
 
-.autocomplete-text-widget[data-v-8555b560] {
+.autocomplete-text-widget[data-v-a0c1830b] {
   background: transparent;
   height: 100%;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
 }
-.input-wrapper[data-v-8555b560] {
+.input-wrapper[data-v-a0c1830b] {
   position: relative;
   flex: 1;
   display: flex;
   width: 100%;
 }
 
-/* Canvas mode styles (default) - matches built-in comfy-multiline-input */
-.text-input[data-v-8555b560] {
+/* Theme tokens (--lm-*) come from the widget container, which ComfyUI's
+   renderer switches between the canvas widget palette and the Vue node
+   widget palette. Text size matches ComfyUI's own textarea in both modes. */
+.text-input[data-v-a0c1830b] {
   flex: 1;
   width: 100%;
-  background-color: var(--comfy-input-bg, #222);
-  color: var(--input-text, #ddd);
+  background-color: var(--lm-surface);
+  color: var(--lm-fg);
   overflow: hidden;
   overflow-y: auto;
   padding: 2px 2px 24px 2px;  /* Reserve bottom space for clear button */
-  resize: none;
   border: none;
   border-radius: 0;
   box-sizing: border-box;
   font-size: var(--comfy-textarea-font-size, 10px);
   font-family: monospace;
+  /* resize:none set here (0,2,0). Overridden to vertical in app mode
+     by the :global(.\\[\\&_textarea\\]\\:resize-y) .text-input rule below. */
+  resize: none;
 }
 
-/* Vue DOM mode styles - matches built-in p-textarea in Vue DOM mode */
-.text-input.vue-dom-mode[data-v-8555b560] {
-  background-color: var(--color-charcoal-400, #313235);
-  color: #fff;
+/* Vue DOM mode: same surface/foreground as the built-in WidgetTextarea,
+   only the box metrics differ. */
+.text-input.vue-dom-mode[data-v-a0c1830b] {
   padding: 8px 12px 30px 12px;  /* Reserve bottom space for clear button */
   margin: 0 0 4px;
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: 6px;  /* matches ComfyUI's rounded-md textarea */
   font-family: inherit;
 }
-.text-input[data-v-8555b560]:focus {
+.text-input[data-v-a0c1830b]:focus {
   outline: none;
 }
 
 /* Clear button styles */
-.clear-button[data-v-8555b560] {
+.clear-button[data-v-a0c1830b] {
   position: absolute;
-  right: 6px;
+  right: calc(6px + var(--lm-vscrollbar-width, 0px));
   bottom: 6px;  /* Changed from top to bottom */
   width: 18px;
   height: 18px;
@@ -2174,8 +2181,8 @@ to { transform: rotate(360deg);
   margin: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(128, 128, 128, 0.5);
-  color: #fff;
+  background: color-mix(in srgb, var(--lm-fg) 28%, transparent);
+  color: var(--lm-fg);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -2187,33 +2194,288 @@ to { transform: rotate(360deg);
 }
 
 /* Show clear button when hovering over input wrapper */
-.input-wrapper:hover .clear-button[data-v-8555b560] {
+.input-wrapper:hover .clear-button[data-v-a0c1830b] {
   opacity: 0.7;
   pointer-events: auto;
 }
-.clear-button[data-v-8555b560]:hover {
+.clear-button[data-v-a0c1830b]:hover {
   opacity: 1;
-  background: rgba(255, 100, 100, 0.8);
+  background: var(--lm-danger-soft);
+  color: var(--lm-danger-text);
 }
-.clear-button svg[data-v-8555b560] {
+.clear-button svg[data-v-a0c1830b] {
   width: 12px;
   height: 12px;
 }
 
 /* Vue DOM mode adjustments for clear button */
-.text-input.vue-dom-mode ~ .clear-button[data-v-8555b560] {
-  right: 8px;
+.text-input.vue-dom-mode ~ .clear-button[data-v-a0c1830b] {
+  right: calc(8px + var(--lm-vscrollbar-width, 0px));
   bottom: 10px;  /* Changed from top to bottom, adjusted for Vue DOM padding */
   width: 20px;
   height: 20px;
-  background: rgba(107, 114, 128, 0.6);
 }
-.text-input.vue-dom-mode ~ .clear-button[data-v-8555b560]:hover {
-  background: oklch(62% 0.18 25);
-}
-.text-input.vue-dom-mode ~ .clear-button svg[data-v-8555b560] {
+.text-input.vue-dom-mode ~ .clear-button svg[data-v-a0c1830b] {
   width: 14px;
   height: 14px;
+}
+
+
+[data-testid="app-mode-widget-item"] textarea,
+[data-testid="builder-widget-item"] textarea {
+  resize: vertical !important;
+}
+
+.lora-info-widget[data-v-50784163] {
+  padding: 12px;
+  /* Let the node surface show through; only inner controls are painted. */
+  background: transparent;
+  border-radius: 4px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Vue node mode: prevent content from pushing node size via ResizeObserver.
+   contain:layout size tells the browser the element's intrinsic size is
+   determined solely by CSS — not by descendant content. This breaks the
+   feedback loop where content grows → ResizeObserver resizes → content
+   reflows → repeat. Same technique used by tags_widget.js + lm_styles.css. */
+.lora-info-widget.lm-vue-node[data-v-50784163] {
+  contain: layout size;
+}
+
+/* ── Tab bar ── */
+.lora-info-tabs[data-v-50784163] {
+  display: flex;
+  gap: 0;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--lm-border);
+  flex-shrink: 0;
+}
+.lora-info-tab[data-v-50784163] {
+  flex: 1;
+  text-align: center;
+  cursor: pointer;
+  padding: 6px 0;
+  position: relative;
+}
+.lora-info-tab-input[data-v-50784163] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.lora-info-tab-label[data-v-50784163] {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--lm-fg);
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+.lora-info-tab:hover .lora-info-tab-label[data-v-50784163] {
+  opacity: 0.75;
+}
+.lora-info-tab.active .lora-info-tab-label[data-v-50784163] {
+  opacity: 1;
+}
+.lora-info-tab.active[data-v-50784163]::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 25%;
+  right: 25%;
+  height: 2px;
+  background: var(--lm-accent);
+  border-radius: 1px;
+}
+
+/* ── Tab content ── */
+.tab-content[data-v-50784163] {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.notes-tab[data-v-50784163] {
+  display: flex;
+  flex-direction: column;
+}
+.description-tab[data-v-50784163] {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ── Info fields (shared) ── */
+.info-field[data-v-50784163] {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.info-label[data-v-50784163] {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--lm-fg);
+  opacity: 0.6;
+}
+.lora-filename[data-v-50784163] {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--lm-fg);
+  word-break: break-all;
+  margin-bottom: 8px;
+  /* Override node-level grab cursor and user-select:none from .lg-node.cursor-grab */
+  cursor: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.notes-field[data-v-50784163] {
+  flex: 1;
+  min-height: 0;
+}
+.lora-notes[data-v-50784163] {
+  width: 100%;
+  flex: 1;
+  min-height: 60px;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid var(--lm-border);
+  background: var(--lm-surface);
+  color: var(--lm-fg);
+  font-size: 12px;
+  resize: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  outline: none;
+}
+.lora-notes[data-v-50784163]:focus {
+  border-color: var(--comfy-input-border, #444);
+}
+.lora-notes[data-v-50784163]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.save-btn[data-v-50784163] {
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--lm-accent-border);
+  background: var(--lm-accent-soft);
+  color: var(--lm-fg);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.save-btn[data-v-50784163]:hover:not(:disabled) {
+  background: var(--lm-accent-soft);
+  border-color: var(--lm-accent-border);
+}
+.save-btn[data-v-50784163]:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: var(--lm-accent-soft);
+  border-color: var(--lm-border-soft);
+}
+
+/* ── Description states ── */
+.description-state[data-v-50784163] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  color: var(--lm-fg);
+  opacity: 0.5;
+  font-size: 12px;
+  min-height: 0;
+  flex-shrink: 0;
+}
+.description-state.error[data-v-50784163] {
+  opacity: 0.7;
+  color: var(--lm-danger-text);
+}
+
+/* ── Description content ── */
+.description-content[data-v-50784163] {
+  min-height: 0;
+}
+.description-section[data-v-50784163] {
+  margin-bottom: 14px;
+}
+.description-section[data-v-50784163]:last-child {
+  margin-bottom: 0;
+}
+.description-text[data-v-50784163] {
+  padding: 8px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--lm-fg);
+  opacity: 0.85;
+  word-break: break-word;
+  /* Override node-level grab cursor and user-select:none from .lg-node.cursor-grab */
+  cursor: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.description-text[data-v-50784163] p {
+  margin: 0 0 8px 0;
+}
+.description-text[data-v-50784163] p:last-child {
+  margin-bottom: 0;
+}
+.description-text[data-v-50784163] a {
+  color: var(--lm-accent);
+}
+.description-text[data-v-50784163] ul,
+.description-text[data-v-50784163] ol {
+  padding-left: 20px;
+  margin: 4px 0;
+}
+.description-text[data-v-50784163] h1,
+.description-text[data-v-50784163] h2,
+.description-text[data-v-50784163] h3 {
+  font-size: 13px;
+  margin: 10px 0 4px 0;
+  font-weight: 600;
+  opacity: 0.95;
+}
+.description-text[data-v-50784163] code {
+  background: var(--lm-surface-hover);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+.description-text[data-v-50784163] img {
+  max-width: 100%;
+  border-radius: 4px;
+}
+
+/* ── Placeholder (shared) ── */
+.placeholder[data-v-50784163] {
+  font-style: italic;
+  color: var(--lm-fg-subtle);
+  text-align: center;
+  padding: 16px 0;
+  font-size: 12px;
+}
+
+/* ── Spinner (Font Awesome) ── */
+.fa-spinner[data-v-50784163] {
+  animation: fa-spin-50784163 1s linear infinite;
+}
+@keyframes fa-spin-50784163 {
+0% { transform: rotate(0deg);
+}
+100% { transform: rotate(360deg);
+}
 }`));
       document.head.appendChild(elementStyle);
     }
@@ -2222,8 +2484,9 @@ to { transform: rotate(360deg);
   }
 })();
 var _a;
-import { app as app$1 } from "../../../scripts/app.js";
-import { api as api$1 } from "../../../scripts/api.js";
+import { app } from "../../../scripts/app.js";
+import { api } from "../../../scripts/api.js";
+import "../settings.js";
 /**
 * @vue/shared v3.5.26
 * (c) 2018-present Yuxi (Evan) You and Vue contributors
@@ -2255,6 +2518,7 @@ const hasOwn = (val, key) => hasOwnProperty$1.call(val, key);
 const isArray = Array.isArray;
 const isMap = (val) => toTypeString(val) === "[object Map]";
 const isSet = (val) => toTypeString(val) === "[object Set]";
+const isDate = (val) => toTypeString(val) === "[object Date]";
 const isFunction = (val) => typeof val === "function";
 const isString = (val) => typeof val === "string";
 const isSymbol = (val) => typeof val === "symbol";
@@ -2379,6 +2643,52 @@ const specialBooleanAttrs = `itemscope,allowfullscreen,formnovalidate,ismap,nomo
 const isSpecialBooleanAttr = /* @__PURE__ */ makeMap(specialBooleanAttrs);
 function includeBooleanAttr(value) {
   return !!value || value === "";
+}
+function looseCompareArrays(a2, b2) {
+  if (a2.length !== b2.length) return false;
+  let equal = true;
+  for (let i2 = 0; equal && i2 < a2.length; i2++) {
+    equal = looseEqual(a2[i2], b2[i2]);
+  }
+  return equal;
+}
+function looseEqual(a2, b2) {
+  if (a2 === b2) return true;
+  let aValidType = isDate(a2);
+  let bValidType = isDate(b2);
+  if (aValidType || bValidType) {
+    return aValidType && bValidType ? a2.getTime() === b2.getTime() : false;
+  }
+  aValidType = isSymbol(a2);
+  bValidType = isSymbol(b2);
+  if (aValidType || bValidType) {
+    return a2 === b2;
+  }
+  aValidType = isArray(a2);
+  bValidType = isArray(b2);
+  if (aValidType || bValidType) {
+    return aValidType && bValidType ? looseCompareArrays(a2, b2) : false;
+  }
+  aValidType = isObject(a2);
+  bValidType = isObject(b2);
+  if (aValidType || bValidType) {
+    if (!aValidType || !bValidType) {
+      return false;
+    }
+    const aKeysCount = Object.keys(a2).length;
+    const bKeysCount = Object.keys(b2).length;
+    if (aKeysCount !== bKeysCount) {
+      return false;
+    }
+    for (const key in a2) {
+      const aHasKey = a2.hasOwnProperty(key);
+      const bHasKey = b2.hasOwnProperty(key);
+      if (aHasKey && !bHasKey || !aHasKey && bHasKey || !looseEqual(a2[key], b2[key])) {
+        return false;
+      }
+    }
+  }
+  return String(a2) === String(b2);
 }
 const isRef$1 = (val) => {
   return !!(val && val["__v_isRef"] === true);
@@ -9119,6 +9429,46 @@ function patchClass(el, value, isSVG) {
 }
 const vShowOriginalDisplay = /* @__PURE__ */ Symbol("_vod");
 const vShowHidden = /* @__PURE__ */ Symbol("_vsh");
+const vShow = {
+  // used for prop mismatch check during hydration
+  name: "show",
+  beforeMount(el, { value }, { transition }) {
+    el[vShowOriginalDisplay] = el.style.display === "none" ? "" : el.style.display;
+    if (transition && value) {
+      transition.beforeEnter(el);
+    } else {
+      setDisplay(el, value);
+    }
+  },
+  mounted(el, { value }, { transition }) {
+    if (transition && value) {
+      transition.enter(el);
+    }
+  },
+  updated(el, { value, oldValue }, { transition }) {
+    if (!value === !oldValue) return;
+    if (transition) {
+      if (value) {
+        transition.beforeEnter(el);
+        setDisplay(el, true);
+        transition.enter(el);
+      } else {
+        transition.leave(el, () => {
+          setDisplay(el, false);
+        });
+      }
+    } else {
+      setDisplay(el, value);
+    }
+  },
+  beforeUnmount(el, { value }) {
+    setDisplay(el, value);
+  }
+};
+function setDisplay(el, value) {
+  el.style.display = value ? el[vShowOriginalDisplay] : "none";
+  el[vShowHidden] = !value;
+}
 const CSS_VAR_TEXT = /* @__PURE__ */ Symbol("");
 const displayRE = /(?:^|;)\s*display\s*:/;
 function patchStyle(el, prev, next) {
@@ -9478,6 +9828,24 @@ const vModelText = {
     el.value = newValue;
   }
 };
+const vModelRadio = {
+  created(el, { value }, vnode) {
+    el.checked = looseEqual(value, vnode.props.value);
+    el[assignKey] = getModelAssigner(vnode);
+    addEventListener(el, "change", () => {
+      el[assignKey](getValue(el));
+    });
+  },
+  beforeUpdate(el, { value, oldValue }, vnode) {
+    el[assignKey] = getModelAssigner(vnode);
+    if (value !== oldValue) {
+      el.checked = looseEqual(value, vnode.props.value);
+    }
+  }
+};
+function getValue(el) {
+  return "_value" in el ? el._value : el.value;
+}
 const systemModifiers = ["ctrl", "shift", "alt", "meta"];
 const modifierGuards = {
   stop: (e) => e.stopPropagation(),
@@ -10620,12 +10988,12 @@ var PrimeVue = {
     setup(app2, configOptions);
   }
 };
-const _hoisted_1$k = { class: "filter-chip__text" };
-const _hoisted_2$j = {
+const _hoisted_1$l = { class: "filter-chip__text" };
+const _hoisted_2$k = {
   key: 0,
   class: "filter-chip__count"
 };
-const _sfc_main$o = /* @__PURE__ */ defineComponent({
+const _sfc_main$p = /* @__PURE__ */ defineComponent({
   __name: "FilterChip",
   props: {
     label: {},
@@ -10643,8 +11011,8 @@ const _sfc_main$o = /* @__PURE__ */ defineComponent({
       return openBlock(), createElementBlock("span", {
         class: normalizeClass(["filter-chip", variantClass.value])
       }, [
-        createBaseVNode("span", _hoisted_1$k, toDisplayString(__props.label), 1),
-        __props.count !== void 0 ? (openBlock(), createElementBlock("span", _hoisted_2$j, "(" + toDisplayString(__props.count) + ")", 1)) : createCommentVNode("", true),
+        createBaseVNode("span", _hoisted_1$l, toDisplayString(__props.label), 1),
+        __props.count !== void 0 ? (openBlock(), createElementBlock("span", _hoisted_2$k, "(" + toDisplayString(__props.count) + ")", 1)) : createCommentVNode("", true),
         __props.removable ? (openBlock(), createElementBlock("button", {
           key: 1,
           class: "filter-chip__remove",
@@ -10662,8 +11030,8 @@ const _export_sfc = (sfc, props) => {
   }
   return target;
 };
-const FilterChip = /* @__PURE__ */ _export_sfc(_sfc_main$o, [["__scopeId", "data-v-7e36267d"]]);
-const _sfc_main$n = /* @__PURE__ */ defineComponent({
+const FilterChip = /* @__PURE__ */ _export_sfc(_sfc_main$p, [["__scopeId", "data-v-cce47ba0"]]);
+const _sfc_main$o = /* @__PURE__ */ defineComponent({
   __name: "EditButton",
   emits: ["click"],
   setup(__props) {
@@ -10685,19 +11053,19 @@ const _sfc_main$n = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const EditButton = /* @__PURE__ */ _export_sfc(_sfc_main$n, [["__scopeId", "data-v-8da8aa4b"]]);
-const _hoisted_1$j = { class: "section" };
-const _hoisted_2$i = { class: "section__header" };
+const EditButton = /* @__PURE__ */ _export_sfc(_sfc_main$o, [["__scopeId", "data-v-1cb95afc"]]);
+const _hoisted_1$k = { class: "section" };
+const _hoisted_2$j = { class: "section__header" };
 const _hoisted_3$g = { class: "section__content" };
-const _hoisted_4$e = {
+const _hoisted_4$f = {
   key: 0,
   class: "section__placeholder"
 };
-const _hoisted_5$c = {
+const _hoisted_5$d = {
   key: 1,
   class: "section__chips"
 };
-const _sfc_main$m = /* @__PURE__ */ defineComponent({
+const _sfc_main$n = /* @__PURE__ */ defineComponent({
   __name: "BaseModelSection",
   props: {
     selected: {},
@@ -10711,15 +11079,15 @@ const _sfc_main$m = /* @__PURE__ */ defineComponent({
       return model == null ? void 0 : model.count;
     };
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$j, [
-        createBaseVNode("div", _hoisted_2$i, [
+      return openBlock(), createElementBlock("div", _hoisted_1$k, [
+        createBaseVNode("div", _hoisted_2$j, [
           _cache[1] || (_cache[1] = createBaseVNode("span", { class: "section__title" }, "BASE MODEL", -1)),
           createVNode(EditButton, {
             onClick: _cache[0] || (_cache[0] = ($event) => _ctx.$emit("edit"))
           })
         ]),
         createBaseVNode("div", _hoisted_3$g, [
-          __props.selected.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_4$e, " All models ")) : (openBlock(), createElementBlock("div", _hoisted_5$c, [
+          __props.selected.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_4$f, " All models ")) : (openBlock(), createElementBlock("div", _hoisted_5$d, [
             (openBlock(true), createElementBlock(Fragment, null, renderList(__props.selected, (name) => {
               return openBlock(), createBlock(FilterChip, {
                 key: name,
@@ -10734,32 +11102,32 @@ const _sfc_main$m = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const BaseModelSection = /* @__PURE__ */ _export_sfc(_sfc_main$m, [["__scopeId", "data-v-12f059e2"]]);
-const _hoisted_1$i = { class: "section" };
-const _hoisted_2$h = { class: "section__columns" };
+const BaseModelSection = /* @__PURE__ */ _export_sfc(_sfc_main$n, [["__scopeId", "data-v-41d2aa1b"]]);
+const _hoisted_1$j = { class: "section" };
+const _hoisted_2$i = { class: "section__columns" };
 const _hoisted_3$f = { class: "section__column" };
-const _hoisted_4$d = { class: "section__column-header" };
-const _hoisted_5$b = { class: "section__column-content" };
-const _hoisted_6$b = {
+const _hoisted_4$e = { class: "section__column-header" };
+const _hoisted_5$c = { class: "section__column-content" };
+const _hoisted_6$c = {
   key: 0,
   class: "section__empty"
 };
-const _hoisted_7$9 = {
+const _hoisted_7$a = {
   key: 1,
   class: "section__chips"
 };
-const _hoisted_8$7 = { class: "section__column" };
-const _hoisted_9$5 = { class: "section__column-header" };
-const _hoisted_10$5 = { class: "section__column-content" };
-const _hoisted_11$4 = {
+const _hoisted_8$8 = { class: "section__column" };
+const _hoisted_9$6 = { class: "section__column-header" };
+const _hoisted_10$6 = { class: "section__column-content" };
+const _hoisted_11$5 = {
   key: 0,
   class: "section__empty"
 };
-const _hoisted_12$4 = {
+const _hoisted_12$5 = {
   key: 1,
   class: "section__chips"
 };
-const _sfc_main$l = /* @__PURE__ */ defineComponent({
+const _sfc_main$m = /* @__PURE__ */ defineComponent({
   __name: "TagsSection",
   props: {
     includeTags: {},
@@ -10768,20 +11136,20 @@ const _sfc_main$l = /* @__PURE__ */ defineComponent({
   emits: ["edit-include", "edit-exclude"],
   setup(__props) {
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$i, [
+      return openBlock(), createElementBlock("div", _hoisted_1$j, [
         _cache[4] || (_cache[4] = createBaseVNode("div", { class: "section__header" }, [
           createBaseVNode("span", { class: "section__title" }, "TAGS")
         ], -1)),
-        createBaseVNode("div", _hoisted_2$h, [
+        createBaseVNode("div", _hoisted_2$i, [
           createBaseVNode("div", _hoisted_3$f, [
-            createBaseVNode("div", _hoisted_4$d, [
+            createBaseVNode("div", _hoisted_4$e, [
               _cache[2] || (_cache[2] = createBaseVNode("span", { class: "section__column-title section__column-title--include" }, "INCLUDE", -1)),
               createVNode(EditButton, {
                 onClick: _cache[0] || (_cache[0] = ($event) => _ctx.$emit("edit-include"))
               })
             ]),
-            createBaseVNode("div", _hoisted_5$b, [
-              __props.includeTags.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_6$b, " None ")) : (openBlock(), createElementBlock("div", _hoisted_7$9, [
+            createBaseVNode("div", _hoisted_5$c, [
+              __props.includeTags.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_6$c, " None ")) : (openBlock(), createElementBlock("div", _hoisted_7$a, [
                 (openBlock(true), createElementBlock(Fragment, null, renderList(__props.includeTags, (tag) => {
                   return openBlock(), createBlock(FilterChip, {
                     key: tag,
@@ -10792,15 +11160,15 @@ const _sfc_main$l = /* @__PURE__ */ defineComponent({
               ]))
             ])
           ]),
-          createBaseVNode("div", _hoisted_8$7, [
-            createBaseVNode("div", _hoisted_9$5, [
+          createBaseVNode("div", _hoisted_8$8, [
+            createBaseVNode("div", _hoisted_9$6, [
               _cache[3] || (_cache[3] = createBaseVNode("span", { class: "section__column-title section__column-title--exclude" }, "EXCLUDE", -1)),
               createVNode(EditButton, {
                 onClick: _cache[1] || (_cache[1] = ($event) => _ctx.$emit("edit-exclude"))
               })
             ]),
-            createBaseVNode("div", _hoisted_10$5, [
-              __props.excludeTags.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_11$4, " None ")) : (openBlock(), createElementBlock("div", _hoisted_12$4, [
+            createBaseVNode("div", _hoisted_10$6, [
+              __props.excludeTags.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_11$5, " None ")) : (openBlock(), createElementBlock("div", _hoisted_12$5, [
                 (openBlock(true), createElementBlock(Fragment, null, renderList(__props.excludeTags, (tag) => {
                   return openBlock(), createBlock(FilterChip, {
                     key: tag,
@@ -10816,32 +11184,32 @@ const _sfc_main$l = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const TagsSection = /* @__PURE__ */ _export_sfc(_sfc_main$l, [["__scopeId", "data-v-b869b780"]]);
-const _hoisted_1$h = { class: "section" };
-const _hoisted_2$g = { class: "section__columns" };
+const TagsSection = /* @__PURE__ */ _export_sfc(_sfc_main$m, [["__scopeId", "data-v-3c494bd5"]]);
+const _hoisted_1$i = { class: "section" };
+const _hoisted_2$h = { class: "section__columns" };
 const _hoisted_3$e = { class: "section__column" };
-const _hoisted_4$c = { class: "section__column-header" };
-const _hoisted_5$a = { class: "section__content" };
-const _hoisted_6$a = {
+const _hoisted_4$d = { class: "section__column-header" };
+const _hoisted_5$b = { class: "section__content" };
+const _hoisted_6$b = {
   key: 0,
   class: "section__paths"
 };
-const _hoisted_7$8 = {
+const _hoisted_7$9 = {
   key: 1,
   class: "section__empty"
 };
-const _hoisted_8$6 = { class: "section__column" };
-const _hoisted_9$4 = { class: "section__column-header" };
-const _hoisted_10$4 = { class: "section__content" };
-const _hoisted_11$3 = {
+const _hoisted_8$7 = { class: "section__column" };
+const _hoisted_9$5 = { class: "section__column-header" };
+const _hoisted_10$5 = { class: "section__content" };
+const _hoisted_11$4 = {
   key: 0,
   class: "section__paths"
 };
-const _hoisted_12$3 = {
+const _hoisted_12$4 = {
   key: 1,
   class: "section__empty"
 };
-const _sfc_main$k = /* @__PURE__ */ defineComponent({
+const _sfc_main$l = /* @__PURE__ */ defineComponent({
   __name: "FoldersSection",
   props: {
     includeFolders: {},
@@ -10862,13 +11230,13 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
       emit2("update:excludeFolders", props.excludeFolders.filter((p2) => p2 !== path));
     };
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$h, [
+      return openBlock(), createElementBlock("div", _hoisted_1$i, [
         _cache[6] || (_cache[6] = createBaseVNode("div", { class: "section__header" }, [
           createBaseVNode("span", { class: "section__title" }, "FOLDERS")
         ], -1)),
-        createBaseVNode("div", _hoisted_2$g, [
+        createBaseVNode("div", _hoisted_2$h, [
           createBaseVNode("div", _hoisted_3$e, [
-            createBaseVNode("div", _hoisted_4$c, [
+            createBaseVNode("div", _hoisted_4$d, [
               _cache[3] || (_cache[3] = createBaseVNode("span", { class: "section__column-title section__column-title--include" }, "INCLUDE", -1)),
               createBaseVNode("button", {
                 type: "button",
@@ -10883,8 +11251,8 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
                 ], -1)
               ])])
             ]),
-            createBaseVNode("div", _hoisted_5$a, [
-              __props.includeFolders.length > 0 ? (openBlock(), createElementBlock("div", _hoisted_6$a, [
+            createBaseVNode("div", _hoisted_5$b, [
+              __props.includeFolders.length > 0 ? (openBlock(), createElementBlock("div", _hoisted_6$b, [
                 (openBlock(true), createElementBlock(Fragment, null, renderList(__props.includeFolders, (path) => {
                   return openBlock(), createBlock(FilterChip, {
                     key: path,
@@ -10894,11 +11262,11 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
                     onRemove: ($event) => removeInclude(path)
                   }, null, 8, ["label", "onRemove"]);
                 }), 128))
-              ])) : (openBlock(), createElementBlock("div", _hoisted_7$8, " No folders selected "))
+              ])) : (openBlock(), createElementBlock("div", _hoisted_7$9, " No folders selected "))
             ])
           ]),
-          createBaseVNode("div", _hoisted_8$6, [
-            createBaseVNode("div", _hoisted_9$4, [
+          createBaseVNode("div", _hoisted_8$7, [
+            createBaseVNode("div", _hoisted_9$5, [
               _cache[5] || (_cache[5] = createBaseVNode("span", { class: "section__column-title section__column-title--exclude" }, "EXCLUDE", -1)),
               createBaseVNode("button", {
                 type: "button",
@@ -10913,8 +11281,8 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
                 ], -1)
               ])])
             ]),
-            createBaseVNode("div", _hoisted_10$4, [
-              __props.excludeFolders.length > 0 ? (openBlock(), createElementBlock("div", _hoisted_11$3, [
+            createBaseVNode("div", _hoisted_10$5, [
+              __props.excludeFolders.length > 0 ? (openBlock(), createElementBlock("div", _hoisted_11$4, [
                 (openBlock(true), createElementBlock(Fragment, null, renderList(__props.excludeFolders, (path) => {
                   return openBlock(), createBlock(FilterChip, {
                     key: path,
@@ -10924,7 +11292,7 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
                     onRemove: ($event) => removeExclude(path)
                   }, null, 8, ["label", "onRemove"]);
                 }), 128))
-              ])) : (openBlock(), createElementBlock("div", _hoisted_12$3, " No folders selected "))
+              ])) : (openBlock(), createElementBlock("div", _hoisted_12$4, " No folders selected "))
             ])
           ])
         ])
@@ -10932,29 +11300,29 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const FoldersSection = /* @__PURE__ */ _export_sfc(_sfc_main$k, [["__scopeId", "data-v-af9caf84"]]);
-const _hoisted_1$g = { class: "section" };
-const _hoisted_2$f = { class: "section__header" };
+const FoldersSection = /* @__PURE__ */ _export_sfc(_sfc_main$l, [["__scopeId", "data-v-899728b5"]]);
+const _hoisted_1$h = { class: "section" };
+const _hoisted_2$g = { class: "section__header" };
 const _hoisted_3$d = { class: "section__toggle" };
-const _hoisted_4$b = ["checked"];
-const _hoisted_5$9 = { class: "section__columns" };
-const _hoisted_6$9 = { class: "section__column" };
-const _hoisted_7$7 = { class: "section__input-wrapper" };
-const _hoisted_8$5 = ["placeholder"];
-const _hoisted_9$3 = { class: "section__patterns" };
-const _hoisted_10$3 = {
+const _hoisted_4$c = ["checked"];
+const _hoisted_5$a = { class: "section__columns" };
+const _hoisted_6$a = { class: "section__column" };
+const _hoisted_7$8 = { class: "section__input-wrapper" };
+const _hoisted_8$6 = ["placeholder"];
+const _hoisted_9$4 = { class: "section__patterns" };
+const _hoisted_10$4 = {
   key: 0,
   class: "section__empty"
 };
-const _hoisted_11$2 = { class: "section__column" };
-const _hoisted_12$2 = { class: "section__input-wrapper" };
-const _hoisted_13$2 = ["placeholder"];
-const _hoisted_14$2 = { class: "section__patterns" };
-const _hoisted_15$2 = {
+const _hoisted_11$3 = { class: "section__column" };
+const _hoisted_12$3 = { class: "section__input-wrapper" };
+const _hoisted_13$3 = ["placeholder"];
+const _hoisted_14$3 = { class: "section__patterns" };
+const _hoisted_15$3 = {
   key: 0,
   class: "section__empty"
 };
-const _sfc_main$j = /* @__PURE__ */ defineComponent({
+const _sfc_main$k = /* @__PURE__ */ defineComponent({
   __name: "NamePatternsSection",
   props: {
     includePatterns: {},
@@ -10988,31 +11356,31 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
       emit2("update:excludePatterns", props.excludePatterns.filter((p2) => p2 !== pattern));
     };
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$g, [
-        createBaseVNode("div", _hoisted_2$f, [
+      return openBlock(), createElementBlock("div", _hoisted_1$h, [
+        createBaseVNode("div", _hoisted_2$g, [
           _cache[4] || (_cache[4] = createBaseVNode("span", { class: "section__title" }, "NAME PATTERNS", -1)),
           createBaseVNode("label", _hoisted_3$d, [
             createBaseVNode("input", {
               type: "checkbox",
               checked: __props.useRegex,
               onChange: _cache[0] || (_cache[0] = ($event) => _ctx.$emit("update:useRegex", $event.target.checked))
-            }, null, 40, _hoisted_4$b),
+            }, null, 40, _hoisted_4$c),
             _cache[3] || (_cache[3] = createBaseVNode("span", { class: "section__toggle-label" }, "Use Regex", -1))
           ])
         ]),
-        createBaseVNode("div", _hoisted_5$9, [
-          createBaseVNode("div", _hoisted_6$9, [
+        createBaseVNode("div", _hoisted_5$a, [
+          createBaseVNode("div", _hoisted_6$a, [
             _cache[5] || (_cache[5] = createBaseVNode("div", { class: "section__column-header" }, [
               createBaseVNode("span", { class: "section__column-title section__column-title--include" }, "INCLUDE")
             ], -1)),
-            createBaseVNode("div", _hoisted_7$7, [
+            createBaseVNode("div", _hoisted_7$8, [
               withDirectives(createBaseVNode("input", {
                 type: "text",
                 "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => includeInput.value = $event),
                 placeholder: __props.useRegex ? "Add regex pattern..." : "Add text pattern...",
                 class: "section__input",
                 onKeydown: withKeys(addInclude, ["enter"])
-              }, null, 40, _hoisted_8$5), [
+              }, null, 40, _hoisted_8$6), [
                 [vModelText, includeInput.value]
               ]),
               createBaseVNode("button", {
@@ -11021,7 +11389,7 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
                 onClick: addInclude
               }, "+")
             ]),
-            createBaseVNode("div", _hoisted_9$3, [
+            createBaseVNode("div", _hoisted_9$4, [
               (openBlock(true), createElementBlock(Fragment, null, renderList(__props.includePatterns, (pattern) => {
                 return openBlock(), createBlock(FilterChip, {
                   key: pattern,
@@ -11031,21 +11399,21 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
                   onRemove: ($event) => removeInclude(pattern)
                 }, null, 8, ["label", "onRemove"]);
               }), 128)),
-              __props.includePatterns.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_10$3, toDisplayString(__props.useRegex ? "No regex patterns" : "No text patterns"), 1)) : createCommentVNode("", true)
+              __props.includePatterns.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_10$4, toDisplayString(__props.useRegex ? "No regex patterns" : "No text patterns"), 1)) : createCommentVNode("", true)
             ])
           ]),
-          createBaseVNode("div", _hoisted_11$2, [
+          createBaseVNode("div", _hoisted_11$3, [
             _cache[6] || (_cache[6] = createBaseVNode("div", { class: "section__column-header" }, [
               createBaseVNode("span", { class: "section__column-title section__column-title--exclude" }, "EXCLUDE")
             ], -1)),
-            createBaseVNode("div", _hoisted_12$2, [
+            createBaseVNode("div", _hoisted_12$3, [
               withDirectives(createBaseVNode("input", {
                 type: "text",
                 "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => excludeInput.value = $event),
                 placeholder: __props.useRegex ? "Add regex pattern..." : "Add text pattern...",
                 class: "section__input",
                 onKeydown: withKeys(addExclude, ["enter"])
-              }, null, 40, _hoisted_13$2), [
+              }, null, 40, _hoisted_13$3), [
                 [vModelText, excludeInput.value]
               ]),
               createBaseVNode("button", {
@@ -11054,7 +11422,7 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
                 onClick: addExclude
               }, "+")
             ]),
-            createBaseVNode("div", _hoisted_14$2, [
+            createBaseVNode("div", _hoisted_14$3, [
               (openBlock(true), createElementBlock(Fragment, null, renderList(__props.excludePatterns, (pattern) => {
                 return openBlock(), createBlock(FilterChip, {
                   key: pattern,
@@ -11064,7 +11432,7 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
                   onRemove: ($event) => removeExclude(pattern)
                 }, null, 8, ["label", "onRemove"]);
               }), 128)),
-              __props.excludePatterns.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_15$2, toDisplayString(__props.useRegex ? "No regex patterns" : "No text patterns"), 1)) : createCommentVNode("", true)
+              __props.excludePatterns.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_15$3, toDisplayString(__props.useRegex ? "No regex patterns" : "No text patterns"), 1)) : createCommentVNode("", true)
             ])
           ])
         ])
@@ -11072,14 +11440,14 @@ const _sfc_main$j = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const NamePatternsSection = /* @__PURE__ */ _export_sfc(_sfc_main$j, [["__scopeId", "data-v-9995b5ed"]]);
-const _hoisted_1$f = { class: "section" };
-const _hoisted_2$e = { class: "section__toggles" };
+const NamePatternsSection = /* @__PURE__ */ _export_sfc(_sfc_main$k, [["__scopeId", "data-v-54f65fc1"]]);
+const _hoisted_1$g = { class: "section" };
+const _hoisted_2$f = { class: "section__toggles" };
 const _hoisted_3$c = { class: "toggle-item" };
-const _hoisted_4$a = ["aria-checked"];
-const _hoisted_5$8 = { class: "toggle-item" };
-const _hoisted_6$8 = ["aria-checked"];
-const _sfc_main$i = /* @__PURE__ */ defineComponent({
+const _hoisted_4$b = ["aria-checked"];
+const _hoisted_5$9 = { class: "toggle-item" };
+const _hoisted_6$9 = ["aria-checked"];
+const _sfc_main$j = /* @__PURE__ */ defineComponent({
   __name: "LicenseSection",
   props: {
     noCreditRequired: { type: Boolean },
@@ -11088,11 +11456,11 @@ const _sfc_main$i = /* @__PURE__ */ defineComponent({
   emits: ["update:noCreditRequired", "update:allowSelling"],
   setup(__props) {
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$f, [
+      return openBlock(), createElementBlock("div", _hoisted_1$g, [
         _cache[6] || (_cache[6] = createBaseVNode("div", { class: "section__header" }, [
           createBaseVNode("span", { class: "section__title" }, "LICENSE")
         ], -1)),
-        createBaseVNode("div", _hoisted_2$e, [
+        createBaseVNode("div", _hoisted_2$f, [
           createBaseVNode("label", _hoisted_3$c, [
             _cache[3] || (_cache[3] = createBaseVNode("span", {
               class: "toggle-item__label",
@@ -11107,9 +11475,9 @@ const _sfc_main$i = /* @__PURE__ */ defineComponent({
             }, [..._cache[2] || (_cache[2] = [
               createBaseVNode("span", { class: "toggle-switch__track" }, null, -1),
               createBaseVNode("span", { class: "toggle-switch__thumb" }, null, -1)
-            ])], 10, _hoisted_4$a)
+            ])], 10, _hoisted_4$b)
           ]),
-          createBaseVNode("label", _hoisted_5$8, [
+          createBaseVNode("label", _hoisted_5$9, [
             _cache[5] || (_cache[5] = createBaseVNode("span", {
               class: "toggle-item__label",
               title: "Allow selling generated images"
@@ -11123,37 +11491,37 @@ const _sfc_main$i = /* @__PURE__ */ defineComponent({
             }, [..._cache[4] || (_cache[4] = [
               createBaseVNode("span", { class: "toggle-switch__track" }, null, -1),
               createBaseVNode("span", { class: "toggle-switch__thumb" }, null, -1)
-            ])], 10, _hoisted_6$8)
+            ])], 10, _hoisted_6$9)
           ])
         ])
       ]);
     };
   }
 });
-const LicenseSection = /* @__PURE__ */ _export_sfc(_sfc_main$i, [["__scopeId", "data-v-07ddd3df"]]);
-const _hoisted_1$e = { class: "preview" };
-const _hoisted_2$d = { class: "preview__title" };
+const LicenseSection = /* @__PURE__ */ _export_sfc(_sfc_main$j, [["__scopeId", "data-v-c6ebd825"]]);
+const _hoisted_1$f = { class: "preview" };
+const _hoisted_2$e = { class: "preview__title" };
 const _hoisted_3$b = ["disabled"];
-const _hoisted_4$9 = {
+const _hoisted_4$a = {
   key: 0,
   class: "preview__tooltip"
 };
-const _hoisted_5$7 = { class: "preview__tooltip-content" };
-const _hoisted_6$7 = ["src"];
-const _hoisted_7$6 = {
+const _hoisted_5$8 = { class: "preview__tooltip-content" };
+const _hoisted_6$8 = ["src"];
+const _hoisted_7$7 = {
   key: 1,
   class: "preview__thumb preview__thumb--placeholder"
 };
-const _hoisted_8$4 = { class: "preview__name" };
-const _hoisted_9$2 = {
+const _hoisted_8$5 = { class: "preview__name" };
+const _hoisted_9$3 = {
   key: 0,
   class: "preview__more"
 };
-const _hoisted_10$2 = {
+const _hoisted_10$3 = {
   key: 0,
   class: "preview__empty"
 };
-const _sfc_main$h = /* @__PURE__ */ defineComponent({
+const _sfc_main$i = /* @__PURE__ */ defineComponent({
   __name: "LoraPoolPreview",
   props: {
     items: {},
@@ -11168,13 +11536,13 @@ const _sfc_main$h = /* @__PURE__ */ defineComponent({
       img.style.display = "none";
     };
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$e, [
+      return openBlock(), createElementBlock("div", _hoisted_1$f, [
         createBaseVNode("div", {
           class: "preview__header",
           onMouseenter: _cache[1] || (_cache[1] = ($event) => showTooltip.value = true),
           onMouseleave: _cache[2] || (_cache[2] = ($event) => showTooltip.value = false)
         }, [
-          createBaseVNode("span", _hoisted_2$d, "Matching LoRAs: " + toDisplayString(__props.matchCount.toLocaleString()), 1),
+          createBaseVNode("span", _hoisted_2$e, "Matching LoRAs: " + toDisplayString(__props.matchCount.toLocaleString()), 1),
           createBaseVNode("button", {
             type: "button",
             class: normalizeClass(["preview__refresh", { "preview__refresh--loading": __props.isLoading }]),
@@ -11196,8 +11564,8 @@ const _sfc_main$h = /* @__PURE__ */ defineComponent({
         ], 32),
         createVNode(Transition, { name: "tooltip" }, {
           default: withCtx(() => [
-            showTooltip.value && __props.items.length > 0 ? (openBlock(), createElementBlock("div", _hoisted_4$9, [
-              createBaseVNode("div", _hoisted_5$7, [
+            showTooltip.value && __props.items.length > 0 ? (openBlock(), createElementBlock("div", _hoisted_4$a, [
+              createBaseVNode("div", _hoisted_5$8, [
                 (openBlock(true), createElementBlock(Fragment, null, renderList(__props.items.slice(0, 5), (item) => {
                   return openBlock(), createElementBlock("div", {
                     key: item.file_path,
@@ -11208,7 +11576,7 @@ const _sfc_main$h = /* @__PURE__ */ defineComponent({
                       src: item.preview_url,
                       class: "preview__thumb",
                       onError: onImageError
-                    }, null, 40, _hoisted_6$7)) : (openBlock(), createElementBlock("div", _hoisted_7$6, [..._cache[4] || (_cache[4] = [
+                    }, null, 40, _hoisted_6$8)) : (openBlock(), createElementBlock("div", _hoisted_7$7, [..._cache[4] || (_cache[4] = [
                       createBaseVNode("svg", {
                         viewBox: "0 0 16 16",
                         fill: "currentColor"
@@ -11217,24 +11585,24 @@ const _sfc_main$h = /* @__PURE__ */ defineComponent({
                         createBaseVNode("path", { d: "M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z" })
                       ], -1)
                     ])])),
-                    createBaseVNode("span", _hoisted_8$4, toDisplayString(item.model_name || item.file_name), 1)
+                    createBaseVNode("span", _hoisted_8$5, toDisplayString(item.model_name || item.file_name), 1)
                   ]);
                 }), 128)),
-                __props.matchCount > 5 ? (openBlock(), createElementBlock("div", _hoisted_9$2, " +" + toDisplayString((__props.matchCount - 5).toLocaleString()) + " more ", 1)) : createCommentVNode("", true)
+                __props.matchCount > 5 ? (openBlock(), createElementBlock("div", _hoisted_9$3, " +" + toDisplayString((__props.matchCount - 5).toLocaleString()) + " more ", 1)) : createCommentVNode("", true)
               ])
             ])) : createCommentVNode("", true)
           ]),
           _: 1
         }),
-        __props.items.length === 0 && !__props.isLoading ? (openBlock(), createElementBlock("div", _hoisted_10$2, " No matching LoRAs ")) : createCommentVNode("", true)
+        __props.items.length === 0 && !__props.isLoading ? (openBlock(), createElementBlock("div", _hoisted_10$3, " No matching LoRAs ")) : createCommentVNode("", true)
       ]);
     };
   }
 });
-const LoraPoolPreview = /* @__PURE__ */ _export_sfc(_sfc_main$h, [["__scopeId", "data-v-6a4b50a1"]]);
-const _hoisted_1$d = { class: "summary-view" };
-const _hoisted_2$c = { class: "summary-view__filters" };
-const _sfc_main$g = /* @__PURE__ */ defineComponent({
+const LoraPoolPreview = /* @__PURE__ */ _export_sfc(_sfc_main$i, [["__scopeId", "data-v-4a803b5a"]]);
+const _hoisted_1$e = { class: "summary-view" };
+const _hoisted_2$d = { class: "summary-view__filters" };
+const _sfc_main$h = /* @__PURE__ */ defineComponent({
   __name: "LoraPoolSummaryView",
   props: {
     selectedBaseModels: {},
@@ -11255,8 +11623,8 @@ const _sfc_main$g = /* @__PURE__ */ defineComponent({
   emits: ["open-modal", "update:includeFolders", "update:excludeFolders", "update:includePatterns", "update:excludePatterns", "update:useRegex", "update:noCreditRequired", "update:allowSelling", "refresh"],
   setup(__props) {
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$d, [
-        createBaseVNode("div", _hoisted_2$c, [
+      return openBlock(), createElementBlock("div", _hoisted_1$e, [
+        createBaseVNode("div", _hoisted_2$d, [
           createVNode(BaseModelSection, {
             selected: __props.selectedBaseModels,
             models: __props.availableBaseModels,
@@ -11301,20 +11669,20 @@ const _sfc_main$g = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const LoraPoolSummaryView = /* @__PURE__ */ _export_sfc(_sfc_main$g, [["__scopeId", "data-v-83235a00"]]);
-const _hoisted_1$c = { class: "lora-pool-modal__header" };
-const _hoisted_2$b = { class: "lora-pool-modal__title-container" };
+const LoraPoolSummaryView = /* @__PURE__ */ _export_sfc(_sfc_main$h, [["__scopeId", "data-v-83235a00"]]);
+const _hoisted_1$d = { class: "lora-pool-modal__header" };
+const _hoisted_2$c = { class: "lora-pool-modal__title-container" };
 const _hoisted_3$a = { class: "lora-pool-modal__title" };
-const _hoisted_4$8 = {
+const _hoisted_4$9 = {
   key: 0,
   class: "lora-pool-modal__subtitle"
 };
-const _hoisted_5$6 = {
+const _hoisted_5$7 = {
   key: 0,
   class: "lora-pool-modal__search"
 };
-const _hoisted_6$6 = { class: "lora-pool-modal__body" };
-const _sfc_main$f = /* @__PURE__ */ defineComponent({
+const _hoisted_6$7 = { class: "lora-pool-modal__body" };
+const _sfc_main$g = /* @__PURE__ */ defineComponent({
   __name: "ModalWrapper",
   props: {
     visible: { type: Boolean },
@@ -11362,10 +11730,10 @@ const _sfc_main$f = /* @__PURE__ */ defineComponent({
                 role: "dialog",
                 "aria-modal": "true"
               }, [
-                createBaseVNode("div", _hoisted_1$c, [
-                  createBaseVNode("div", _hoisted_2$b, [
+                createBaseVNode("div", _hoisted_1$d, [
+                  createBaseVNode("div", _hoisted_2$c, [
                     createBaseVNode("h3", _hoisted_3$a, toDisplayString(__props.title), 1),
-                    __props.subtitle ? (openBlock(), createElementBlock("p", _hoisted_4$8, toDisplayString(__props.subtitle), 1)) : createCommentVNode("", true)
+                    __props.subtitle ? (openBlock(), createElementBlock("p", _hoisted_4$9, toDisplayString(__props.subtitle), 1)) : createCommentVNode("", true)
                   ]),
                   createBaseVNode("button", {
                     class: "lora-pool-modal__close",
@@ -11374,10 +11742,10 @@ const _sfc_main$f = /* @__PURE__ */ defineComponent({
                     "aria-label": "Close"
                   }, " × ")
                 ]),
-                _ctx.$slots.search ? (openBlock(), createElementBlock("div", _hoisted_5$6, [
+                _ctx.$slots.search ? (openBlock(), createElementBlock("div", _hoisted_5$7, [
                   renderSlot(_ctx.$slots, "search", {}, void 0, true)
                 ])) : createCommentVNode("", true),
-                createBaseVNode("div", _hoisted_6$6, [
+                createBaseVNode("div", _hoisted_6$7, [
                   renderSlot(_ctx.$slots, "default", {}, void 0, true)
                 ])
               ], 2)
@@ -11389,24 +11757,24 @@ const _sfc_main$f = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const ModalWrapper = /* @__PURE__ */ _export_sfc(_sfc_main$f, [["__scopeId", "data-v-7b4de03d"]]);
-const _hoisted_1$b = { class: "search-container" };
-const _hoisted_2$a = { class: "model-list" };
+const ModalWrapper = /* @__PURE__ */ _export_sfc(_sfc_main$g, [["__scopeId", "data-v-d7a07432"]]);
+const _hoisted_1$c = { class: "search-container" };
+const _hoisted_2$b = { class: "model-list" };
 const _hoisted_3$9 = ["checked", "onChange"];
-const _hoisted_4$7 = { class: "model-checkbox-visual" };
-const _hoisted_5$5 = {
+const _hoisted_4$8 = { class: "model-checkbox-visual" };
+const _hoisted_5$6 = {
   key: 0,
   class: "check-icon",
   viewBox: "0 0 16 16",
   fill: "currentColor"
 };
-const _hoisted_6$5 = { class: "model-name" };
-const _hoisted_7$5 = { class: "model-count" };
-const _hoisted_8$3 = {
+const _hoisted_6$6 = { class: "model-name" };
+const _hoisted_7$6 = { class: "model-count" };
+const _hoisted_8$4 = {
   key: 0,
   class: "no-results"
 };
-const _sfc_main$e = /* @__PURE__ */ defineComponent({
+const _sfc_main$f = /* @__PURE__ */ defineComponent({
   __name: "BaseModelModal",
   props: {
     visible: { type: Boolean },
@@ -11456,7 +11824,7 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
         onClose: _cache[1] || (_cache[1] = ($event) => _ctx.$emit("close"))
       }, {
         search: withCtx(() => [
-          createBaseVNode("div", _hoisted_1$b, [
+          createBaseVNode("div", _hoisted_1$c, [
             _cache[3] || (_cache[3] = createBaseVNode("svg", {
               class: "search-icon",
               viewBox: "0 0 16 16",
@@ -11491,7 +11859,7 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
           ])
         ]),
         default: withCtx(() => [
-          createBaseVNode("div", _hoisted_2$a, [
+          createBaseVNode("div", _hoisted_2$b, [
             (openBlock(true), createElementBlock(Fragment, null, renderList(filteredModels.value, (model) => {
               return openBlock(), createElementBlock("label", {
                 key: model.name,
@@ -11503,16 +11871,16 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
                   onChange: ($event) => toggleModel(model.name),
                   class: "model-checkbox"
                 }, null, 40, _hoisted_3$9),
-                createBaseVNode("span", _hoisted_4$7, [
-                  isSelected(model.name) ? (openBlock(), createElementBlock("svg", _hoisted_5$5, [..._cache[4] || (_cache[4] = [
+                createBaseVNode("span", _hoisted_4$8, [
+                  isSelected(model.name) ? (openBlock(), createElementBlock("svg", _hoisted_5$6, [..._cache[4] || (_cache[4] = [
                     createBaseVNode("path", { d: "M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z" }, null, -1)
                   ])])) : createCommentVNode("", true)
                 ]),
-                createBaseVNode("span", _hoisted_6$5, toDisplayString(model.name), 1),
-                createBaseVNode("span", _hoisted_7$5, "(" + toDisplayString(model.count) + ")", 1)
+                createBaseVNode("span", _hoisted_6$6, toDisplayString(model.name), 1),
+                createBaseVNode("span", _hoisted_7$6, "(" + toDisplayString(model.count) + ")", 1)
               ]);
             }), 128)),
-            filteredModels.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_8$3, " No models found ")) : createCommentVNode("", true)
+            filteredModels.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_8$4, " No models found ")) : createCommentVNode("", true)
           ])
         ]),
         _: 1
@@ -11520,20 +11888,20 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const BaseModelModal = /* @__PURE__ */ _export_sfc(_sfc_main$e, [["__scopeId", "data-v-e02ca44a"]]);
-const _hoisted_1$a = { class: "search-container" };
-const _hoisted_2$9 = ["onClick"];
+const BaseModelModal = /* @__PURE__ */ _export_sfc(_sfc_main$f, [["__scopeId", "data-v-1b5c130c"]]);
+const _hoisted_1$b = { class: "search-container" };
+const _hoisted_2$a = ["onClick"];
 const _hoisted_3$8 = {
   key: 0,
   class: "no-results"
 };
-const _hoisted_4$6 = {
+const _hoisted_4$7 = {
   key: 1,
   class: "load-more-hint"
 };
 const BATCH_SIZE = 200;
 const SCROLL_THRESHOLD = 100;
-const _sfc_main$d = /* @__PURE__ */ defineComponent({
+const _sfc_main$e = /* @__PURE__ */ defineComponent({
   __name: "TagsModal",
   props: {
     visible: { type: Boolean },
@@ -11619,7 +11987,7 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
         onClose: _cache[1] || (_cache[1] = ($event) => _ctx.$emit("close"))
       }, {
         search: withCtx(() => [
-          createBaseVNode("div", _hoisted_1$a, [
+          createBaseVNode("div", _hoisted_1$b, [
             _cache[3] || (_cache[3] = createBaseVNode("svg", {
               class: "search-icon",
               viewBox: "0 0 16 16",
@@ -11665,10 +12033,10 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
                 type: "button",
                 class: normalizeClass(["tag-chip", { "tag-chip--selected": isSelected(tag.tag) }]),
                 onClick: ($event) => toggleTag(tag.tag)
-              }, toDisplayString(tag.tag), 11, _hoisted_2$9);
+              }, toDisplayString(tag.tag), 11, _hoisted_2$a);
             }), 128)),
             visibleTags.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_3$8, " No tags found ")) : createCommentVNode("", true),
-            hasMoreTags.value ? (openBlock(), createElementBlock("div", _hoisted_4$6, " Scroll to load more... ")) : createCommentVNode("", true)
+            hasMoreTags.value ? (openBlock(), createElementBlock("div", _hoisted_4$7, " Scroll to load more... ")) : createCommentVNode("", true)
           ], 544)
         ]),
         _: 1
@@ -11676,26 +12044,26 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const TagsModal = /* @__PURE__ */ _export_sfc(_sfc_main$d, [["__scopeId", "data-v-48c2535d"]]);
-const _hoisted_1$9 = { class: "tree-node" };
-const _hoisted_2$8 = {
+const TagsModal = /* @__PURE__ */ _export_sfc(_sfc_main$e, [["__scopeId", "data-v-a0dc8a6b"]]);
+const _hoisted_1$a = { class: "tree-node" };
+const _hoisted_2$9 = {
   key: 1,
   class: "tree-node__toggle-spacer"
 };
 const _hoisted_3$7 = { class: "tree-node__checkbox-label" };
-const _hoisted_4$5 = ["checked"];
-const _hoisted_5$4 = {
+const _hoisted_4$6 = ["checked"];
+const _hoisted_5$5 = {
   key: 0,
   class: "tree-node__check-icon",
   viewBox: "0 0 16 16",
   fill: "currentColor"
 };
-const _hoisted_6$4 = { class: "tree-node__label" };
-const _hoisted_7$4 = {
+const _hoisted_6$5 = { class: "tree-node__label" };
+const _hoisted_7$5 = {
   key: 0,
   class: "tree-node__children"
 };
-const _sfc_main$c = /* @__PURE__ */ defineComponent({
+const _sfc_main$d = /* @__PURE__ */ defineComponent({
   __name: "FolderTreeNode",
   props: {
     node: {},
@@ -11720,7 +12088,7 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
     };
     return (_ctx, _cache) => {
       const _component_FolderTreeNode = resolveComponent("FolderTreeNode", true);
-      return openBlock(), createElementBlock("div", _hoisted_1$9, [
+      return openBlock(), createElementBlock("div", _hoisted_1$a, [
         createBaseVNode("div", {
           class: normalizeClass(["tree-node__item", [
             `tree-node__item--${__props.variant}`,
@@ -11742,18 +12110,18 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
             }, [..._cache[4] || (_cache[4] = [
               createBaseVNode("path", { d: "M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z" }, null, -1)
             ])], 2))
-          ])) : (openBlock(), createElementBlock("span", _hoisted_2$8)),
+          ])) : (openBlock(), createElementBlock("span", _hoisted_2$9)),
           createBaseVNode("label", _hoisted_3$7, [
             createBaseVNode("input", {
               type: "checkbox",
               class: "tree-node__checkbox",
               checked: isSelected.value,
               onChange: _cache[1] || (_cache[1] = ($event) => _ctx.$emit("toggle-select", __props.node.key))
-            }, null, 40, _hoisted_4$5),
+            }, null, 40, _hoisted_4$6),
             createBaseVNode("span", {
               class: normalizeClass(["tree-node__checkbox-visual", `tree-node__checkbox-visual--${__props.variant}`])
             }, [
-              isSelected.value ? (openBlock(), createElementBlock("svg", _hoisted_5$4, [..._cache[5] || (_cache[5] = [
+              isSelected.value ? (openBlock(), createElementBlock("svg", _hoisted_5$5, [..._cache[5] || (_cache[5] = [
                 createBaseVNode("path", { d: "M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z" }, null, -1)
               ])])) : createCommentVNode("", true)
             ], 2)
@@ -11766,9 +12134,9 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
             createBaseVNode("path", { d: "M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3H14a2 2 0 0 1 2 2v1.5a.5.5 0 0 1-1 0V5a1 1 0 0 0-1-1H9.828a3 3 0 0 1-2.12-.879l-.83-.828A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 .981l.006.139C1.72 3.042 1.95 3 2.19 3h5.396l.707.707a1 1 0 0 0 .707.293H14.5a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0V5H9a2 2 0 0 1-1.414-.586l-.828-.828A1 1 0 0 0 6.172 3H2.19a1.5 1.5 0 0 0-1.69.87z" }),
             createBaseVNode("path", { d: "M1.5 4.5h13a.5.5 0 0 1 .5.5v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a.5.5 0 0 1 .5-.5z" })
           ], -1)),
-          createBaseVNode("span", _hoisted_6$4, toDisplayString(__props.node.label), 1)
+          createBaseVNode("span", _hoisted_6$5, toDisplayString(__props.node.label), 1)
         ], 6),
-        hasChildren.value && isExpanded.value ? (openBlock(), createElementBlock("div", _hoisted_7$4, [
+        hasChildren.value && isExpanded.value ? (openBlock(), createElementBlock("div", _hoisted_7$5, [
           (openBlock(true), createElementBlock(Fragment, null, renderList(__props.node.children, (child) => {
             return openBlock(), createBlock(_component_FolderTreeNode, {
               key: child.key,
@@ -11786,14 +12154,14 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const FolderTreeNode = /* @__PURE__ */ _export_sfc(_sfc_main$c, [["__scopeId", "data-v-90187dd4"]]);
-const _hoisted_1$8 = { class: "search-container" };
-const _hoisted_2$7 = { class: "folder-tree" };
+const FolderTreeNode = /* @__PURE__ */ _export_sfc(_sfc_main$d, [["__scopeId", "data-v-e6f673b4"]]);
+const _hoisted_1$9 = { class: "search-container" };
+const _hoisted_2$8 = { class: "folder-tree" };
 const _hoisted_3$6 = {
   key: 1,
   class: "no-results"
 };
-const _sfc_main$b = /* @__PURE__ */ defineComponent({
+const _sfc_main$c = /* @__PURE__ */ defineComponent({
   __name: "FoldersModal",
   props: {
     visible: { type: Boolean },
@@ -11857,7 +12225,7 @@ const _sfc_main$b = /* @__PURE__ */ defineComponent({
         onClose: _cache[1] || (_cache[1] = ($event) => _ctx.$emit("close"))
       }, {
         search: withCtx(() => [
-          createBaseVNode("div", _hoisted_1$8, [
+          createBaseVNode("div", _hoisted_1$9, [
             _cache[2] || (_cache[2] = createBaseVNode("svg", {
               class: "search-icon",
               viewBox: "0 0 16 16",
@@ -11876,7 +12244,7 @@ const _sfc_main$b = /* @__PURE__ */ defineComponent({
           ])
         ]),
         default: withCtx(() => [
-          createBaseVNode("div", _hoisted_2$7, [
+          createBaseVNode("div", _hoisted_2$8, [
             filteredFolders.value.length > 0 ? (openBlock(true), createElementBlock(Fragment, { key: 0 }, renderList(filteredFolders.value, (node) => {
               return openBlock(), createBlock(FolderTreeNode, {
                 key: node.key,
@@ -11896,12 +12264,19 @@ const _sfc_main$b = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const FoldersModal = /* @__PURE__ */ _export_sfc(_sfc_main$b, [["__scopeId", "data-v-046dcbf4"]]);
+const FoldersModal = /* @__PURE__ */ _export_sfc(_sfc_main$c, [["__scopeId", "data-v-5c36d37b"]]);
+function getLmBasePath() {
+  const { pathname } = window.location;
+  return pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+}
+function lmApiUrl(path) {
+  return `${getLmBasePath()}${path}`;
+}
 function useLoraPoolApi() {
   const isLoading = ref(false);
   const fetchBaseModels = async (limit = 50) => {
     try {
-      const response = await fetch(`/api/lm/loras/base-models?limit=${limit}`);
+      const response = await fetch(lmApiUrl(`/api/lm/loras/base-models?limit=${limit}`));
       const data = await response.json();
       return data.base_models || [];
     } catch (error) {
@@ -11911,7 +12286,7 @@ function useLoraPoolApi() {
   };
   const fetchTags = async (limit = 0) => {
     try {
-      const response = await fetch(`/api/lm/loras/top-tags?limit=${limit}`);
+      const response = await fetch(lmApiUrl(`/api/lm/loras/top-tags?limit=${limit}`));
       const data = await response.json();
       return data.tags || [];
     } catch (error) {
@@ -11921,7 +12296,7 @@ function useLoraPoolApi() {
   };
   const fetchFolderTree = async () => {
     try {
-      const response = await fetch("/api/lm/loras/unified-folder-tree");
+      const response = await fetch(lmApiUrl("/api/lm/loras/unified-folder-tree"));
       const data = await response.json();
       return transformFolderTree(data.tree || {});
     } catch (error) {
@@ -11969,7 +12344,7 @@ function useLoraPoolApi() {
       if (params.namePatternsUseRegex !== void 0) {
         urlParams.set("name_pattern_use_regex", String(params.namePatternsUseRegex));
       }
-      const response = await fetch(`/api/lm/loras/list?${urlParams}`);
+      const response = await fetch(lmApiUrl(`/api/lm/loras/list?${urlParams}`));
       const data = await response.json();
       return {
         items: data.items || [],
@@ -12009,35 +12384,40 @@ function useLoraPoolState(widget) {
   const previewItems = ref([]);
   const matchCount = ref(0);
   const isLoading = computed(() => api2.isLoading.value);
+  let syncedFilters = "";
+  const buildFilters = () => ({
+    baseModels: selectedBaseModels.value,
+    tags: {
+      include: includeTags.value,
+      exclude: excludeTags.value
+    },
+    folders: {
+      include: includeFolders.value,
+      exclude: excludeFolders.value
+    },
+    license: {
+      noCreditRequired: noCreditRequired.value,
+      allowSelling: allowSelling.value
+    },
+    namePatterns: {
+      include: includePatterns.value,
+      exclude: excludePatterns.value,
+      useRegex: useRegex.value
+    }
+  });
   const buildConfig = () => {
+    const filters = buildFilters();
+    const serializedFilters = JSON.stringify(filters);
     const config = {
       version: 2,
-      filters: {
-        baseModels: selectedBaseModels.value,
-        tags: {
-          include: includeTags.value,
-          exclude: excludeTags.value
-        },
-        folders: {
-          include: includeFolders.value,
-          exclude: excludeFolders.value
-        },
-        license: {
-          noCreditRequired: noCreditRequired.value,
-          allowSelling: allowSelling.value
-        },
-        namePatterns: {
-          include: includePatterns.value,
-          exclude: excludePatterns.value,
-          useRegex: useRegex.value
-        }
-      },
+      filters,
       preview: {
         matchCount: matchCount.value,
         lastUpdated: Date.now()
       }
     };
-    if (!isRestoring) {
+    if (!isRestoring && serializedFilters !== syncedFilters) {
+      syncedFilters = serializedFilters;
       widget.value = config;
     }
     return config;
@@ -12064,6 +12444,7 @@ function useLoraPoolState(widget) {
       updateIfChanged(excludePatterns, ((_h = filters.namePatterns) == null ? void 0 : _h.exclude) || []);
       updateIfChanged(useRegex, ((_i = filters.namePatterns) == null ? void 0 : _i.useRegex) ?? false);
       matchCount.value = (preview == null ? void 0 : preview.matchCount) || 0;
+      syncedFilters = JSON.stringify(buildFilters());
     } finally {
       isRestoring = false;
     }
@@ -12162,7 +12543,7 @@ function useModalState() {
     isModalOpen
   };
 }
-const _sfc_main$a = /* @__PURE__ */ defineComponent({
+const _sfc_main$b = /* @__PURE__ */ defineComponent({
   __name: "LoraPoolWidget",
   props: {
     widget: {},
@@ -12291,22 +12672,22 @@ const _sfc_main$a = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const LoraPoolWidget = /* @__PURE__ */ _export_sfc(_sfc_main$a, [["__scopeId", "data-v-ed73eab5"]]);
-const _hoisted_1$7 = { class: "last-used-preview" };
-const _hoisted_2$6 = { class: "last-used-preview__content" };
+const LoraPoolWidget = /* @__PURE__ */ _export_sfc(_sfc_main$b, [["__scopeId", "data-v-271afb29"]]);
+const _hoisted_1$8 = { class: "last-used-preview" };
+const _hoisted_2$7 = { class: "last-used-preview__content" };
 const _hoisted_3$5 = ["src", "onError"];
-const _hoisted_4$4 = {
+const _hoisted_4$5 = {
   key: 1,
   class: "last-used-preview__thumb last-used-preview__thumb--placeholder"
 };
-const _hoisted_5$3 = { class: "last-used-preview__info" };
-const _hoisted_6$3 = { class: "last-used-preview__name" };
-const _hoisted_7$3 = { class: "last-used-preview__strength" };
-const _hoisted_8$2 = {
+const _hoisted_5$4 = { class: "last-used-preview__info" };
+const _hoisted_6$4 = { class: "last-used-preview__name" };
+const _hoisted_7$4 = { class: "last-used-preview__strength" };
+const _hoisted_8$3 = {
   key: 0,
   class: "last-used-preview__more"
 };
-const _sfc_main$9 = /* @__PURE__ */ defineComponent({
+const _sfc_main$a = /* @__PURE__ */ defineComponent({
   __name: "LastUsedPreview",
   props: {
     loras: {}
@@ -12317,7 +12698,7 @@ const _sfc_main$9 = /* @__PURE__ */ defineComponent({
     const previewUrls = ref({});
     const fetchPreviewUrl = async (loraName) => {
       try {
-        const response = await fetch(`/api/lm/loras/preview-url?name=${encodeURIComponent(loraName)}`);
+        const response = await fetch(lmApiUrl(`/api/lm/loras/preview-url?name=${encodeURIComponent(loraName)}`));
         if (response.ok) {
           const data = await response.json();
           if (data.preview_url) {
@@ -12334,8 +12715,8 @@ const _sfc_main$9 = /* @__PURE__ */ defineComponent({
       previewUrls.value[loraName] = "";
     };
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$7, [
-        createBaseVNode("div", _hoisted_2$6, [
+      return openBlock(), createElementBlock("div", _hoisted_1$8, [
+        createBaseVNode("div", _hoisted_2$7, [
           (openBlock(true), createElementBlock(Fragment, null, renderList(displayLoras.value, (lora) => {
             return openBlock(), createElementBlock("div", {
               key: lora.name,
@@ -12346,7 +12727,7 @@ const _sfc_main$9 = /* @__PURE__ */ defineComponent({
                 src: previewUrls.value[lora.name],
                 class: "last-used-preview__thumb",
                 onError: ($event) => onImageError(lora.name)
-              }, null, 40, _hoisted_3$5)) : (openBlock(), createElementBlock("div", _hoisted_4$4, [..._cache[0] || (_cache[0] = [
+              }, null, 40, _hoisted_3$5)) : (openBlock(), createElementBlock("div", _hoisted_4$5, [..._cache[0] || (_cache[0] = [
                 createBaseVNode("svg", {
                   viewBox: "0 0 16 16",
                   fill: "currentColor"
@@ -12355,21 +12736,21 @@ const _sfc_main$9 = /* @__PURE__ */ defineComponent({
                   createBaseVNode("path", { d: "M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z" })
                 ], -1)
               ])])),
-              createBaseVNode("div", _hoisted_5$3, [
-                createBaseVNode("span", _hoisted_6$3, toDisplayString(lora.name), 1),
-                createBaseVNode("span", _hoisted_7$3, " M: " + toDisplayString(lora.strength) + toDisplayString(lora.clipStrength !== void 0 ? ` / C: ${lora.clipStrength}` : ""), 1)
+              createBaseVNode("div", _hoisted_5$4, [
+                createBaseVNode("span", _hoisted_6$4, toDisplayString(lora.name), 1),
+                createBaseVNode("span", _hoisted_7$4, " M: " + toDisplayString(lora.strength) + toDisplayString(lora.clipStrength !== void 0 ? ` / C: ${lora.clipStrength}` : ""), 1)
               ])
             ]);
           }), 128)),
-          __props.loras.length > 5 ? (openBlock(), createElementBlock("div", _hoisted_8$2, " +" + toDisplayString((__props.loras.length - 5).toLocaleString()) + " more LoRAs ", 1)) : createCommentVNode("", true)
+          __props.loras.length > 5 ? (openBlock(), createElementBlock("div", _hoisted_8$3, " +" + toDisplayString((__props.loras.length - 5).toLocaleString()) + " more LoRAs ", 1)) : createCommentVNode("", true)
         ])
       ]);
     };
   }
 });
-const LastUsedPreview = /* @__PURE__ */ _export_sfc(_sfc_main$9, [["__scopeId", "data-v-b940502e"]]);
-const _hoisted_1$6 = { class: "slider-handle__value" };
-const _sfc_main$8 = /* @__PURE__ */ defineComponent({
+const LastUsedPreview = /* @__PURE__ */ _export_sfc(_sfc_main$a, [["__scopeId", "data-v-3d04a7a0"]]);
+const _hoisted_1$7 = { class: "slider-handle__value" };
+const _sfc_main$9 = /* @__PURE__ */ defineComponent({
   __name: "SingleSlider",
   props: {
     min: {},
@@ -12495,16 +12876,16 @@ const _sfc_main$8 = /* @__PURE__ */ defineComponent({
           onPointercancel: withModifiers(stopDrag, ["stop"])
         }, [
           _cache[1] || (_cache[1] = createBaseVNode("div", { class: "slider-handle__thumb" }, null, -1)),
-          createBaseVNode("div", _hoisted_1$6, toDisplayString(formatValue(__props.value)), 1)
+          createBaseVNode("div", _hoisted_1$7, toDisplayString(formatValue(__props.value)), 1)
         ], 36)
       ], 34);
     };
   }
 });
-const SingleSlider = /* @__PURE__ */ _export_sfc(_sfc_main$8, [["__scopeId", "data-v-04874dd7"]]);
-const _hoisted_1$5 = { class: "slider-handle__value" };
-const _hoisted_2$5 = { class: "slider-handle__value" };
-const _sfc_main$7 = /* @__PURE__ */ defineComponent({
+const SingleSlider = /* @__PURE__ */ _export_sfc(_sfc_main$9, [["__scopeId", "data-v-4a65bc92"]]);
+const _hoisted_1$6 = { class: "slider-handle__value" };
+const _hoisted_2$6 = { class: "slider-handle__value" };
+const _sfc_main$8 = /* @__PURE__ */ defineComponent({
   __name: "DualRangeSlider",
   props: {
     min: {},
@@ -12767,7 +13148,7 @@ const _sfc_main$7 = /* @__PURE__ */ defineComponent({
           onPointercancel: withModifiers(stopDrag, ["stop"])
         }, [
           _cache[3] || (_cache[3] = createBaseVNode("div", { class: "slider-handle__thumb" }, null, -1)),
-          createBaseVNode("div", _hoisted_1$5, toDisplayString(formatValue(__props.valueMin)), 1)
+          createBaseVNode("div", _hoisted_1$6, toDisplayString(formatValue(__props.valueMin)), 1)
         ], 36),
         createBaseVNode("div", {
           class: "slider-handle slider-handle--max",
@@ -12778,35 +13159,35 @@ const _sfc_main$7 = /* @__PURE__ */ defineComponent({
           onPointercancel: withModifiers(stopDrag, ["stop"])
         }, [
           _cache[4] || (_cache[4] = createBaseVNode("div", { class: "slider-handle__thumb" }, null, -1)),
-          createBaseVNode("div", _hoisted_2$5, toDisplayString(formatValue(__props.valueMax)), 1)
+          createBaseVNode("div", _hoisted_2$6, toDisplayString(formatValue(__props.valueMax)), 1)
         ], 36)
       ], 34);
     };
   }
 });
-const DualRangeSlider = /* @__PURE__ */ _export_sfc(_sfc_main$7, [["__scopeId", "data-v-e0c8dc9f"]]);
-const _hoisted_1$4 = { class: "randomizer-settings" };
-const _hoisted_2$4 = { class: "setting-section" };
+const DualRangeSlider = /* @__PURE__ */ _export_sfc(_sfc_main$8, [["__scopeId", "data-v-e2333f13"]]);
+const _hoisted_1$5 = { class: "randomizer-settings" };
+const _hoisted_2$5 = { class: "setting-section" };
 const _hoisted_3$4 = { class: "count-mode-tabs" };
-const _hoisted_4$3 = ["checked"];
-const _hoisted_5$2 = ["checked"];
-const _hoisted_6$2 = { class: "slider-container" };
-const _hoisted_7$2 = { class: "setting-section" };
-const _hoisted_8$1 = { class: "slider-container" };
-const _hoisted_9$1 = { class: "setting-section" };
-const _hoisted_10$1 = { class: "section-header-with-toggle" };
-const _hoisted_11$1 = ["aria-checked"];
-const _hoisted_12$1 = { class: "setting-section" };
-const _hoisted_13$1 = { class: "section-header-with-toggle" };
-const _hoisted_14$1 = { class: "setting-label" };
-const _hoisted_15$1 = ["aria-checked"];
-const _hoisted_16$1 = { class: "setting-section" };
-const _hoisted_17$1 = { class: "roll-buttons-with-tooltip" };
+const _hoisted_4$4 = ["checked"];
+const _hoisted_5$3 = ["checked"];
+const _hoisted_6$3 = { class: "slider-container" };
+const _hoisted_7$3 = { class: "setting-section" };
+const _hoisted_8$2 = { class: "slider-container" };
+const _hoisted_9$2 = { class: "setting-section" };
+const _hoisted_10$2 = { class: "section-header-with-toggle" };
+const _hoisted_11$2 = ["aria-checked"];
+const _hoisted_12$2 = { class: "setting-section" };
+const _hoisted_13$2 = { class: "section-header-with-toggle" };
+const _hoisted_14$2 = { class: "setting-label" };
+const _hoisted_15$2 = ["aria-checked"];
+const _hoisted_16$2 = { class: "setting-section" };
+const _hoisted_17$2 = { class: "roll-buttons-with-tooltip" };
 const _hoisted_18$1 = { class: "roll-buttons" };
 const _hoisted_19$1 = ["disabled"];
 const _hoisted_20$1 = ["disabled"];
 const _hoisted_21$1 = ["disabled"];
-const _sfc_main$6 = /* @__PURE__ */ defineComponent({
+const _sfc_main$7 = /* @__PURE__ */ defineComponent({
   __name: "LoraRandomizerSettingsView",
   props: {
     countMode: {},
@@ -12846,11 +13227,11 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
       );
     };
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$4, [
+      return openBlock(), createElementBlock("div", _hoisted_1$5, [
         _cache[29] || (_cache[29] = createBaseVNode("div", { class: "settings-header" }, [
           createBaseVNode("h3", { class: "settings-title" }, "RANDOMIZER SETTINGS")
         ], -1)),
-        createBaseVNode("div", _hoisted_2$4, [
+        createBaseVNode("div", _hoisted_2$5, [
           _cache[20] || (_cache[20] = createBaseVNode("label", { class: "setting-label" }, "LoRA Count", -1)),
           createBaseVNode("div", _hoisted_3$4, [
             createBaseVNode("label", {
@@ -12862,7 +13243,7 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
                 value: "fixed",
                 checked: __props.countMode === "fixed",
                 onChange: _cache[0] || (_cache[0] = ($event) => _ctx.$emit("update:countMode", "fixed"))
-              }, null, 40, _hoisted_4$3),
+              }, null, 40, _hoisted_4$4),
               _cache[18] || (_cache[18] = createBaseVNode("span", { class: "count-mode-tab-label" }, "Fixed", -1))
             ], 2),
             createBaseVNode("label", {
@@ -12874,11 +13255,11 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
                 value: "range",
                 checked: __props.countMode === "range",
                 onChange: _cache[1] || (_cache[1] = ($event) => _ctx.$emit("update:countMode", "range"))
-              }, null, 40, _hoisted_5$2),
+              }, null, 40, _hoisted_5$3),
               _cache[19] || (_cache[19] = createBaseVNode("span", { class: "count-mode-tab-label" }, "Range", -1))
             ], 2)
           ]),
-          createBaseVNode("div", _hoisted_6$2, [
+          createBaseVNode("div", _hoisted_6$3, [
             __props.countMode === "fixed" ? (openBlock(), createBlock(SingleSlider, {
               key: 0,
               min: 1,
@@ -12901,9 +13282,9 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
             }, null, 8, ["value-min", "value-max"]))
           ])
         ]),
-        createBaseVNode("div", _hoisted_7$2, [
+        createBaseVNode("div", _hoisted_7$3, [
           _cache[21] || (_cache[21] = createBaseVNode("label", { class: "setting-label" }, "Model Strength Range", -1)),
-          createBaseVNode("div", _hoisted_8$1, [
+          createBaseVNode("div", _hoisted_8$2, [
             createVNode(DualRangeSlider, {
               min: -10,
               max: 10,
@@ -12919,8 +13300,8 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
             }, null, 8, ["value-min", "value-max"])
           ])
         ]),
-        createBaseVNode("div", _hoisted_9$1, [
-          createBaseVNode("div", _hoisted_10$1, [
+        createBaseVNode("div", _hoisted_9$2, [
+          createBaseVNode("div", _hoisted_10$2, [
             _cache[23] || (_cache[23] = createBaseVNode("label", { class: "setting-label" }, " Preset Strength Scale ", -1)),
             createBaseVNode("button", {
               type: "button",
@@ -12932,7 +13313,7 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
             }, [..._cache[22] || (_cache[22] = [
               createBaseVNode("span", { class: "toggle-switch__track" }, null, -1),
               createBaseVNode("span", { class: "toggle-switch__thumb" }, null, -1)
-            ])], 10, _hoisted_11$1)
+            ])], 10, _hoisted_11$2)
           ]),
           createBaseVNode("div", {
             class: normalizeClass(["slider-container", { "slider-container--disabled": !__props.useRecommendedStrength }])
@@ -12951,9 +13332,9 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
             }, null, 8, ["value-min", "value-max", "disabled"])
           ], 2)
         ]),
-        createBaseVNode("div", _hoisted_12$1, [
-          createBaseVNode("div", _hoisted_13$1, [
-            createBaseVNode("label", _hoisted_14$1, " Clip Strength Range - " + toDisplayString(__props.useCustomClipRange ? "Custom Range" : "Use Model Strength"), 1),
+        createBaseVNode("div", _hoisted_12$2, [
+          createBaseVNode("div", _hoisted_13$2, [
+            createBaseVNode("label", _hoisted_14$2, " Clip Strength Range - " + toDisplayString(__props.useCustomClipRange ? "Custom Range" : "Use Model Strength"), 1),
             createBaseVNode("button", {
               type: "button",
               class: normalizeClass(["toggle-switch", { "toggle-switch--active": __props.useCustomClipRange }]),
@@ -12964,7 +13345,7 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
             }, [..._cache[24] || (_cache[24] = [
               createBaseVNode("span", { class: "toggle-switch__track" }, null, -1),
               createBaseVNode("span", { class: "toggle-switch__thumb" }, null, -1)
-            ])], 10, _hoisted_15$1)
+            ])], 10, _hoisted_15$2)
           ]),
           createBaseVNode("div", {
             class: normalizeClass(["slider-container", { "slider-container--disabled": __props.isClipStrengthDisabled }])
@@ -12985,23 +13366,23 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
             }, null, 8, ["value-min", "value-max", "disabled"])
           ], 2)
         ]),
-        createBaseVNode("div", _hoisted_16$1, [
+        createBaseVNode("div", _hoisted_16$2, [
           _cache[28] || (_cache[28] = createBaseVNode("label", { class: "setting-label" }, "Roll Mode", -1)),
-          createBaseVNode("div", _hoisted_17$1, [
+          createBaseVNode("div", _hoisted_17$2, [
             createBaseVNode("div", _hoisted_18$1, [
               createBaseVNode("button", {
                 class: normalizeClass(["roll-button", { selected: __props.rollMode === "fixed" }]),
                 disabled: __props.isRolling,
                 onClick: _cache[13] || (_cache[13] = ($event) => _ctx.$emit("generate-fixed"))
               }, [..._cache[25] || (_cache[25] = [
-                createStaticVNode('<svg class="roll-button__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-v-f7a531b6><rect x="2" y="2" width="20" height="20" rx="5" data-v-f7a531b6></rect><circle cx="12" cy="12" r="3" data-v-f7a531b6></circle><circle cx="6" cy="8" r="1.5" data-v-f7a531b6></circle><circle cx="18" cy="16" r="1.5" data-v-f7a531b6></circle></svg><span class="roll-button__text" data-v-f7a531b6>Generate Fixed</span>', 2)
+                createStaticVNode('<svg class="roll-button__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-v-59071d72><rect x="2" y="2" width="20" height="20" rx="5" data-v-59071d72></rect><circle cx="12" cy="12" r="3" data-v-59071d72></circle><circle cx="6" cy="8" r="1.5" data-v-59071d72></circle><circle cx="18" cy="16" r="1.5" data-v-59071d72></circle></svg><span class="roll-button__text" data-v-59071d72>Generate Fixed</span>', 2)
               ])], 10, _hoisted_19$1),
               createBaseVNode("button", {
                 class: normalizeClass(["roll-button", { selected: __props.rollMode === "always" }]),
                 disabled: __props.isRolling,
                 onClick: _cache[14] || (_cache[14] = ($event) => _ctx.$emit("always-randomize"))
               }, [..._cache[26] || (_cache[26] = [
-                createStaticVNode('<svg class="roll-button__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-v-f7a531b6><path d="M21 12a9 9 0 1 1-6.219-8.56" data-v-f7a531b6></path><path d="M21 3v5h-5" data-v-f7a531b6></path><circle cx="12" cy="12" r="3" data-v-f7a531b6></circle><circle cx="6" cy="8" r="1.5" data-v-f7a531b6></circle><circle cx="18" cy="16" r="1.5" data-v-f7a531b6></circle></svg><span class="roll-button__text" data-v-f7a531b6>Always Randomize</span>', 2)
+                createStaticVNode('<svg class="roll-button__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-v-59071d72><path d="M21 12a9 9 0 1 1-6.219-8.56" data-v-59071d72></path><path d="M21 3v5h-5" data-v-59071d72></path><circle cx="12" cy="12" r="3" data-v-59071d72></circle><circle cx="6" cy="8" r="1.5" data-v-59071d72></circle><circle cx="18" cy="16" r="1.5" data-v-59071d72></circle></svg><span class="roll-button__text" data-v-59071d72>Always Randomize</span>', 2)
               ])], 10, _hoisted_20$1),
               createBaseVNode("button", {
                 class: normalizeClass(["roll-button", { selected: __props.rollMode === "fixed" && __props.canReuseLast && areLorasEqual(__props.currentLoras, __props.lastUsed) }]),
@@ -13040,7 +13421,7 @@ const _sfc_main$6 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const LoraRandomizerSettingsView = /* @__PURE__ */ _export_sfc(_sfc_main$6, [["__scopeId", "data-v-f7a531b6"]]);
+const LoraRandomizerSettingsView = /* @__PURE__ */ _export_sfc(_sfc_main$7, [["__scopeId", "data-v-59071d72"]]);
 function useLoraRandomizerState(widget) {
   let isRestoring = false;
   const countMode = ref("range");
@@ -13109,6 +13490,10 @@ function useLoraRandomizerState(widget) {
       nextSeed.value = Math.floor(Math.random() * 2147483647);
     }
   };
+  const resetSeeds = () => {
+    executionSeed.value = null;
+    nextSeed.value = null;
+  };
   const restoreFromConfig = (config) => {
     isRestoring = true;
     try {
@@ -13163,7 +13548,7 @@ function useLoraRandomizerState(widget) {
       if (poolConfig) {
         requestBody.pool_config = poolConfig.filters || {};
       }
-      const response = await fetch("/api/lm/loras/random-sample", {
+      const response = await fetch(lmApiUrl("/api/lm/loras/random-sample"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -13239,10 +13624,11 @@ function useLoraRandomizerState(widget) {
     rollLoras,
     useLastUsed,
     generateNewSeed,
-    initializeNextSeed
+    initializeNextSeed,
+    resetSeeds
   };
 }
-const _sfc_main$5 = /* @__PURE__ */ defineComponent({
+const _sfc_main$6 = /* @__PURE__ */ defineComponent({
   __name: "LoraRandomizerWidget",
   props: {
     widget: {},
@@ -13269,6 +13655,11 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
         (lora, i2) => lora.name === sortedB[i2].name && lora.strength === sortedB[i2].strength && lora.clipStrength === sortedB[i2].clipStrength
       );
     };
+    const resetSeedChain = () => {
+      state.resetSeeds();
+      delete props.widget[HAS_EXECUTED];
+      props.widget.value = state.buildConfig();
+    };
     const handleGenerateFixed = async () => {
       var _a2, _b, _c;
       try {
@@ -13281,6 +13672,7 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
           currentLoras.value = randomLoras;
         }
         state.rollMode.value = "fixed";
+        resetSeedChain();
       } catch (error) {
         console.error("[LoraRandomizerWidget] Error generating fixed LoRAs:", error);
         alert("Failed to generate LoRAs: " + error.message);
@@ -13298,6 +13690,7 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
           currentLoras.value = randomLoras;
         }
         state.rollMode.value = "always";
+        resetSeedChain();
       } catch (error) {
         console.error("[LoraRandomizerWidget] Error generating random LoRAs:", error);
         alert("Failed to generate LoRAs: " + error.message);
@@ -13313,6 +13706,7 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
           currentLoras.value = lastUsedLoras;
         }
         state.rollMode.value = "fixed";
+        resetSeedChain();
       }
     };
     const onWheel = (event) => {
@@ -13480,27 +13874,27 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const LoraRandomizerWidget = /* @__PURE__ */ _export_sfc(_sfc_main$5, [["__scopeId", "data-v-ca6e8cec"]]);
-const _hoisted_1$3 = { class: "cycler-settings" };
-const _hoisted_2$3 = { class: "setting-section progress-section" };
+const LoraRandomizerWidget = /* @__PURE__ */ _export_sfc(_sfc_main$6, [["__scopeId", "data-v-54f2f3a9"]]);
+const _hoisted_1$4 = { class: "cycler-settings" };
+const _hoisted_2$4 = { class: "setting-section progress-section" };
 const _hoisted_3$3 = { class: "progress-label" };
-const _hoisted_4$2 = ["title"];
-const _hoisted_5$1 = { class: "progress-counter" };
-const _hoisted_6$1 = { class: "progress-index" };
-const _hoisted_7$1 = { class: "progress-total" };
-const _hoisted_8 = {
+const _hoisted_4$3 = ["title"];
+const _hoisted_5$2 = { class: "progress-counter" };
+const _hoisted_6$2 = { class: "progress-index" };
+const _hoisted_7$2 = { class: "progress-total" };
+const _hoisted_8$1 = {
   key: 0,
   class: "repeat-progress"
 };
-const _hoisted_9 = { class: "repeat-progress-track" };
-const _hoisted_10 = { class: "repeat-progress-text" };
-const _hoisted_11 = { class: "setting-section" };
-const _hoisted_12 = { class: "index-controls-row" };
-const _hoisted_13 = { class: "control-group" };
-const _hoisted_14 = { class: "control-group-content" };
-const _hoisted_15 = ["max", "value", "disabled"];
-const _hoisted_16 = { class: "index-hint" };
-const _hoisted_17 = { class: "control-group" };
+const _hoisted_9$1 = { class: "repeat-progress-track" };
+const _hoisted_10$1 = { class: "repeat-progress-text" };
+const _hoisted_11$1 = { class: "setting-section" };
+const _hoisted_12$1 = { class: "index-controls-row" };
+const _hoisted_13$1 = { class: "control-group" };
+const _hoisted_14$1 = { class: "control-group-content" };
+const _hoisted_15$1 = ["max", "value", "disabled"];
+const _hoisted_16$1 = { class: "index-hint" };
+const _hoisted_17$1 = { class: "control-group" };
 const _hoisted_18 = { class: "control-group-content" };
 const _hoisted_19 = ["value"];
 const _hoisted_20 = { class: "action-buttons" };
@@ -13529,7 +13923,7 @@ const _hoisted_32 = ["aria-checked"];
 const _hoisted_33 = { class: "setting-section" };
 const _hoisted_34 = { class: "section-header-with-toggle" };
 const _hoisted_35 = ["aria-checked"];
-const _sfc_main$4 = /* @__PURE__ */ defineComponent({
+const _sfc_main$5 = /* @__PURE__ */ defineComponent({
   __name: "LoraCyclerSettingsView",
   props: {
     currentIndex: {},
@@ -13596,11 +13990,11 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
       tempRepeat.value = "";
     };
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$3, [
+      return openBlock(), createElementBlock("div", _hoisted_1$4, [
         _cache[28] || (_cache[28] = createBaseVNode("div", { class: "settings-header" }, [
           createBaseVNode("h3", { class: "settings-title" }, "CYCLER SETTINGS")
         ], -1)),
-        createBaseVNode("div", _hoisted_2$3, [
+        createBaseVNode("div", _hoisted_2$4, [
           createBaseVNode("div", {
             class: normalizeClass(["progress-display", { executing: __props.isWorkflowExecuting }])
           }, [
@@ -13621,29 +14015,29 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
                 }, [
                   createBaseVNode("path", { d: "M7 10l5 5 5-5z" })
                 ], -1))
-              ], 10, _hoisted_4$2)
+              ], 10, _hoisted_4$3)
             ], 2),
-            createBaseVNode("div", _hoisted_5$1, [
-              createBaseVNode("span", _hoisted_6$1, toDisplayString(__props.currentIndex), 1),
+            createBaseVNode("div", _hoisted_5$2, [
+              createBaseVNode("span", _hoisted_6$2, toDisplayString(__props.currentIndex), 1),
               _cache[15] || (_cache[15] = createBaseVNode("span", { class: "progress-separator" }, "/", -1)),
-              createBaseVNode("span", _hoisted_7$1, toDisplayString(__props.totalCount), 1),
-              __props.repeatCount > 1 ? (openBlock(), createElementBlock("div", _hoisted_8, [
-                createBaseVNode("div", _hoisted_9, [
+              createBaseVNode("span", _hoisted_7$2, toDisplayString(__props.totalCount), 1),
+              __props.repeatCount > 1 ? (openBlock(), createElementBlock("div", _hoisted_8$1, [
+                createBaseVNode("div", _hoisted_9$1, [
                   createBaseVNode("div", {
                     class: normalizeClass(["repeat-progress-fill", { "is-complete": __props.repeatUsed >= __props.repeatCount }]),
                     style: normalizeStyle({ width: `${__props.repeatUsed / __props.repeatCount * 100}%` })
                   }, null, 6)
                 ]),
-                createBaseVNode("span", _hoisted_10, toDisplayString(__props.repeatUsed) + "/" + toDisplayString(__props.repeatCount), 1)
+                createBaseVNode("span", _hoisted_10$1, toDisplayString(__props.repeatUsed) + "/" + toDisplayString(__props.repeatCount), 1)
               ])) : createCommentVNode("", true)
             ])
           ], 2)
         ]),
-        createBaseVNode("div", _hoisted_11, [
-          createBaseVNode("div", _hoisted_12, [
-            createBaseVNode("div", _hoisted_13, [
+        createBaseVNode("div", _hoisted_11$1, [
+          createBaseVNode("div", _hoisted_12$1, [
+            createBaseVNode("div", _hoisted_13$1, [
               _cache[16] || (_cache[16] = createBaseVNode("label", { class: "control-group-label" }, "Starting Index", -1)),
-              createBaseVNode("div", _hoisted_14, [
+              createBaseVNode("div", _hoisted_14$1, [
                 createBaseVNode("input", {
                   type: "number",
                   class: "index-input",
@@ -13659,11 +14053,11 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
                   }, ["stop"])),
                   onPointerup: _cache[2] || (_cache[2] = withModifiers(() => {
                   }, ["stop"]))
-                }, null, 40, _hoisted_15),
-                createBaseVNode("span", _hoisted_16, "/ " + toDisplayString(__props.totalCount || 1), 1)
+                }, null, 40, _hoisted_15$1),
+                createBaseVNode("span", _hoisted_16$1, "/ " + toDisplayString(__props.totalCount || 1), 1)
               ])
             ]),
-            createBaseVNode("div", _hoisted_17, [
+            createBaseVNode("div", _hoisted_17$1, [
               _cache[18] || (_cache[18] = createBaseVNode("label", { class: "control-group-label" }, "Repeat", -1)),
               createBaseVNode("div", _hoisted_18, [
                 createBaseVNode("input", {
@@ -13805,21 +14199,21 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const LoraCyclerSettingsView = /* @__PURE__ */ _export_sfc(_sfc_main$4, [["__scopeId", "data-v-f0663be4"]]);
-const _hoisted_1$2 = { class: "search-container" };
-const _hoisted_2$2 = { class: "lora-list" };
+const LoraCyclerSettingsView = /* @__PURE__ */ _export_sfc(_sfc_main$5, [["__scopeId", "data-v-a772e649"]]);
+const _hoisted_1$3 = { class: "search-container" };
+const _hoisted_2$3 = { class: "lora-list" };
 const _hoisted_3$2 = ["onMouseenter", "onClick"];
-const _hoisted_4$1 = { class: "lora-index" };
-const _hoisted_5 = ["title"];
-const _hoisted_6 = {
+const _hoisted_4$2 = { class: "lora-index" };
+const _hoisted_5$1 = ["title"];
+const _hoisted_6$1 = {
   key: 0,
   class: "current-badge"
 };
-const _hoisted_7 = {
+const _hoisted_7$1 = {
   key: 0,
   class: "no-results"
 };
-const _sfc_main$3 = /* @__PURE__ */ defineComponent({
+const _sfc_main$4 = /* @__PURE__ */ defineComponent({
   __name: "LoraListModal",
   props: {
     visible: { type: Boolean },
@@ -13873,7 +14267,7 @@ const _sfc_main$3 = /* @__PURE__ */ defineComponent({
     };
     const customPreviewUrlResolver = async (modelName) => {
       const response = await fetch(
-        `/api/lm/loras/preview-url?name=${encodeURIComponent(modelName)}&license_flags=true`
+        lmApiUrl(`/api/lm/loras/preview-url?name=${encodeURIComponent(modelName)}&license_flags=true`)
       );
       if (!response.ok) {
         throw new Error("Failed to fetch preview URL");
@@ -13937,7 +14331,7 @@ const _sfc_main$3 = /* @__PURE__ */ defineComponent({
         onClose: _cache[1] || (_cache[1] = ($event) => _ctx.$emit("close"))
       }, {
         search: withCtx(() => [
-          createBaseVNode("div", _hoisted_1$2, [
+          createBaseVNode("div", _hoisted_1$3, [
             _cache[3] || (_cache[3] = createBaseVNode("svg", {
               class: "search-icon",
               viewBox: "0 0 16 16",
@@ -13971,7 +14365,7 @@ const _sfc_main$3 = /* @__PURE__ */ defineComponent({
           ])
         ]),
         default: withCtx(() => [
-          createBaseVNode("div", _hoisted_2$2, [
+          createBaseVNode("div", _hoisted_2$3, [
             (openBlock(true), createElementBlock(Fragment, null, renderList(filteredList.value, (item) => {
               return openBlock(), createElementBlock("div", {
                 key: item.index,
@@ -13983,15 +14377,15 @@ const _sfc_main$3 = /* @__PURE__ */ defineComponent({
                 onMouseleave: hidePreview,
                 onClick: ($event) => selectLora(item.index)
               }, [
-                createBaseVNode("span", _hoisted_4$1, toDisplayString(item.index), 1),
+                createBaseVNode("span", _hoisted_4$2, toDisplayString(item.index), 1),
                 createBaseVNode("span", {
                   class: "lora-name",
                   title: item.lora.file_name
-                }, toDisplayString(item.lora.file_name), 9, _hoisted_5),
-                __props.currentIndex === item.index ? (openBlock(), createElementBlock("span", _hoisted_6, "Current")) : createCommentVNode("", true)
+                }, toDisplayString(item.lora.file_name), 9, _hoisted_5$1),
+                __props.currentIndex === item.index ? (openBlock(), createElementBlock("span", _hoisted_6$1, "Current")) : createCommentVNode("", true)
               ], 42, _hoisted_3$2);
             }), 128)),
-            filteredList.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_7, " No LoRAs found ")) : createCommentVNode("", true)
+            filteredList.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_7$1, " No LoRAs found ")) : createCommentVNode("", true)
           ])
         ]),
         _: 1
@@ -13999,9 +14393,10 @@ const _sfc_main$3 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const LoraListModal = /* @__PURE__ */ _export_sfc(_sfc_main$3, [["__scopeId", "data-v-83f6f852"]]);
+const LoraListModal = /* @__PURE__ */ _export_sfc(_sfc_main$4, [["__scopeId", "data-v-4794e456"]]);
 function useLoraCyclerState(widget) {
   let isRestoring = false;
+  let suspendWidgetWrite = false;
   const currentIndex = ref(1);
   const totalCount = ref(0);
   const poolConfigHash = ref("");
@@ -14126,7 +14521,7 @@ function useLoraCyclerState(widget) {
       if (poolConfig == null ? void 0 : poolConfig.filters) {
         requestBody.pool_config = poolConfig.filters;
       }
-      const response = await fetch("/api/lm/loras/cycler-list", {
+      const response = await fetch(lmApiUrl("/api/lm/loras/cycler-list"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -14149,7 +14544,11 @@ function useLoraCyclerState(widget) {
       isLoading.value = false;
     }
   };
-  const refreshList = async (poolConfig) => {
+  const refreshList = async (poolConfig, options = {}) => {
+    const { write = true } = options;
+    if (!write) {
+      suspendWidgetWrite = true;
+    }
     try {
       const newHash = hashPoolConfig(poolConfig);
       const hashChanged = newHash !== poolConfigHash.value;
@@ -14176,6 +14575,11 @@ function useLoraCyclerState(widget) {
     } catch (error) {
       console.error("[LoraCyclerState] Error refreshing list:", error);
       throw error;
+    } finally {
+      if (!write) {
+        await nextTick();
+        suspendWidgetWrite = false;
+      }
     }
   };
   const setIndex = (index) => {
@@ -14215,6 +14619,9 @@ function useLoraCyclerState(widget) {
     isPaused,
     includeNoLora
   ], () => {
+    if (suspendWidgetWrite) {
+      return;
+    }
     widget.value = buildConfig();
   }, { deep: true });
   return {
@@ -14255,7 +14662,7 @@ function useLoraCyclerState(widget) {
     togglePause
   };
 }
-const _sfc_main$2 = /* @__PURE__ */ defineComponent({
+const _sfc_main$3 = /* @__PURE__ */ defineComponent({
   __name: "LoraCyclerWidget",
   props: {
     widget: {},
@@ -14400,10 +14807,11 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
       const poolConfig = getPoolConfig();
       const newHash = state.hashPoolConfig(poolConfig);
       if (newHash !== lastPoolConfigHash.value) {
+        const isInitialResolution = lastPoolConfigHash.value === "";
         console.log("[LoraCyclerWidget] Pool config changed, refreshing list");
         lastPoolConfigHash.value = newHash;
         try {
-          await state.refreshList(poolConfig);
+          await state.refreshList(poolConfig, { write: !isInitialResolution });
           const loraList = await state.fetchCyclerList(poolConfig);
           cachedLoraList.value = loraList;
         } catch (error) {
@@ -14465,7 +14873,7 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
       try {
         const poolConfig = getPoolConfig();
         lastPoolConfigHash.value = state.hashPoolConfig(poolConfig);
-        await state.refreshList(poolConfig);
+        await state.refreshList(poolConfig, { write: false });
         const loraList = await state.fetchCyclerList(poolConfig);
         cachedLoraList.value = loraList;
       } catch (error) {
@@ -14599,18 +15007,18 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const LoraCyclerWidget = /* @__PURE__ */ _export_sfc(_sfc_main$2, [["__scopeId", "data-v-3f46897a"]]);
-const _hoisted_1$1 = { class: "json-display-widget" };
-const _hoisted_2$1 = {
+const LoraCyclerWidget = /* @__PURE__ */ _export_sfc(_sfc_main$3, [["__scopeId", "data-v-39cb48c3"]]);
+const _hoisted_1$2 = { class: "json-display-widget" };
+const _hoisted_2$2 = {
   class: "json-content",
   ref: "contentRef"
 };
 const _hoisted_3$1 = ["innerHTML"];
-const _hoisted_4 = {
+const _hoisted_4$1 = {
   key: 1,
   class: "placeholder"
 };
-const _sfc_main$1 = /* @__PURE__ */ defineComponent({
+const _sfc_main$2 = /* @__PURE__ */ defineComponent({
   __name: "JsonDisplayWidget",
   props: {
     widget: {},
@@ -14695,18 +15103,18 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
       };
     });
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$1, [
-        createBaseVNode("div", _hoisted_2$1, [
+      return openBlock(), createElementBlock("div", _hoisted_1$2, [
+        createBaseVNode("div", _hoisted_2$2, [
           hasMetadata.value ? (openBlock(), createElementBlock("pre", {
             key: 0,
             innerHTML: highlightedJson.value
-          }, null, 8, _hoisted_3$1)) : (openBlock(), createElementBlock("div", _hoisted_4, "No metadata available"))
+          }, null, 8, _hoisted_3$1)) : (openBlock(), createElementBlock("div", _hoisted_4$1, "No metadata available"))
         ], 512)
       ]);
     };
   }
 });
-const JsonDisplayWidget = /* @__PURE__ */ _export_sfc(_sfc_main$1, [["__scopeId", "data-v-0f202476"]]);
+const JsonDisplayWidget = /* @__PURE__ */ _export_sfc(_sfc_main$2, [["__scopeId", "data-v-a4dd3912"]]);
 function useAutocomplete(textareaRef, modelType = "loras", options = {}) {
   const autocompleteInstance = ref(null);
   const isInitialized = ref(false);
@@ -14772,10 +15180,9 @@ function useAutocomplete(textareaRef, modelType = "loras", options = {}) {
     refreshCaretHelper
   };
 }
-const _hoisted_1 = { class: "autocomplete-text-widget" };
-const _hoisted_2 = { class: "input-wrapper" };
-const _hoisted_3 = ["placeholder", "spellcheck"];
-const _sfc_main = /* @__PURE__ */ defineComponent({
+const _hoisted_1$1 = { class: "autocomplete-text-widget" };
+const _hoisted_2$1 = ["placeholder", "spellcheck"];
+const _sfc_main$1 = /* @__PURE__ */ defineComponent({
   __name: "AutocompleteTextWidget",
   props: {
     widget: {},
@@ -14792,8 +15199,35 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
     const onModeChange = (event) => {
       const customEvent = event;
       isVueDomMode.value = customEvent.detail.isVueDomMode;
+      updateVScrollbarWidth();
     };
     const textareaRef = ref(null);
+    const inputWrapperRef = ref(null);
+    const vScrollbarWidth = ref(0);
+    let scrollbarResizeObserver = null;
+    const updateVScrollbarWidth = () => {
+      const ta = textareaRef.value;
+      if (!ta) return;
+      const overflowsY = ta.scrollHeight > ta.clientHeight;
+      vScrollbarWidth.value = overflowsY ? ta.offsetWidth - ta.clientWidth : 0;
+    };
+    const observeScrollbarWidth = () => {
+      unobserveScrollbarWidth();
+      const ta = textareaRef.value;
+      if (!ta || typeof ResizeObserver === "undefined") {
+        return;
+      }
+      scrollbarResizeObserver = new ResizeObserver(() => {
+        updateVScrollbarWidth();
+      });
+      scrollbarResizeObserver.observe(ta);
+    };
+    const unobserveScrollbarWidth = () => {
+      if (scrollbarResizeObserver) {
+        scrollbarResizeObserver.disconnect();
+        scrollbarResizeObserver = null;
+      }
+    };
     const hasText = ref(false);
     const showClearButton = computed(() => hasText.value);
     useAutocomplete(
@@ -14804,7 +15238,14 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
     const updateHasTextState = () => {
       hasText.value = textareaRef.value ? textareaRef.value.value.length > 0 : false;
     };
-    const onInput = () => {
+    const onInput = (event) => {
+      updateVScrollbarWidth();
+      if (event.inputType === "historyUndo") {
+        const ta = textareaRef.value;
+        if (ta && ta.selectionStart === 0 && ta.selectionEnd === ta.value.length) {
+          ta.setSelectionRange(ta.value.length, ta.value.length);
+        }
+      }
       updateHasTextState();
       if (textareaRef.value && typeof props.widget.callback === "function") {
         props.widget.callback(textareaRef.value.value);
@@ -14841,25 +15282,34 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
       }
     };
     const onExternalValueChange = () => {
+      updateVScrollbarWidth();
       updateHasTextState();
     };
     const setupWidgetOnSetValue = () => {
       if (props.widget) {
         props.widget.onSetValue = (value) => {
           hasText.value = value.length > 0;
+          updateVScrollbarWidth();
         };
       }
     };
     const clearText = () => {
-      if (textareaRef.value) {
-        textareaRef.value.value = "";
-        hasText.value = false;
-        textareaRef.value.focus();
-        if (typeof props.widget.callback === "function") {
-          props.widget.callback("");
-        }
-        textareaRef.value.dispatchEvent(new Event("input"));
+      const ta = textareaRef.value;
+      if (!ta || ta.value.length === 0) return;
+      ta.focus();
+      ta.setSelectionRange(0, ta.value.length);
+      let ok = false;
+      try {
+        ok = typeof document.execCommand === "function" && document.execCommand("insertText", false, "");
+      } catch {
+        ok = false;
       }
+      if (ok) {
+        hasText.value = false;
+        return;
+      }
+      ta.value = "";
+      ta.dispatchEvent(new Event("input"));
     };
     onMounted(() => {
       if (textareaRef.value) {
@@ -14889,9 +15339,12 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
         props.widget.callback(textareaRef.value.value);
       }
       setupWidgetOnSetValue();
+      updateVScrollbarWidth();
+      observeScrollbarWidth();
       document.addEventListener("lora-manager:vue-mode-change", onModeChange);
     });
     onUnmounted(() => {
+      unobserveScrollbarWidth();
       if (props.widget.inputEl === textareaRef.value) {
         props.widget.inputEl = void 0;
       }
@@ -14907,8 +15360,13 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
       document.removeEventListener("lora-manager:vue-mode-change", onModeChange);
     });
     return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1, [
-        createBaseVNode("div", _hoisted_2, [
+      return openBlock(), createElementBlock("div", _hoisted_1$1, [
+        createBaseVNode("div", {
+          ref_key: "inputWrapperRef",
+          ref: inputWrapperRef,
+          class: "input-wrapper",
+          style: normalizeStyle({ "--lm-vscrollbar-width": vScrollbarWidth.value + "px" })
+        }, [
           createBaseVNode("textarea", {
             ref_key: "textareaRef",
             ref: textareaRef,
@@ -14919,7 +15377,7 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
             "data-capture-wheel": "true",
             onInput,
             onWheel
-          }, null, 46, _hoisted_3),
+          }, null, 46, _hoisted_2$1),
           showClearButton.value ? (openBlock(), createElementBlock("button", {
             key: 0,
             type: "button",
@@ -14947,12 +15405,341 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
               })
             ], -1)
           ])])) : createCommentVNode("", true)
-        ])
+        ], 4)
       ]);
     };
   }
 });
-const AutocompleteTextWidget = /* @__PURE__ */ _export_sfc(_sfc_main, [["__scopeId", "data-v-8555b560"]]);
+const AutocompleteTextWidget = /* @__PURE__ */ _export_sfc(_sfc_main$1, [["__scopeId", "data-v-a0c1830b"]]);
+const _hoisted_1 = { class: "lora-info-tabs" };
+const _hoisted_2 = { class: "tab-content notes-tab" };
+const _hoisted_3 = { class: "info-field" };
+const _hoisted_4 = { class: "lora-filename" };
+const _hoisted_5 = { class: "info-field notes-field" };
+const _hoisted_6 = ["disabled"];
+const _hoisted_7 = ["disabled"];
+const _hoisted_8 = { class: "tab-content description-tab lm-wheel-scrollable" };
+const _hoisted_9 = {
+  key: 0,
+  class: "description-state"
+};
+const _hoisted_10 = {
+  key: 1,
+  class: "description-state error"
+};
+const _hoisted_11 = {
+  key: 2,
+  class: "description-state placeholder"
+};
+const _hoisted_12 = {
+  key: 3,
+  class: "description-content"
+};
+const _hoisted_13 = {
+  key: 0,
+  class: "description-section"
+};
+const _hoisted_14 = ["innerHTML"];
+const _hoisted_15 = {
+  key: 1,
+  class: "description-section"
+};
+const _hoisted_16 = ["innerHTML"];
+const _hoisted_17 = {
+  key: 1,
+  class: "placeholder"
+};
+const _sfc_main = /* @__PURE__ */ defineComponent({
+  __name: "LoraInfoWidget",
+  props: {
+    widget: {},
+    node: {},
+    api: {},
+    app: {},
+    isVueMode: { type: Boolean }
+  },
+  setup(__props) {
+    const props = __props;
+    const loraName = ref("");
+    const notes = ref("");
+    const originalNotes = ref("");
+    const filePath = ref("");
+    const saving = ref(false);
+    const activeTab = ref("notes");
+    const versionDescription = ref("");
+    const modelDescription = ref("");
+    const descriptionLoading = ref(false);
+    const descriptionError = ref(false);
+    const descriptionLoaded = ref(false);
+    const hasDescription = computed(
+      () => !!(versionDescription.value || modelDescription.value)
+    );
+    watch(filePath, (newPath) => {
+      descriptionLoaded.value = false;
+      descriptionError.value = false;
+      versionDescription.value = "";
+      modelDescription.value = "";
+      if (newPath && activeTab.value === "description") {
+        fetchDescription();
+      }
+    });
+    function onDescriptionTabActivated() {
+      if (!descriptionLoaded.value && filePath.value) {
+        fetchDescription();
+      }
+    }
+    async function fetchDescription() {
+      var _a2;
+      if (descriptionLoading.value || !filePath.value) return;
+      descriptionLoading.value = true;
+      descriptionError.value = false;
+      try {
+        const response = await props.api.fetchApi(
+          `/lm/loras/metadata?file_path=${encodeURIComponent(filePath.value)}`,
+          { method: "GET" }
+        );
+        if (!response.ok) {
+          throw new Error(`Failed to fetch metadata: ${response.statusText}`);
+        }
+        const data = await response.json();
+        if (data.success && data.metadata) {
+          versionDescription.value = data.metadata.description || "";
+          modelDescription.value = ((_a2 = data.metadata.model) == null ? void 0 : _a2.description) || "";
+          descriptionLoaded.value = true;
+        } else {
+          descriptionLoaded.value = true;
+        }
+      } catch (e) {
+        console.error("[LoraInfoWidget] Failed to fetch description:", e);
+        descriptionError.value = true;
+      } finally {
+        descriptionLoading.value = false;
+      }
+    }
+    async function saveNotes() {
+      if (notes.value === originalNotes.value || saving.value) return;
+      if (!filePath.value) return;
+      saving.value = true;
+      try {
+        const response = await props.api.fetchApi("/lm/loras/save-metadata", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_path: filePath.value, notes: notes.value })
+        });
+        const result = await response.json();
+        if (result.success) {
+          props.app.extensionManager.toast.add({
+            severity: "success",
+            summary: "Saved",
+            detail: "Notes updated successfully",
+            life: 2e3
+          });
+          originalNotes.value = notes.value;
+        } else {
+          props.app.extensionManager.toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: result.message || result.error || "Failed to save notes",
+            life: 3e3
+          });
+        }
+      } catch (e) {
+        console.error("[LoraInfoWidget] Failed to save notes:", e);
+        props.app.extensionManager.toast.add({
+          severity: "error",
+          summary: "Error",
+          detail: e.message || "Failed to save notes",
+          life: 3e3
+        });
+      } finally {
+        saving.value = false;
+      }
+    }
+    function onWheel(event) {
+      var _a2;
+      const target = event.target;
+      if (!target) return;
+      const comfyApp = window.app;
+      if (!((_a2 = comfyApp == null ? void 0 : comfyApp.canvas) == null ? void 0 : _a2.processMouseWheel)) return;
+      if (event.ctrlKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        comfyApp.canvas.processMouseWheel(event);
+        return;
+      }
+      if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+        event.preventDefault();
+        event.stopPropagation();
+        comfyApp.canvas.processMouseWheel(event);
+        return;
+      }
+      const scrollableEl = target.closest(".lora-notes, .description-tab");
+      if (scrollableEl) {
+        const canScrollY = scrollableEl.scrollHeight > scrollableEl.clientHeight;
+        if (canScrollY) {
+          event.stopPropagation();
+          return;
+        }
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      comfyApp.canvas.processMouseWheel(event);
+    }
+    onMounted(() => {
+      var _a2, _b, _c, _d;
+      const buildValue = () => ({
+        name: loraName.value,
+        notes: notes.value,
+        filePath: filePath.value,
+        activeTab: activeTab.value
+      });
+      const applyValue = (v2) => {
+        if (v2 && typeof v2 === "object") {
+          const data = v2;
+          if (data.activeTab !== void 0) activeTab.value = data.activeTab;
+          if (data.name !== void 0) loraName.value = data.name;
+          if (data.notes !== void 0) {
+            notes.value = data.notes;
+            originalNotes.value = data.notes;
+          }
+          if (data.filePath !== void 0) filePath.value = data.filePath;
+        }
+      };
+      if (props.widget.options) {
+        props.widget.options.getValue = buildValue;
+        props.widget.options.setValue = applyValue;
+      } else {
+        console.warn("[LoraInfoWidget] widget.options missing, value persistence disabled");
+      }
+      props.widget.serializeValue = async () => buildValue();
+      props.widget.onSetValue = applyValue;
+      const widgetIndex = (_b = (_a2 = props.widget.node) == null ? void 0 : _a2.widgets) == null ? void 0 : _b.findIndex(
+        (w2) => w2.id === props.widget.id
+      );
+      let restored = false;
+      if (widgetIndex !== void 0 && widgetIndex >= 0) {
+        const savedValue = (_d = (_c = props.widget.node) == null ? void 0 : _c.widgets_values) == null ? void 0 : _d[widgetIndex];
+        if (savedValue && typeof savedValue === "object") {
+          applyValue(savedValue);
+          restored = true;
+        }
+      }
+      if (!restored && props.widget.value && typeof props.widget.value === "object") {
+        applyValue(props.widget.value);
+      }
+      props.widget._setLoraInfo = (data) => {
+        if (data) {
+          loraName.value = data.name;
+          notes.value = data.notes;
+          originalNotes.value = data.notes;
+          filePath.value = data.filePath;
+          if (data.activeTab !== void 0) {
+            activeTab.value = data.activeTab;
+          }
+        } else {
+          loraName.value = "";
+          notes.value = "";
+          originalNotes.value = "";
+          filePath.value = "";
+        }
+      };
+      if (props.widget.__pendingLoraInfo) {
+        props.widget._setLoraInfo(props.widget.__pendingLoraInfo);
+        delete props.widget.__pendingLoraInfo;
+      }
+    });
+    return (_ctx, _cache) => {
+      return openBlock(), createElementBlock("div", {
+        class: normalizeClass(["lora-info-widget", { "lm-vue-node": __props.isVueMode }]),
+        onWheel
+      }, [
+        loraName.value ? (openBlock(), createElementBlock(Fragment, { key: 0 }, [
+          createBaseVNode("div", _hoisted_1, [
+            createBaseVNode("label", {
+              class: normalizeClass(["lora-info-tab", { active: activeTab.value === "notes" }])
+            }, [
+              withDirectives(createBaseVNode("input", {
+                type: "radio",
+                "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => activeTab.value = $event),
+                value: "notes",
+                class: "lora-info-tab-input"
+              }, null, 512), [
+                [vModelRadio, activeTab.value]
+              ]),
+              _cache[3] || (_cache[3] = createBaseVNode("span", { class: "lora-info-tab-label" }, "Notes", -1))
+            ], 2),
+            createBaseVNode("label", {
+              class: normalizeClass(["lora-info-tab", { active: activeTab.value === "description" }])
+            }, [
+              withDirectives(createBaseVNode("input", {
+                type: "radio",
+                "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => activeTab.value = $event),
+                value: "description",
+                class: "lora-info-tab-input",
+                onChange: onDescriptionTabActivated
+              }, null, 544), [
+                [vModelRadio, activeTab.value]
+              ]),
+              _cache[4] || (_cache[4] = createBaseVNode("span", { class: "lora-info-tab-label" }, "Description", -1))
+            ], 2)
+          ]),
+          withDirectives(createBaseVNode("div", _hoisted_2, [
+            createBaseVNode("div", _hoisted_3, [
+              _cache[5] || (_cache[5] = createBaseVNode("label", { class: "info-label" }, "Filename", -1)),
+              createBaseVNode("div", _hoisted_4, toDisplayString(loraName.value), 1)
+            ]),
+            createBaseVNode("div", _hoisted_5, [
+              _cache[6] || (_cache[6] = createBaseVNode("label", { class: "info-label" }, "Notes", -1)),
+              withDirectives(createBaseVNode("textarea", {
+                "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => notes.value = $event),
+                class: "lora-notes lm-wheel-scrollable",
+                placeholder: "Add notes about this LoRA...",
+                disabled: saving.value
+              }, null, 8, _hoisted_6), [
+                [vModelText, notes.value]
+              ])
+            ]),
+            createBaseVNode("button", {
+              class: "save-btn",
+              disabled: notes.value === originalNotes.value || saving.value,
+              onClick: saveNotes
+            }, toDisplayString(saving.value ? "Saving..." : "Save"), 9, _hoisted_7)
+          ], 512), [
+            [vShow, activeTab.value === "notes"]
+          ]),
+          withDirectives(createBaseVNode("div", _hoisted_8, [
+            descriptionLoading.value ? (openBlock(), createElementBlock("div", _hoisted_9, [..._cache[7] || (_cache[7] = [
+              createBaseVNode("i", { class: "fas fa-spinner fa-spin" }, null, -1),
+              createBaseVNode("span", null, "Loading description...", -1)
+            ])])) : descriptionError.value ? (openBlock(), createElementBlock("div", _hoisted_10, [..._cache[8] || (_cache[8] = [
+              createBaseVNode("span", null, "Failed to load description", -1)
+            ])])) : !hasDescription.value ? (openBlock(), createElementBlock("div", _hoisted_11, [..._cache[9] || (_cache[9] = [
+              createBaseVNode("span", null, "No description available", -1)
+            ])])) : (openBlock(), createElementBlock("div", _hoisted_12, [
+              versionDescription.value ? (openBlock(), createElementBlock("div", _hoisted_13, [
+                _cache[10] || (_cache[10] = createBaseVNode("label", { class: "info-label" }, "About this version", -1)),
+                createBaseVNode("div", {
+                  class: "description-text",
+                  innerHTML: versionDescription.value
+                }, null, 8, _hoisted_14)
+              ])) : createCommentVNode("", true),
+              modelDescription.value ? (openBlock(), createElementBlock("div", _hoisted_15, [
+                _cache[11] || (_cache[11] = createBaseVNode("label", { class: "info-label" }, "Model Description", -1)),
+                createBaseVNode("div", {
+                  class: "description-text",
+                  innerHTML: modelDescription.value
+                }, null, 8, _hoisted_16)
+              ])) : createCommentVNode("", true)
+            ]))
+          ], 512), [
+            [vShow, activeTab.value === "description"]
+          ])
+        ], 64)) : (openBlock(), createElementBlock("div", _hoisted_17, "No LoRA selected"))
+      ], 34);
+    };
+  }
+});
+const LoraInfoWidget = /* @__PURE__ */ _export_sfc(_sfc_main, [["__scopeId", "data-v-50784163"]]);
 function createVueWidgetCleanup(vueApp, onCleanup) {
   let didUnmount = false;
   return () => {
@@ -14964,87 +15751,6 @@ function createVueWidgetCleanup(vueApp, onCleanup) {
     onCleanup == null ? void 0 : onCleanup();
   };
 }
-const LORA_PROVIDER_NODE_TYPES$1 = [
-  "Lora Stacker (LoraManager)",
-  "Lora Randomizer (LoraManager)",
-  "Lora Cycler (LoraManager)"
-];
-const LORA_STACK_AGGREGATOR_NODE_TYPES$1 = [
-  "Lora Stack Combiner (LoraManager)"
-];
-const LORA_CHAIN_NODE_TYPES$1 = [
-  ...LORA_PROVIDER_NODE_TYPES$1,
-  ...LORA_STACK_AGGREGATOR_NODE_TYPES$1
-];
-function isLoraStackAggregatorNode$1(comfyClass) {
-  return LORA_STACK_AGGREGATOR_NODE_TYPES$1.includes(comfyClass);
-}
-function getActiveLorasFromNodeByType(node) {
-  const comfyClass = node == null ? void 0 : node.comfyClass;
-  if (comfyClass === "Lora Cycler (LoraManager)") {
-    return extractFromCyclerConfig(node);
-  }
-  if (isLoraStackAggregatorNode$1(comfyClass)) {
-    return /* @__PURE__ */ new Set();
-  }
-  return extractFromLorasWidget(node);
-}
-function extractFromLorasWidget(node) {
-  var _a2;
-  const activeLoraNames = /* @__PURE__ */ new Set();
-  const lorasWidget = node.lorasWidget || ((_a2 = node.widgets) == null ? void 0 : _a2.find((w2) => w2.name === "loras"));
-  if (lorasWidget == null ? void 0 : lorasWidget.value) {
-    lorasWidget.value.forEach((lora) => {
-      if (lora.active) {
-        activeLoraNames.add(lora.name);
-      }
-    });
-  }
-  return activeLoraNames;
-}
-function extractFromCyclerConfig(node) {
-  var _a2, _b;
-  const activeLoraNames = /* @__PURE__ */ new Set();
-  const cyclerWidget = (_a2 = node.widgets) == null ? void 0 : _a2.find((w2) => w2.name === "cycler_config");
-  if ((_b = cyclerWidget == null ? void 0 : cyclerWidget.value) == null ? void 0 : _b.current_lora_filename) {
-    activeLoraNames.add(cyclerWidget.value.current_lora_filename);
-  }
-  return activeLoraNames;
-}
-function isNodeActive(mode) {
-  return mode === void 0 || mode === 0 || mode === 3;
-}
-function setupModeChangeHandler(node, onModeChange) {
-  let _mode = node.mode;
-  Object.defineProperty(node, "mode", {
-    get() {
-      return _mode;
-    },
-    set(value) {
-      const oldValue = _mode;
-      _mode = value;
-      if (oldValue !== value) {
-        onModeChange(value, oldValue);
-      }
-    }
-  });
-}
-function createModeChangeCallback(node, updateDownstreamLoaders2, nodeSpecificCallback) {
-  return (newMode, _oldMode) => {
-    const isNodeCurrentlyActive = isNodeActive(newMode);
-    const activeLoraNames = isNodeCurrentlyActive ? getActiveLorasFromNodeByType(node) : /* @__PURE__ */ new Set();
-    if (nodeSpecificCallback) {
-      nodeSpecificCallback(activeLoraNames);
-    }
-    updateDownstreamLoaders2(node);
-  };
-}
-const app = {};
-const api = {
-  fetchApi: (...args) => fetch(...args),
-  addEventListener: (eventName, handler) => document.addEventListener(eventName, handler),
-  removeEventListener: (eventName, handler) => document.removeEventListener(eventName, handler)
-};
 let _loraSyntaxFormatCache = null;
 let _loraSyntaxFormatRefreshPromise = null;
 async function _fetchLoraSyntaxFormat() {
@@ -15088,24 +15794,103 @@ function _initLoraSyntaxFormatReactive() {
   });
 }
 _initLoraSyntaxFormatReactive();
+const AUTOCOMPLETE_METADATA_WIDGET_PREFIX = "__lm_autocomplete_meta_";
+const LORA_MANAGER_WIDGET_IDS_PROPERTY$1 = "__lm_widget_ids";
+function stripAutocompleteLastAccepted(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+  if (!("lastAccepted" in value)) {
+    return value;
+  }
+  const stripped = { ...value };
+  delete stripped.lastAccepted;
+  return stripped;
+}
+function stripAutocompleteMetadataFromNodes(nodes) {
+  var _a2;
+  if (!Array.isArray(nodes)) {
+    return;
+  }
+  for (const node of nodes) {
+    if (!node || typeof node !== "object") {
+      continue;
+    }
+    const widgetIds = (_a2 = node.properties) == null ? void 0 : _a2[LORA_MANAGER_WIDGET_IDS_PROPERTY$1];
+    if (Array.isArray(node.widgets_values) && Array.isArray(widgetIds)) {
+      for (let i2 = 0; i2 < node.widgets_values.length && i2 < widgetIds.length; i2++) {
+        if (typeof widgetIds[i2] === "string" && widgetIds[i2].startsWith(AUTOCOMPLETE_METADATA_WIDGET_PREFIX)) {
+          node.widgets_values[i2] = stripAutocompleteLastAccepted(node.widgets_values[i2]);
+        }
+      }
+    }
+    const named = node.widgets_values_named;
+    if (named && typeof named === "object") {
+      for (const [key, value] of Object.entries(named)) {
+        if (key.startsWith(AUTOCOMPLETE_METADATA_WIDGET_PREFIX)) {
+          named[key] = stripAutocompleteLastAccepted(value);
+        }
+      }
+    }
+  }
+}
+function stripAutocompleteMetadataFromPromptResult(result) {
+  var _a2;
+  if (!result || typeof result !== "object") {
+    return result;
+  }
+  const workflow = result.workflow;
+  if (workflow && typeof workflow === "object") {
+    stripAutocompleteMetadataFromNodes(workflow.nodes);
+    const subgraphs = (_a2 = workflow.definitions) == null ? void 0 : _a2.subgraphs;
+    if (Array.isArray(subgraphs)) {
+      for (const subgraph of subgraphs) {
+        stripAutocompleteMetadataFromNodes(subgraph == null ? void 0 : subgraph.nodes);
+      }
+    }
+  }
+  const output = result.output;
+  if (output && typeof output === "object") {
+    for (const nodeOutput of Object.values(output)) {
+      const inputs = nodeOutput == null ? void 0 : nodeOutput.inputs;
+      if (!inputs || typeof inputs !== "object") {
+        continue;
+      }
+      for (const [key, value] of Object.entries(inputs)) {
+        if (key.startsWith(AUTOCOMPLETE_METADATA_WIDGET_PREFIX)) {
+          inputs[key] = stripAutocompleteLastAccepted(value);
+        }
+      }
+    }
+  }
+  return result;
+}
+function getComfyUIBasePath() {
+  const { pathname } = window.location;
+  return pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+}
+function lmUrl(path) {
+  return `${getComfyUIBasePath()}${path}`;
+}
 const ROOT_GRAPH_ID = "root";
-const LORA_PROVIDER_NODE_TYPES = [
+const LORA_PROVIDER_NODE_TYPES$1 = [
   "Lora Stacker (LoraManager)",
   "Lora Randomizer (LoraManager)",
-  "Lora Cycler (LoraManager)"
+  "Lora Cycler (LoraManager)",
+  "Create Hook LoRA (LoraManager)"
 ];
-const LORA_STACK_AGGREGATOR_NODE_TYPES = [
+const LORA_STACK_AGGREGATOR_NODE_TYPES$1 = [
   "Lora Stack Combiner (LoraManager)"
 ];
-const LORA_CHAIN_NODE_TYPES = [
-  ...LORA_PROVIDER_NODE_TYPES,
-  ...LORA_STACK_AGGREGATOR_NODE_TYPES
+const LORA_CHAIN_NODE_TYPES$1 = [
+  ...LORA_PROVIDER_NODE_TYPES$1,
+  ...LORA_STACK_AGGREGATOR_NODE_TYPES$1
 ];
-function isLoraStackAggregatorNode(comfyClass) {
-  return LORA_STACK_AGGREGATOR_NODE_TYPES.includes(comfyClass);
+function isLoraStackAggregatorNode$1(comfyClass) {
+  return LORA_STACK_AGGREGATOR_NODE_TYPES$1.includes(comfyClass);
 }
 function isLoraChainNode(comfyClass) {
-  return LORA_CHAIN_NODE_TYPES.includes(comfyClass);
+  return LORA_CHAIN_NODE_TYPES$1.includes(comfyClass);
 }
 function isMapLike(collection) {
   return collection && typeof collection.entries === "function" && typeof collection.values === "function";
@@ -15142,6 +15927,78 @@ function getLinkFromGraph(graph, linkId) {
     return graph.links.get(linkId) || null;
   }
   return graph.links[linkId] || null;
+}
+function findModeAccessor(node) {
+  let proto = Object.getPrototypeOf(node);
+  while (proto && proto !== Object.prototype) {
+    const descriptor = Object.getOwnPropertyDescriptor(proto, "mode");
+    if (descriptor && (descriptor.get || descriptor.set)) {
+      return descriptor;
+    }
+    proto = Object.getPrototypeOf(proto);
+  }
+  return null;
+}
+function interceptModeChange(node, onModeChange) {
+  if (!node || typeof onModeChange !== "function") {
+    return;
+  }
+  if (!Array.isArray(node._lmModeChangeListeners)) {
+    Object.defineProperty(node, "_lmModeChangeListeners", {
+      configurable: true,
+      writable: true,
+      value: []
+    });
+  }
+  node._lmModeChangeListeners.push(onModeChange);
+  if (node._lmModeChangeIntercepted) {
+    return;
+  }
+  Object.defineProperty(node, "_lmModeChangeIntercepted", {
+    configurable: true,
+    writable: true,
+    value: true
+  });
+  const notify = (newMode, oldMode) => {
+    for (const listener of node._lmModeChangeListeners ?? []) {
+      try {
+        listener(newMode, oldMode);
+      } catch (listenerError) {
+        console.error("LoRA Manager: mode change listener failed", listenerError);
+      }
+    }
+  };
+  const delegate = findModeAccessor(node);
+  if (delegate && typeof delegate.get === "function" && typeof delegate.set === "function") {
+    Object.defineProperty(node, "mode", {
+      configurable: true,
+      get() {
+        return delegate.get.call(this);
+      },
+      set(value) {
+        const oldValue = delegate.get.call(this);
+        delegate.set.call(this, value);
+        if (oldValue !== value) {
+          notify(value, oldValue);
+        }
+      }
+    });
+    return;
+  }
+  let currentMode = node.mode;
+  Object.defineProperty(node, "mode", {
+    configurable: true,
+    get() {
+      return currentMode;
+    },
+    set(value) {
+      const oldValue = currentMode;
+      currentMode = value;
+      if (oldValue !== value) {
+        notify(value, oldValue);
+      }
+    }
+  });
 }
 function isLoraStackInput(input) {
   return (input == null ? void 0 : input.type) === "LORA_STACK";
@@ -15200,7 +16057,7 @@ function getActiveLorasFromNode(node) {
     }
     return activeLoraNames;
   }
-  if (isLoraStackAggregatorNode(node.comfyClass)) {
+  if (isLoraStackAggregatorNode$1(node.comfyClass)) {
     return activeLoraNames;
   }
   let lorasWidget = node.lorasWidget;
@@ -15237,22 +16094,33 @@ function collectActiveLorasFromChain(node, visited = /* @__PURE__ */ new Set()) 
   }
   return allActiveLoraNames;
 }
+const TRIGGER_WORD_SYNC_TIMER = "__lmTriggerWordSyncTimer";
+const TRIGGER_WORD_SYNC_DELAY_MS = 50;
 function updateConnectedTriggerWords(node, loraNames) {
   const connectedNodes = getConnectedTriggerToggleNodes(node);
-  if (connectedNodes.length > 0) {
-    const nodeIds = connectedNodes.map((connectedNode) => getNodeReference(connectedNode)).filter((reference) => reference !== null);
-    if (nodeIds.length === 0) {
-      return;
-    }
-    fetch("/api/lm/loras/get_trigger_words", {
+  if (connectedNodes.length === 0) {
+    return;
+  }
+  const nodeIds = connectedNodes.map((connectedNode) => getNodeReference(connectedNode)).filter((reference) => reference !== null);
+  if (nodeIds.length === 0) {
+    return;
+  }
+  const pendingTimer = node[TRIGGER_WORD_SYNC_TIMER];
+  if (pendingTimer) {
+    clearTimeout(pendingTimer);
+  }
+  const loraNamesSnapshot = Array.from(loraNames);
+  node[TRIGGER_WORD_SYNC_TIMER] = setTimeout(() => {
+    delete node[TRIGGER_WORD_SYNC_TIMER];
+    fetch(lmUrl("/api/lm/loras/get_trigger_words"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        lora_names: Array.from(loraNames),
+        lora_names: loraNamesSnapshot,
         node_ids: nodeIds
       })
     }).catch((err) => console.error("Error fetching trigger words:", err));
-  }
+  }, TRIGGER_WORD_SYNC_DELAY_MS);
 }
 function getConnectedPoolConfigNode(node) {
   var _a2, _b;
@@ -15311,6 +16179,121 @@ function updateDownstreamLoaders(startNode, visited = /* @__PURE__ */ new Set())
     }
   }
 }
+const LORA_PROVIDER_NODE_TYPES = [
+  "Lora Stacker (LoraManager)",
+  "Lora Randomizer (LoraManager)",
+  "Lora Cycler (LoraManager)",
+  "Create Hook LoRA (LoraManager)"
+];
+const LORA_STACK_AGGREGATOR_NODE_TYPES = [
+  "Lora Stack Combiner (LoraManager)"
+];
+const LORA_CHAIN_NODE_TYPES = [
+  ...LORA_PROVIDER_NODE_TYPES,
+  ...LORA_STACK_AGGREGATOR_NODE_TYPES
+];
+function isLoraStackAggregatorNode(comfyClass) {
+  return LORA_STACK_AGGREGATOR_NODE_TYPES.includes(comfyClass);
+}
+function getActiveLorasFromNodeByType(node) {
+  const comfyClass = node == null ? void 0 : node.comfyClass;
+  if (comfyClass === "Lora Cycler (LoraManager)") {
+    return extractFromCyclerConfig(node);
+  }
+  if (isLoraStackAggregatorNode(comfyClass)) {
+    return /* @__PURE__ */ new Set();
+  }
+  return extractFromLorasWidget(node);
+}
+function extractFromLorasWidget(node) {
+  var _a2;
+  const activeLoraNames = /* @__PURE__ */ new Set();
+  const lorasWidget = node.lorasWidget || ((_a2 = node.widgets) == null ? void 0 : _a2.find((w2) => w2.name === "loras"));
+  if (lorasWidget == null ? void 0 : lorasWidget.value) {
+    lorasWidget.value.forEach((lora) => {
+      if (lora.active) {
+        activeLoraNames.add(lora.name);
+      }
+    });
+  }
+  return activeLoraNames;
+}
+function extractFromCyclerConfig(node) {
+  var _a2, _b;
+  const activeLoraNames = /* @__PURE__ */ new Set();
+  const cyclerWidget = (_a2 = node.widgets) == null ? void 0 : _a2.find((w2) => w2.name === "cycler_config");
+  if ((_b = cyclerWidget == null ? void 0 : cyclerWidget.value) == null ? void 0 : _b.current_lora_filename) {
+    activeLoraNames.add(cyclerWidget.value.current_lora_filename);
+  }
+  return activeLoraNames;
+}
+function isNodeActive(mode) {
+  return mode === void 0 || mode === 0 || mode === 3;
+}
+function setupModeChangeHandler(node, onModeChange) {
+  interceptModeChange(node, onModeChange);
+}
+function createModeChangeCallback(node, updateDownstreamLoaders2, nodeSpecificCallback) {
+  return (newMode, _oldMode) => {
+    const isNodeCurrentlyActive = isNodeActive(newMode);
+    const activeLoraNames = isNodeCurrentlyActive ? getActiveLorasFromNodeByType(node) : /* @__PURE__ */ new Set();
+    if (nodeSpecificCallback) {
+      nodeSpecificCallback(activeLoraNames);
+    }
+    updateDownstreamLoaders2(node);
+  };
+}
+const STYLE_ID = "lm-lora-shared-styles";
+const THEME_STYLE_ID = "lm-lora-theme-tokens";
+let stylePromise = null;
+function injectStyles(cssText) {
+  let styleEl = document.getElementById(STYLE_ID);
+  if (!styleEl) {
+    styleEl = document.createElement("style");
+    styleEl.id = STYLE_ID;
+    document.head.appendChild(styleEl);
+  }
+  styleEl.textContent = cssText;
+}
+function injectTheme(cssText) {
+  let styleEl = document.getElementById(THEME_STYLE_ID);
+  if (!styleEl) {
+    styleEl = document.createElement("style");
+    styleEl.id = THEME_STYLE_ID;
+    document.head.insertBefore(styleEl, document.head.firstChild);
+  }
+  styleEl.textContent = cssText;
+}
+function stylesBaseUrl() {
+  const moduleUrl = new URL(import.meta.url);
+  const bundleDir = "/vue-widgets/";
+  if (moduleUrl.pathname.includes(bundleDir)) {
+    return new URL("../", moduleUrl);
+  }
+  return new URL("./", moduleUrl);
+}
+async function loadCssText(fileName) {
+  const cssUrl = new URL(fileName, stylesBaseUrl());
+  const response = await fetch(cssUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to load ${cssUrl}`);
+  }
+  return await response.text();
+}
+function ensureLmStyles() {
+  if (!stylePromise) {
+    stylePromise = Promise.all([loadCssText("lm_theme.css"), loadCssText("lm_styles.css")]).then(([themeCss, stylesCss]) => {
+      injectTheme(themeCss);
+      injectStyles(stylesCss);
+      return true;
+    }).catch((error) => {
+      console.warn("Failed to load LoRA Manager styles", error);
+      stylePromise = null;
+      return false;
+    });
+  }
+  return stylePromise;
+}
 const LORA_POOL_WIDGET_MIN_WIDTH = 500;
 const LORA_POOL_WIDGET_MIN_HEIGHT = 520;
 const LORA_RANDOMIZER_WIDGET_MIN_WIDTH = 500;
@@ -15321,17 +16304,26 @@ const LORA_CYCLER_WIDGET_MIN_HEIGHT = 408;
 const LORA_CYCLER_WIDGET_MAX_HEIGHT = LORA_CYCLER_WIDGET_MIN_HEIGHT;
 const JSON_DISPLAY_WIDGET_MIN_WIDTH = 300;
 const JSON_DISPLAY_WIDGET_MIN_HEIGHT = 200;
+const LORA_INFO_WIDGET_MIN_WIDTH = 300;
+const LORA_INFO_WIDGET_MIN_HEIGHT = 200;
 const AUTOCOMPLETE_TEXT_WIDGET_MIN_HEIGHT = 60;
 const AUTOCOMPLETE_TEXT_WIDGET_MAX_HEIGHT = 100;
 const AUTOCOMPLETE_TEXT_MIN_WIDTH_DEFAULT = 400;
 const AUTOCOMPLETE_TEXT_MIN_HEIGHT_DEFAULT = 300;
 const AUTOCOMPLETE_METADATA_VERSION = 1;
 const LORA_MANAGER_WIDGET_IDS_PROPERTY = "__lm_widget_ids";
+ensureLmStyles();
+const originalGraphToPrompt = app.graphToPrompt.bind(app);
+app.graphToPrompt = async (...args) => {
+  const result = await originalGraphToPrompt(...args);
+  stripAutocompleteMetadataFromPromptResult(result);
+  return result;
+};
 function forwardMiddleMouseToCanvas(container) {
   if (!container) return;
   container.addEventListener("pointerdown", (event) => {
     if (event.button === 1) {
-      const canvas = app$1.canvas;
+      const canvas = app.canvas;
       if (canvas && typeof canvas.processMouseDown === "function") {
         canvas.processMouseDown(event);
       }
@@ -15339,7 +16331,7 @@ function forwardMiddleMouseToCanvas(container) {
   });
   container.addEventListener("pointermove", (event) => {
     if ((event.buttons & 4) === 4) {
-      const canvas = app$1.canvas;
+      const canvas = app.canvas;
       if (canvas && typeof canvas.processMouseMove === "function") {
         canvas.processMouseMove(event);
       }
@@ -15347,7 +16339,7 @@ function forwardMiddleMouseToCanvas(container) {
   });
   container.addEventListener("pointerup", (event) => {
     if (event.button === 1) {
-      const canvas = app$1.canvas;
+      const canvas = app.canvas;
       if (canvas && typeof canvas.processMouseUp === "function") {
         canvas.processMouseUp(event);
       }
@@ -15356,11 +16348,27 @@ function forwardMiddleMouseToCanvas(container) {
 }
 const vueApps = /* @__PURE__ */ new Map();
 let autocompleteTextWidgetInstanceId = 0;
+function isVueNodesMode() {
+  var _a2, _b, _c;
+  const enabled = (_c = (_b = (_a2 = app.ui) == null ? void 0 : _a2.settings) == null ? void 0 : _b.getSettingValue) == null ? void 0 : _c.call(_b, "Comfy.VueNodes.Enabled");
+  if (typeof enabled === "boolean") return enabled;
+  return typeof LiteGraph !== "undefined" && LiteGraph.vueNodesMode === true;
+}
+function applyWidgetThemeClasses(container) {
+  container.classList.add("lm-widget-root");
+  container.classList.toggle("lm-vue-node", isVueNodesMode());
+}
+document.addEventListener("lora-manager:vue-mode-change", (event) => {
+  var _a2;
+  const isVueNodes = Boolean((_a2 = event.detail) == null ? void 0 : _a2.isVueDomMode);
+  for (const el of document.querySelectorAll(".lm-widget-root")) {
+    el.classList.toggle("lm-vue-node", isVueNodes);
+  }
+});
 function createAutocompleteTextWidgetInstanceId() {
   autocompleteTextWidgetInstanceId += 1;
   return autocompleteTextWidgetInstanceId;
 }
-let addLorasWidgetCache = null;
 function createLoraPoolWidget(node) {
   const container = document.createElement("div");
   container.id = `lora-pool-widget-${node.id}`;
@@ -15369,6 +16377,7 @@ function createLoraPoolWidget(node) {
   container.style.display = "flex";
   container.style.flexDirection = "column";
   container.style.overflow = "hidden";
+  applyWidgetThemeClasses(container);
   forwardMiddleMouseToCanvas(container);
   let internalValue;
   const widget = node.addDOMWidget(
@@ -15383,6 +16392,11 @@ function createLoraPoolWidget(node) {
         internalValue = v2;
       },
       serialize: true,
+      // Keep LM DOM widgets out of the right-side Properties Panel: the panel
+      // falls back to WidgetLegacy for unknown widget types and writes
+      // widget.width onto the real widget, squashing the canvas overlay
+      // (ComfyUI_frontend #11574).
+      hideInPanel: true,
       // Per dev guide: providing getMinHeight via options allows the system to
       // skip expensive DOM measurements during rendering loop, improving performance
       getMinHeight() {
@@ -15422,6 +16436,7 @@ function createLoraRandomizerWidget(node) {
   container.style.display = "flex";
   container.style.flexDirection = "column";
   container.style.overflow = "hidden";
+  applyWidgetThemeClasses(container);
   forwardMiddleMouseToCanvas(container);
   const defaultConfig = {
     count_mode: "range",
@@ -15451,6 +16466,7 @@ function createLoraRandomizerWidget(node) {
         internalValue = v2;
       },
       serialize: true,
+      hideInPanel: true,
       getMinHeight() {
         return LORA_RANDOMIZER_WIDGET_MIN_HEIGHT;
       }
@@ -15466,7 +16482,7 @@ function createLoraRandomizerWidget(node) {
   const vueApp = createApp(LoraRandomizerWidget, {
     widget,
     node,
-    api: api$1
+    api
   });
   vueApp.use(PrimeVue, {
     unstyled: true,
@@ -15497,6 +16513,7 @@ function createLoraCyclerWidget(node) {
   container.style.display = "flex";
   container.style.flexDirection = "column";
   container.style.overflow = "hidden";
+  applyWidgetThemeClasses(container);
   forwardMiddleMouseToCanvas(container);
   const defaultConfig = {
     current_index: 1,
@@ -15532,6 +16549,7 @@ function createLoraCyclerWidget(node) {
         }
       },
       serialize: true,
+      hideInPanel: true,
       getMinHeight() {
         return LORA_CYCLER_WIDGET_MIN_HEIGHT;
       }
@@ -15541,7 +16559,7 @@ function createLoraCyclerWidget(node) {
   const vueApp = createApp(LoraCyclerWidget, {
     widget,
     node,
-    api: api$1
+    api
   });
   vueApp.use(PrimeVue, {
     unstyled: true,
@@ -15572,6 +16590,7 @@ function createJsonDisplayWidget(node) {
   container.style.display = "flex";
   container.style.flexDirection = "column";
   container.style.overflow = "hidden";
+  applyWidgetThemeClasses(container);
   forwardMiddleMouseToCanvas(container);
   let internalValue;
   const widget = node.addDOMWidget(
@@ -15590,6 +16609,7 @@ function createJsonDisplayWidget(node) {
       },
       serialize: false,
       // Display-only widget - don't save metadata in workflows
+      hideInPanel: true,
       getMinHeight() {
         return JSON_DISPLAY_WIDGET_MIN_HEIGHT;
       }
@@ -15718,30 +16738,24 @@ function normalizeAutocompleteWidgetValues(node, info) {
     info.widgets_values = repairedValues;
   }
 }
-function applyAutocompleteTextLayoutFix(widget, container, isVueMode) {
+function applyAutocompleteTextLayoutFix(widget, _container, isVueMode) {
   if (isVueMode) {
     widget.computeLayoutSize = void 0;
     widget.computeSize = (width) => [width ?? 200, AUTOCOMPLETE_TEXT_WIDGET_MAX_HEIGHT - 4];
-    if (container) {
-      container.style.minHeight = `${AUTOCOMPLETE_TEXT_WIDGET_MAX_HEIGHT}px`;
-    }
   } else {
     delete widget.computeLayoutSize;
     delete widget.computeSize;
-    if (container) {
-      container.style.minHeight = "";
-    }
   }
 }
 const initVueDomModeListener = () => {
   var _a2, _b;
-  if ((_b = (_a2 = app$1.ui) == null ? void 0 : _a2.settings) == null ? void 0 : _b.addEventListener) {
-    app$1.ui.settings.addEventListener("Comfy.VueNodes.Enabled.change", () => {
+  if ((_b = (_a2 = app.ui) == null ? void 0 : _a2.settings) == null ? void 0 : _b.addEventListener) {
+    app.ui.settings.addEventListener("Comfy.VueNodes.Enabled.change", () => {
       requestAnimationFrame(() => {
         var _a3, _b2, _c, _d, _e2, _f;
-        const isVueDomMode = ((_c = (_b2 = (_a3 = app$1.ui) == null ? void 0 : _a3.settings) == null ? void 0 : _b2.getSettingValue) == null ? void 0 : _c.call(_b2, "Comfy.VueNodes.Enabled")) ?? false;
-        if ((_d = app$1.graph) == null ? void 0 : _d.nodes) {
-          for (const node of app$1.graph.nodes) {
+        const isVueDomMode = ((_c = (_b2 = (_a3 = app.ui) == null ? void 0 : _a3.settings) == null ? void 0 : _b2.getSettingValue) == null ? void 0 : _c.call(_b2, "Comfy.VueNodes.Enabled")) ?? false;
+        if ((_d = app.graph) == null ? void 0 : _d.nodes) {
+          for (const node of app.graph.nodes) {
             const textWidget = (_e2 = node.widgets) == null ? void 0 : _e2.find(
               (w2) => w2.type === "AUTOCOMPLETE_TEXT_LORAS"
             );
@@ -15756,7 +16770,7 @@ const initVueDomModeListener = () => {
             const grid = nodeEl.querySelector('[data-testid="node-widgets"]');
             if (!grid) continue;
             const nodeId = nodeEl.getAttribute("data-node-id");
-            const node = (_a4 = app$1.graph) == null ? void 0 : _a4.getNodeById(nodeId);
+            const node = (_a4 = app.graph) == null ? void 0 : _a4.getNodeById(nodeId);
             if (!node) continue;
             const rows = [];
             let needsFix = false;
@@ -15777,7 +16791,7 @@ const initVueDomModeListener = () => {
             }
           }
         });
-        (_f = app$1.canvas) == null ? void 0 : _f.setDirty(true, true);
+        (_f = app.canvas) == null ? void 0 : _f.setDirty(true, true);
         document.dispatchEvent(new CustomEvent("lora-manager:vue-mode-change", {
           detail: { isVueDomMode }
         }));
@@ -15785,29 +16799,101 @@ const initVueDomModeListener = () => {
     });
   }
 };
-if ((_a = app$1.ui) == null ? void 0 : _a.settings) {
+if ((_a = app.ui) == null ? void 0 : _a.settings) {
   initVueDomModeListener();
 } else {
   const checkAppReady = setInterval(() => {
     var _a2;
-    if ((_a2 = app$1.ui) == null ? void 0 : _a2.settings) {
+    if ((_a2 = app.ui) == null ? void 0 : _a2.settings) {
       initVueDomModeListener();
       clearInterval(checkAppReady);
     }
   }, 100);
 }
-function createAutocompleteTextWidgetFactory(node, widgetName, modelType, inputOptions = {}) {
-  var _a2, _b, _c;
-  const metadataWidgetName = `__lm_autocomplete_meta_${widgetName}`;
-  const instanceId = createAutocompleteTextWidgetInstanceId();
+function createLoraInfoWidget(node) {
   const container = document.createElement("div");
-  container.id = `autocomplete-text-widget-${instanceId}`;
+  container.id = `lora-info-widget-${node.id}`;
   container.style.width = "100%";
   container.style.height = "100%";
   container.style.display = "flex";
   container.style.flexDirection = "column";
   container.style.overflow = "hidden";
+  applyWidgetThemeClasses(container);
   forwardMiddleMouseToCanvas(container);
+  let internalValue;
+  const widget = node.addDOMWidget(
+    "lora_info_display",
+    "LORA_INFO_DISPLAY",
+    container,
+    {
+      getValue() {
+        return internalValue;
+      },
+      setValue(v2) {
+        internalValue = v2;
+        if (typeof widget.onSetValue === "function") {
+          widget.onSetValue(v2);
+        }
+      },
+      serialize: true,
+      hideInPanel: true,
+      getMinHeight() {
+        return LORA_INFO_WIDGET_MIN_HEIGHT;
+      }
+    }
+  );
+  const vueApp = createApp(LoraInfoWidget, {
+    widget,
+    node,
+    api,
+    app,
+    isVueMode: typeof LiteGraph !== "undefined" && LiteGraph.vueNodesMode
+  });
+  vueApp.use(PrimeVue, {
+    unstyled: true,
+    ripple: false
+  });
+  vueApp.mount(container);
+  vueApps.set(node.id + 4e4, vueApp);
+  widget.computeLayoutSize = () => {
+    const minWidth = LORA_INFO_WIDGET_MIN_WIDTH;
+    const minHeight = LORA_INFO_WIDGET_MIN_HEIGHT;
+    return { minHeight, minWidth };
+  };
+  widget.onRemove = () => {
+    const vueApp2 = vueApps.get(node.id + 4e4);
+    if (vueApp2) {
+      vueApp2.unmount();
+      vueApps.delete(node.id + 4e4);
+    }
+  };
+  return { widget };
+}
+function createAutocompleteTextWidgetFactory(node, widgetName, modelType, inputOptions = {}) {
+  var _a2, _b, _c;
+  const metadataWidgetName = `__lm_autocomplete_meta_${widgetName}`;
+  let container = null;
+  const existingContainers = document.querySelectorAll(
+    '[id^="autocomplete-text-widget-"]'
+  );
+  for (const el of existingContainers) {
+    if (el.children.length === 0) {
+      container = el;
+      break;
+    }
+  }
+  if (!container) {
+    const instanceId = String(createAutocompleteTextWidgetInstanceId());
+    container = document.createElement("div");
+    container.id = `autocomplete-text-widget-${instanceId}`;
+    container.style.width = "100%";
+    container.style.height = "100%";
+    container.style.display = "flex";
+    container.style.flexDirection = "column";
+    container.style.overflow = "hidden";
+    applyWidgetThemeClasses(container);
+    forwardMiddleMouseToCanvas(container);
+  }
   const widgetElementRef = { inputEl: void 0 };
   container.__widgetInputEl = widgetElementRef;
   const metadataWidget = node.addWidget("text", metadataWidgetName, {
@@ -15845,6 +16931,7 @@ function createAutocompleteTextWidgetFactory(node, widgetName, modelType, inputO
         }
       },
       serialize: true,
+      hideInPanel: true,
       getMinHeight() {
         return AUTOCOMPLETE_TEXT_WIDGET_MIN_HEIGHT;
       },
@@ -15856,7 +16943,7 @@ function createAutocompleteTextWidgetFactory(node, widgetName, modelType, inputO
     }
   );
   widget.metadataWidget = metadataWidget;
-  const spellcheck = ((_c = (_b = (_a2 = app$1.ui) == null ? void 0 : _a2.settings) == null ? void 0 : _b.getSettingValue) == null ? void 0 : _c.call(_b, "Comfy.TextareaWidget.Spellcheck")) ?? false;
+  const spellcheck = ((_c = (_b = (_a2 = app.ui) == null ? void 0 : _a2.settings) == null ? void 0 : _b.getSettingValue) == null ? void 0 : _c.call(_b, "Comfy.TextareaWidget.Spellcheck")) ?? false;
   const maxHeight = modelType === "loras" ? AUTOCOMPLETE_TEXT_WIDGET_MAX_HEIGHT : void 0;
   const vueApp = createApp(AutocompleteTextWidget, {
     widget,
@@ -15872,27 +16959,29 @@ function createAutocompleteTextWidgetFactory(node, widgetName, modelType, inputO
     ripple: false
   });
   vueApp.mount(container);
-  const appKey = instanceId;
+  const appKey = container.id;
   vueApps.set(appKey, vueApp);
   if (maxHeight) {
-    container.style.maxHeight = `${maxHeight}px`;
-    container.style.minHeight = `${maxHeight}px`;
+    container.style.minHeight = `${AUTOCOMPLETE_TEXT_WIDGET_MIN_HEIGHT}px`;
   }
   if (modelType === "loras") {
     applyAutocompleteTextLayoutFix(
       widget,
       container,
-      typeof LiteGraph !== "undefined" && LiteGraph.vueNodesMode
+      typeof LiteGraph !== "undefined" && LiteGraph.vueNodesMode === true
     );
   }
-  widget.onRemove = createVueWidgetCleanup(vueApp, () => {
+  const vueCleanup = createVueWidgetCleanup(vueApp, () => {
     vueApps.delete(appKey);
   });
+  widget.onRemove = () => {
+    vueCleanup();
+  };
   const minWidth = AUTOCOMPLETE_TEXT_MIN_WIDTH_DEFAULT;
   const minHeight = modelType === "loras" ? void 0 : AUTOCOMPLETE_TEXT_MIN_HEIGHT_DEFAULT;
   return { widget, minWidth, minHeight };
 }
-app$1.registerExtension({
+app.registerExtension({
   name: "LoraManager.VueWidgets",
   getCustomWidgets() {
     return {
@@ -15908,34 +16997,13 @@ app$1.registerExtension({
       CYCLER_CONFIG(node) {
         return createLoraCyclerWidget(node);
       },
-      // @ts-ignore
-      async LORAS(node) {
-        if (!addLorasWidgetCache) {
-          const module = await import(
-            /* @vite-ignore */
-            "../loras_widget.js"
-          );
-          addLorasWidgetCache = module.addLorasWidget;
-        }
-        const isRandomizerNode = node.comfyClass === "Lora Randomizer (LoraManager)";
-        const callback = isRandomizerNode ? () => {
-          updateDownstreamLoaders(node);
-        } : null;
-        return addLorasWidgetCache(node, "loras", { isRandomizerNode }, callback);
-      },
       // Autocomplete text widget for LoRAs (used by Lora Loader, Lora Stacker, WanVideo Lora Select)
       // @ts-ignore
       AUTOCOMPLETE_TEXT_LORAS(node) {
         const options = widgetInputOptions.get(`${node.comfyClass}:text`) || {};
         return createAutocompleteTextWidgetFactory(node, "text", "loras", options);
       },
-      // Autocomplete text widget for embeddings (used by Prompt node)
-      // @ts-ignore
-      AUTOCOMPLETE_TEXT_EMBEDDINGS(node) {
-        const options = widgetInputOptions.get(`${node.comfyClass}:text`) || {};
-        return createAutocompleteTextWidgetFactory(node, "text", "embeddings", options);
-      },
-      // Autocomplete text widget for prompt (supports both embeddings and custom words)
+      // Autocomplete text widget for prompt (used by Prompt and Text nodes)
       // @ts-ignore
       AUTOCOMPLETE_TEXT_PROMPT(node) {
         const options = widgetInputOptions.get(`${node.comfyClass}:text`) || {};
@@ -15974,11 +17042,10 @@ app$1.registerExtension({
         if (bypassResult) {
           info.widgets_values = [...info.widgets_values ?? [], null];
         }
-        const result = originalConfigure == null ? void 0 : originalConfigure.apply(this, arguments);
-        return result;
+        return originalConfigure == null ? void 0 : originalConfigure.apply(this, arguments);
       };
     }
-    if (LORA_CHAIN_NODE_TYPES$1.includes(comfyClass)) {
+    if (LORA_CHAIN_NODE_TYPES.includes(comfyClass)) {
       const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
       nodeType.prototype.onNodeCreated = function() {
         originalOnNodeCreated == null ? void 0 : originalOnNodeCreated.apply(this, arguments);
@@ -15992,6 +17059,13 @@ app$1.registerExtension({
       nodeType.prototype.onNodeCreated = function() {
         onNodeCreated == null ? void 0 : onNodeCreated.apply(this, []);
         createJsonDisplayWidget(this);
+      };
+    }
+    if (nodeData.name === "Lora Info (LoraManager)") {
+      const onNodeCreated = nodeType.prototype.onNodeCreated;
+      nodeType.prototype.onNodeCreated = function() {
+        onNodeCreated == null ? void 0 : onNodeCreated.apply(this, []);
+        createLoraInfoWidget(this);
       };
     }
   }

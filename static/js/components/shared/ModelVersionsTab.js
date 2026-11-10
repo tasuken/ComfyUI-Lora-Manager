@@ -5,10 +5,11 @@ import { openCivitaiUrl, showToast } from '../../utils/uiHelpers.js';
 import { translate } from '../../utils/i18nHelpers.js';
 import { state } from '../../state/index.js';
 import { buildCivitaiModelUrl } from '../../utils/civitaiUtils.js';
+import { parseModelSourceGroupKey } from '../../utils/modelSourceHelpers.js';
 import { formatFileSize } from './utils.js';
 import { setSessionItem, removeSessionItem } from '../../utils/storageHelpers.js';
+import { isVideoPreviewUrl } from '../../utils/mediaTypes.js';
 
-const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.mkv'];
 const PREVIEW_PLACEHOLDER_URL = '/loras_static/images/no-preview.png';
 
 function buildCivitaiVersionUrl(modelId, versionId) {
@@ -29,79 +30,6 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
-}
-
-function extractExtension(value) {
-    if (value == null) {
-        return '';
-    }
-    const targets = [];
-    const stringValue = String(value);
-    if (stringValue) {
-        targets.push(stringValue);
-        stringValue.split(/[?&=]/).forEach(fragment => {
-            if (fragment) {
-                targets.push(fragment);
-            }
-        });
-    }
-
-    for (const target of targets) {
-        let candidate = target;
-        try {
-            candidate = decodeURIComponent(candidate);
-        } catch (error) {
-            // ignoring malformed sequences, fallback to raw value
-        }
-        const lastDot = candidate.lastIndexOf('.');
-        if (lastDot === -1) {
-            continue;
-        }
-        const extension = candidate.slice(lastDot).toLowerCase();
-        if (extension.includes('/') || extension.includes('\\')) {
-            continue;
-        }
-        return extension;
-    }
-
-    return '';
-}
-
-function isVideoUrl(url) {
-    if (!url || typeof url !== 'string') {
-        return false;
-    }
-
-    const candidates = new Set();
-    const addCandidate = value => {
-        if (value == null) {
-            return;
-        }
-        const stringValue = String(value);
-        if (!stringValue) {
-            return;
-        }
-        candidates.add(stringValue);
-    };
-
-    addCandidate(url);
-
-    try {
-        const parsed = new URL(url, window.location.origin);
-        addCandidate(parsed.pathname);
-        parsed.searchParams.forEach(value => addCandidate(value));
-    } catch (error) {
-        // ignore parse errors and rely on fallbacks below
-    }
-
-    for (const candidate of candidates) {
-        const extension = extractExtension(candidate);
-        if (extension && VIDEO_EXTENSIONS.includes(extension)) {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 function formatDateLabel(value) {
@@ -180,6 +108,57 @@ function isEarlyAccessActive(version) {
     } catch {
         return false;
     }
+}
+
+function isPaidPermanent(version) {
+    return version && version.isPaid === true;
+}
+
+function isGated(version) {
+    return isEarlyAccessActive(version) || isPaidPermanent(version);
+}
+
+/**
+ * Format a Buzz price for display, or '' when the price is unknown (price
+ * tracking is opt-in, so most versions have no price at all).
+ */
+function formatBuzzPrice(value) {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+        return '';
+    }
+    return `${value.toLocaleString()} Buzz`;
+}
+
+/**
+ * Tooltip for a known price: notes a sale against the list price and the Blue
+ * Buzz option, since both change what the number means to a buyer.
+ */
+function buildPriceTooltip(version, baseTooltip) {
+    const effective = formatBuzzPrice(version?.priceBuzz);
+    const segments = [baseTooltip];
+    if (!effective) {
+        return baseTooltip;
+    }
+    const list = version?.listPriceBuzz;
+    if (typeof list === 'number' && Number.isFinite(list) && list > version.priceBuzz) {
+        segments.push(
+            translate(
+                'modals.model.versions.badges.priceSaleTooltip',
+                { list: list.toLocaleString() },
+                `On sale, normally ${list.toLocaleString()} Buzz`
+            )
+        );
+    }
+    if (version?.acceptsBlueBuzz) {
+        segments.push(
+            translate(
+                'modals.model.versions.badges.priceBlueBuzzTooltip',
+                {},
+                'Can also be paid with Blue Buzz'
+            )
+        );
+    }
+    return segments.join(' · ');
 }
 
 function isDownloadAllowed(version) {
@@ -342,6 +321,7 @@ function resolveUpdateAvailability(record, baseModel, currentVersionId) {
     const strategy = state?.global?.settings?.version_grouping;
     const sameBaseMode = strategy === DISPLAY_FILTER_MODES.SAME_BASE;
     const hideEarlyAccess = state?.global?.settings?.hide_early_access_updates;
+    const hidePaid = state?.global?.settings?.hide_paid_updates;
 
     if (!sameBaseMode) {
         return Boolean(record?.hasUpdate);
@@ -388,6 +368,9 @@ function resolveUpdateAvailability(record, baseModel, currentVersionId) {
         if (hideEarlyAccess && isEarlyAccessActive(version)) {
             return false;
         }
+        if (hidePaid && isPaidPermanent(version)) {
+            return false;
+        }
         if (!isDownloadAllowed(version)) {
             return false;
         }
@@ -413,7 +396,7 @@ function renderMediaMarkup(version) {
         return `<div class="version-media version-media-placeholder">${escapeHtml(placeholderText)}</div>`;
     }
 
-    if (isVideoUrl(version.previewUrl)) {
+    if (isVideoPreviewUrl(version.previewUrl)) {
         const autoplayOnHover = getAutoplaySetting();
         return `
             <div class="version-media">
@@ -432,14 +415,14 @@ function renderMediaMarkup(version) {
 
     return `
         <div class="version-media">
-            <img src="${escapeHtml(version.previewUrl)}" alt="${escapeHtml(version.name || 'preview')}">
+            <img src="${escapeHtml(version.previewUrl)}" alt="${escapeHtml(version.name || 'preview')}" onerror="this.onerror=null; this.src='/loras_static/images/no-preview.png'">
         </div>
     `;
 }
 
 function renderDeletePreview(version, versionName) {
     const previewUrl = version?.previewUrl;
-    if (previewUrl && isVideoUrl(previewUrl)) {
+    if (previewUrl && isVideoPreviewUrl(previewUrl)) {
         return `
             <video
                 src="${escapeHtml(previewUrl)}"
@@ -469,6 +452,7 @@ function renderRow(version, options) {
     const downloadedBadgeLabel = translate('modals.model.versions.badges.downloaded', {}, 'Downloaded');
     const newerBadgeLabel = translate('modals.model.versions.badges.newer', {}, 'Newer Version');
     const earlyAccessBadgeLabel = translate('modals.model.versions.badges.earlyAccess', {}, 'Early Access');
+    const paidBadgeLabel = translate('modals.model.versions.badges.paid', {}, 'Paid');
     const ignoredBadgeLabel = translate('modals.model.versions.badges.ignored', {}, 'Ignored');
     const versionName = version.name || translate('modals.model.versions.labels.unnamed', {}, 'Untitled Version');
 
@@ -512,12 +496,64 @@ function renderRow(version, options) {
         }));
     }
 
-    if (isEarlyAccess) {
+    // Obtainability, only where there is a decision to make: a version already in
+    // the library cannot become cheaper *for this user*, so it gets no cost badge.
+    // The download price is the only price axis that matters here — the generation
+    // fee is what CivitAI charges to generate on its own site, which a local model
+    // never incurs.
+    const priceLabel = formatBuzzPrice(version.priceBuzz);
+    if (!version.isInLibrary && isEarlyAccess) {
+        // Early access is the one state with a real countdown: "free on <date>"
+        // decides between waiting and paying.
+        const eaTime = formatEarlyAccessTime(version.earlyAccessEndsAt);
         badges.push(buildBadge(earlyAccessBadgeLabel, 'early-access', {
+            title: buildPriceTooltip(
+                version,
+                eaTime
+                    ? translate(
+                        'modals.model.versions.badges.earlyAccessTooltipUntil',
+                        { date: eaTime },
+                        `Early access until ${eaTime}`
+                    )
+                    : translate(
+                        'modals.model.versions.badges.earlyAccessTooltip',
+                        {},
+                        'This version currently requires Civitai early access'
+                    )
+            ),
+        }));
+    }
+
+    if (!version.isInLibrary && isGated(version)) {
+        if (priceLabel) {
+            // The number already says "paid", so a separate Paid badge would be
+            // noise next to it.
+            badges.push(buildBadge(priceLabel, isEarlyAccess ? 'early-access' : 'paid', {
+                title: buildPriceTooltip(version, paidBadgeLabel),
+            }));
+        } else if (!isEarlyAccess) {
+            // Paid, but no readable price: the gate is certain (it comes from the
+            // public API), only the number is best-effort. Saying nothing here
+            // would read as "free", which is the one thing this version is not.
+            badges.push(buildBadge(paidBadgeLabel, 'paid', {
+                title: translate(
+                    'modals.model.versions.badges.paidTooltip',
+                    {},
+                    'This version requires payment to download'
+                ),
+            }));
+        }
+    }
+
+    // A version that used to be gated and no longer is. `gateLapsedAt` is
+    // persisted, so the marker survives long after the refresh that saw it.
+    if (!version.isInLibrary && !isGated(version) && version.gateLapsedAt) {
+        const freeBadgeLabel = translate('modals.model.versions.badges.freeNow', {}, 'Free Now');
+        badges.push(buildBadge(freeBadgeLabel, 'success', {
             title: translate(
-                'modals.model.versions.badges.earlyAccessTooltip',
-                {},
-                'This version currently requires Civitai early access'
+                'modals.model.versions.badges.freeNowTooltip',
+                { date: formatDateLabel(version.gateLapsedAt) || '' },
+                'This version no longer requires payment'
             ),
         }));
     }
@@ -554,15 +590,29 @@ function renderRow(version, options) {
     );
 
     const actions = [];
-    if (!version.isInLibrary) {
-        const canDownload = isDownloadAllowed(version);
-        const downloadIcon = isEarlyAccess ? '<i class="fas fa-bolt"></i> ' : '';
+    const canDownload = isDownloadAllowed(version);
+    const downloadIcon = isEarlyAccess ? '<i class="fas fa-bolt"></i> ' : '';
+    // The Download button always fetches the default (primary) file, keeping
+    // the single-file experience for users who don't care about variants.
+    // In-library versions hide it: their default file already exists locally,
+    // and multi-file versions use the "N files" badge below for the remaining
+    // variants instead (#1058). fileCount is null for records persisted before
+    // the field existed; default to the single-file behavior in that case.
+    const fileCount = typeof version.fileCount === 'number' ? version.fileCount : null;
+    const showDownload = !version.isInLibrary;
+    if (showDownload) {
         let downloadTitle;
         if (!canDownload) {
             downloadTitle = translate(
                 'modals.model.versions.actions.downloadNotAllowedTooltip',
                 {},
                 'This version is only available for on-site generation on Civitai'
+            );
+        } else if (isPaidPermanent(version)) {
+            downloadTitle = translate(
+                'modals.model.versions.actions.downloadPaidTooltip',
+                {},
+                'Download this paid version from Civitai'
             );
         } else if (isEarlyAccess) {
             downloadTitle = translate(
@@ -587,7 +637,16 @@ function renderRow(version, options) {
                 disabled: !canDownload,
             }
         ));
-    } else if (version.filePath) {
+    }
+
+    // Multi-file versions get an explicit entry into the download modal's
+    // file-selection step, mirroring the version step's file badge (#1058).
+    const fileSelectionBadge = fileCount !== null && fileCount > 1
+        ? `<button type="button" class="file-select-badge" data-version-files title="${escapeHtml(translate('modals.model.versions.actions.downloadChooseFilesTooltip', {}, 'Choose which files to download'))}">
+             <i class="fas fa-th-list"></i> ${fileCount} ${escapeHtml(translate('modals.download.fileSelection.files', {}, 'files'))} <i class="fas fa-chevron-right badge-arrow"></i>
+           </button>`
+        : '';
+    if (version.isInLibrary && version.filePath) {
         actions.push(buildActionButton(
             deleteLabel,
             'version-action-danger',
@@ -664,6 +723,7 @@ function renderRow(version, options) {
                 <div class="version-badges">${badges.join('')}</div>
                 <div class="version-meta">
                     ${buildMetaMarkup(version, { showEarlyAccess: true })}
+                    ${fileSelectionBadge}
                 </div>
             </div>
             <div class="version-actions">
@@ -948,6 +1008,27 @@ export function initVersionsTab({
         }
         if (!modelId) {
             renderErrorState(container, translate('modals.model.versions.missingModelId', {}, 'This model is missing a Civitai model id.'));
+            return;
+        }
+        // External source group keys (e.g. "ms:12345", "ta:8278...") are
+        // not real CivitAI model IDs — skip the remote API call and show a
+        // helpful message instead.
+        const sourceGroup = parseModelSourceGroupKey(modelId);
+        if (sourceGroup) {
+            controller.isLoading = false;
+            controller.hasLoaded = true;
+            controller.record = null;
+            const sourceMsg = translate(
+                'modals.model.versions.sourceGroupInfo',
+                { source: sourceGroup.label },
+                `This is a ${sourceGroup.label} model group. Open the library to see all versions in the grid.`
+            );
+            container.innerHTML = `
+                <div class="versions-empty-state">
+                    <i class="fas fa-info-circle"></i>
+                    <p>${escapeHtml(sourceMsg)}</p>
+                </div>
+            `;
             return;
         }
         if (controller.hasLoaded && !forceRefresh) {
@@ -1287,22 +1368,62 @@ export function initVersionsTab({
         });
     }
 
-    async function resolveDownloadPathFromCurrentVersion() {
+    function getCurrentInLibraryVersion() {
         if (!normalizedCurrentVersionId || !controller.record?.versions) {
             return null;
         }
-
-        const currentVersion = controller.record.versions.find(
+        return controller.record.versions.find(
             v => v.versionId === normalizedCurrentVersionId && v.isInLibrary && v.filePath
-        );
-        if (!currentVersion?.filePath) {
+        ) || null;
+    }
+
+    function getDownloadPathTemplate() {
+        try {
+            const singularType = modelType.replace(/s$/, '');
+            const templates = state.global?.settings?.download_path_templates;
+            return (templates && templates[singularType]) || '';
+        } catch (error) {
+            return '';
+        }
+    }
+
+    function shouldResolveTemplatePath(targetVersion, pathInfo) {
+        if (!getDownloadPathTemplate() || !pathInfo?.modelRoot) {
+            return false;
+        }
+        const currentVersion = getCurrentInLibraryVersion();
+        const currentBase = normalizeBaseModelName(currentVersion?.baseModel);
+        const targetBase = normalizeBaseModelName(targetVersion?.baseModel);
+        if (!currentBase || !targetBase || currentBase === targetBase) {
+            return false;
+        }
+        return true;
+    }
+
+    async function resolveDownloadPathFromCurrentVersion() {
+        const currentVersion = getCurrentInLibraryVersion();
+        if (!currentVersion) {
             return null;
         }
 
         try {
             const client = ensureClient();
-            const rootsData = await client.fetchModelRoots();
-            const roots = rootsData?.roots;
+            // On the checkpoints page a diffusion model lives under the unet
+            // roots, so both root sets are needed to locate the current file.
+            let roots;
+            if (modelType === 'checkpoints') {
+                const [checkpointRoots, unetRoots] = await Promise.all([
+                    client.fetchModelRoots(),
+                    client.fetchModelRoots('diffusion_model'),
+                ]);
+                roots = [
+                    ...(checkpointRoots?.roots || []),
+                    ...(unetRoots?.roots || []),
+                ];
+            } else {
+                const rootsData = await client.fetchModelRoots();
+                roots = rootsData?.roots;
+            }
             if (!Array.isArray(roots) || roots.length === 0) {
                 return null;
             }
@@ -1337,6 +1458,32 @@ export function initVersionsTab({
         }
     }
 
+    /**
+     * True when the downloaded version is the newest version in the model's
+     * remote version set, i.e. the one whose install flips the backend
+     * update-available flag off. Unknown version sets fall back to "latest"
+     * so the post-download in-place reconciliation still runs by default.
+     * (#1078)
+     */
+    function versionIsLatestAvailable(version) {
+        if (!controller.record || !Array.isArray(controller.record.versions)) {
+            return true;
+        }
+        const versions = controller.record.versions;
+        if (versions.length === 0) {
+            return true;
+        }
+        const target = Number(version?.versionId);
+        if (!Number.isFinite(target)) {
+            return true;
+        }
+        const maxId = versions.reduce(
+            (max, v) => Math.max(max, Number(v?.versionId) || 0),
+            0
+        );
+        return target >= maxId;
+    }
+
     async function handleDownloadVersion(button, versionId) {
         if (!controller.record) {
             return;
@@ -1351,11 +1498,18 @@ export function initVersionsTab({
         button.disabled = true;
 
         try {
+            // The Download button only renders for versions not in the library
+            // and always fetches the default (primary) file. Multi-file
+            // variants are reached through the "N files" badge instead.
             const pathInfo = await resolveDownloadPathFromCurrentVersion();
+            const resolveTemplatePath = shouldResolveTemplatePath(version, pathInfo);
             const success = await downloadManager.downloadVersionWithDefaults(modelType, modelId, versionId, {
                 versionName: version.name || `#${version.versionId}`,
                 modelRoot: pathInfo?.modelRoot || '',
-                targetFolder: pathInfo?.targetFolder || '',
+                targetFolder: resolveTemplatePath ? '' : (pathInfo?.targetFolder || ''),
+                useDefaultPaths: resolveTemplatePath ? true : null,
+                useSaveDirAsRoot: resolveTemplatePath,
+                isLatestVersion: versionIsLatestAvailable(version),
             });
 
             if (success) {
@@ -1423,6 +1577,21 @@ export function initVersionsTab({
                 default:
                     break;
             }
+            return;
+        }
+
+        // File-selection badge: enter the download modal's file step directly.
+        // Must run before the row-click navigation below (rows are clickable).
+        const filesBadge = event.target.closest('[data-version-files]');
+        if (filesBadge) {
+            event.preventDefault();
+            event.stopPropagation();
+            const row = filesBadge.closest('.model-version-row');
+            if (!row) {
+                return;
+            }
+            const versionId = Number(row.dataset.versionId);
+            await downloadManager.openFileSelectionForVersion(modelType, modelId, versionId);
             return;
         }
 

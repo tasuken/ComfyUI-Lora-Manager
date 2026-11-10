@@ -1,5 +1,5 @@
 // Recipe Card Component
-import { showToast, copyToClipboard, sendLoraToWorkflow } from '../utils/uiHelpers.js';
+import { showToast, showActionToast, copyToClipboard, sendLoraToWorkflow } from '../utils/uiHelpers.js';
 import { updateRecipeMetadata } from '../api/recipeApi.js';
 import { configureModelCardVideo } from './shared/ModelCard.js';
 import { modalManager } from '../managers/ModalManager.js';
@@ -7,6 +7,9 @@ import { getCurrentPageState } from '../state/index.js';
 import { state } from '../state/index.js';
 import { bulkManager } from '../managers/BulkManager.js';
 import { NSFW_LEVELS, getBaseModelAbbreviation, getMatureBlurThreshold } from '../utils/constants.js';
+import { translate } from '../utils/i18nHelpers.js';
+import { handleUndoDelete } from '../utils/undoHelpers.js';
+import { isVideoPreviewUrl } from '../utils/mediaTypes.js';
 
 class RecipeCard {
     constructor(recipe, clickHandler) {
@@ -39,9 +42,36 @@ class RecipeCard {
         const loras = this.recipe.loras || [];
         const lorasCount = loras.length;
 
-        // Check if all LoRAs are available in the library
-        const missingLorasCount = loras.filter(lora => !lora.inLibrary && !lora.isDeleted).length;
-        const allLorasAvailable = missingLorasCount === 0 && lorasCount > 0;
+        // Count LoRAs by availability: in library, missing (still downloadable
+        // from the source), or unobtainable (deleted from the source, or an
+        // unresolvable hash) which is silently skipped when the recipe is used.
+        const availableLorasCount = loras.filter(lora => lora.inLibrary).length;
+        const missingLorasCount = loras.filter(lora => !lora.inLibrary && !lora.isDeleted && !lora.hashInvalid).length;
+        const unavailableLorasCount = lorasCount - availableLorasCount - missingLorasCount;
+
+        // Compact status pill: state icon + available/total fraction.
+        // Icon switches by state so status never relies on color alone.
+        // - missing (red): something can still be downloaded, most actionable
+        // - partial (amber): usable but degraded, unobtainable LoRAs are skipped
+        // - unavailable (gray, ban): no usable LoRA at all
+        let loraCountStateClass = '';
+        let loraCountIcon = 'fa-layer-group';
+        if (lorasCount > 0) {
+            if (availableLorasCount === lorasCount) {
+                loraCountStateClass = 'ready';
+                loraCountIcon = 'fa-check';
+            } else if (missingLorasCount > 0) {
+                loraCountStateClass = 'missing';
+                loraCountIcon = 'fa-exclamation-triangle';
+            } else if (availableLorasCount > 0) {
+                loraCountStateClass = 'partial';
+                loraCountIcon = 'fa-circle-minus';
+            } else {
+                loraCountStateClass = 'unavailable';
+                loraCountIcon = 'fa-ban';
+            }
+        }
+        const loraCountLabel = lorasCount > 0 ? `${availableLorasCount}/${lorasCount}` : `${lorasCount}`;
 
         // Ensure file_url exists, fallback to API URL if needed
         let previewUrl = this.recipe.file_url;
@@ -59,7 +89,7 @@ class RecipeCard {
         const isFavorite = this.recipe.favorite === true;
 
         // Video preview logic
-        const isVideo = previewUrl.endsWith('.mp4') || previewUrl.endsWith('.webm');
+        const isVideo = isVideoPreviewUrl(previewUrl);
         const videoAttrs = [
             'controls',
             'muted',
@@ -82,14 +112,14 @@ class RecipeCard {
             card.classList.add('nsfw-content');
         }
 
-        // Determine NSFW warning text based on level
-        let nsfwText = "Mature Content";
+        // Determine NSFW warning text based on level (shared with model cards)
+        let nsfwText = translate('modelCard.nsfw.matureContent', {}, 'Mature Content');
         if (nsfwLevel >= NSFW_LEVELS.XXX) {
-            nsfwText = "XXX-rated Content";
+            nsfwText = translate('modelCard.nsfw.xxxRated', {}, 'XXX-rated Content');
         } else if (nsfwLevel >= NSFW_LEVELS.X) {
-            nsfwText = "X-rated Content";
+            nsfwText = translate('modelCard.nsfw.xRated', {}, 'X-rated Content');
         } else if (nsfwLevel >= NSFW_LEVELS.R) {
-            nsfwText = "R-rated Content";
+            nsfwText = translate('modelCard.nsfw.rRated', {}, 'R-rated Content');
         }
 
         card.innerHTML = `
@@ -101,15 +131,21 @@ class RecipeCard {
                 ${!isDuplicatesMode ? `
                 <div class="card-header">
                     ${shouldBlur ?
-                    `<button class="toggle-blur-btn" title="Toggle blur">
+                    `<button class="toggle-blur-btn" title="${translate('modelCard.actions.toggleBlur', {}, 'Toggle blur')}">
                           <i class="fas fa-eye"></i>
                       </button>` : ''}
-                    <span class="base-model-label ${shouldBlur ? 'with-toggle' : ''}" title="${baseModelLabel}">${baseModelDisplay}</span>
+                    <div class="card-header-info">
+                        <span class="base-model-label ${shouldBlur ? 'with-toggle' : ''}" title="${baseModelLabel}">${baseModelDisplay}</span>
+                        ${this.recipe.has_workflow === true ? `
+                        <span class="workflow-badge" title="${translate('recipes.workflow.hasWorkflow', {}, 'Contains a ComfyUI workflow')}">
+                            <i class="fas fa-diagram-project"></i>
+                        </span>` : ''}
+                    </div>
                     <div class="card-actions">
-                        <i class="${isFavorite ? 'fas fa-star favorite-active' : 'far fa-star'}" title="${isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}"></i>
-                        <i class="fas fa-share-alt" title="Share Recipe"></i>
-                        <i class="fas fa-paper-plane" title="Send Recipe to Workflow (Click: Append, Shift+Click: Replace)"></i>
-                        <i class="fas fa-trash" title="Delete Recipe"></i>
+                        <i class="${isFavorite ? 'fas fa-star favorite-active' : 'far fa-star'}" title="${isFavorite ? translate('modelCard.actions.removeFromFavorites', {}, 'Remove from favorites') : translate('modelCard.actions.addToFavorites', {}, 'Add to favorites')}"></i>
+                        <i class="fas fa-share-alt" title="${translate('recipes.actions.shareRecipe', {}, 'Share Recipe')}"></i>
+                        <i class="fas fa-paper-plane" title="${translate('recipes.actions.sendRecipeModes', {}, 'Send Recipe to Workflow (Click: Append, Shift+Click: Replace)')}"></i>
+                        <i class="fas fa-trash" title="${translate('loras.contextMenu.deleteRecipe', {}, 'Delete Recipe')}"></i>
                     </div>
                 </div>
                 ` : ''}
@@ -117,7 +153,7 @@ class RecipeCard {
                     <div class="nsfw-overlay">
                         <div class="nsfw-warning">
                             <p>${nsfwText}</p>
-                            <button class="show-content-btn">Show</button>
+                            <button class="show-content-btn">${translate('modelCard.actions.show', {}, 'Show')}</button>
                         </div>
                     </div>
                 ` : ''}
@@ -126,9 +162,8 @@ class RecipeCard {
                         <span class="model-name">${this.recipe.title}</span>
                     </div>
                     ${!isDuplicatesMode ? `
-                    <div class="lora-count ${allLorasAvailable ? 'ready' : (lorasCount > 0 ? 'missing' : '')}" 
-                         title="${this.getLoraStatusTitle(lorasCount, missingLorasCount)}">
-                        <i class="fas fa-layer-group"></i> ${lorasCount}
+                    <div class="lora-count ${loraCountStateClass}" title="${this.getLoraStatusTitle(lorasCount, availableLorasCount, missingLorasCount, unavailableLorasCount)}">
+                        <i class="fas ${loraCountIcon}" aria-hidden="true"></i> ${loraCountLabel}
                     </div>
                     ` : ''}
                 </div>
@@ -146,10 +181,39 @@ class RecipeCard {
         return card;
     }
 
-    getLoraStatusTitle(totalCount, missingCount) {
-        if (totalCount === 0) return "No LoRAs in this recipe";
-        if (missingCount === 0) return "All LoRAs available - Ready to use";
-        return `${missingCount} of ${totalCount} LoRAs missing`;
+    getLoraStatusTitle(totalCount, availableCount, missingCount, unavailableCount) {
+        if (totalCount === 0) {
+            return translate('recipes.loraStatus.none', {}, 'No LoRAs in this recipe');
+        }
+        if (availableCount === totalCount) {
+            return translate('recipes.loraStatus.allAvailable', {}, 'All LoRAs available - Ready to use');
+        }
+        if (missingCount > 0 && unavailableCount > 0) {
+            return translate(
+                'recipes.loraStatus.missingAndUnavailable',
+                { missing: missingCount, unavailable: unavailableCount, total: totalCount },
+                `${missingCount} of ${totalCount} LoRAs missing, ${unavailableCount} unavailable (deleted from source or unresolvable hash)`
+            );
+        }
+        if (missingCount > 0) {
+            return translate(
+                'recipes.loraStatus.missing',
+                { missing: missingCount, total: totalCount },
+                `${missingCount} of ${totalCount} LoRAs missing`
+            );
+        }
+        if (availableCount > 0) {
+            return translate(
+                'recipes.loraStatus.partial',
+                { unavailable: unavailableCount, total: totalCount },
+                `${unavailableCount} of ${totalCount} LoRAs unavailable (deleted from source or unresolvable hash) - skipped when recipe is used`
+            );
+        }
+        return translate(
+            'recipes.loraStatus.noneUsable',
+            { unavailable: unavailableCount, total: totalCount },
+            `No usable LoRAs - ${unavailableCount} of ${totalCount} deleted from source or unresolvable hash`
+        );
     }
 
     async toggleFavorite(card) {
@@ -238,9 +302,12 @@ class RecipeCard {
 
         // Recipe card click event - only attach if not in duplicates mode
         if (!isDuplicatesMode) {
-            card.addEventListener('click', () => {
+            card.addEventListener('click', (e) => {
                 if (state.bulkMode) {
-                    bulkManager.toggleCardSelection(card);
+                    if (e.shiftKey) {
+                        e.preventDefault();
+                    }
+                    bulkManager.toggleCardSelection(card, e.shiftKey);
                     return;
                 }
                 this.clickHandler(this.recipe);
@@ -337,115 +404,11 @@ class RecipeCard {
     }
 
     showDeleteConfirmation() {
-        try {
-            // Get recipe ID
-            const recipeId = this.recipe.id;
-            const filePath = this.recipe.file_path;
-            if (!recipeId) {
-                showToast('toast.recipes.cannotDelete', {}, 'error');
-                return;
-            }
-
-            // Create delete modal content
-            const previewUrl = this.recipe.file_url || '/loras_static/images/no-preview.png';
-            const isVideo = previewUrl.endsWith('.mp4') || previewUrl.endsWith('.webm');
-
-            const deleteModalContent = `
-                <div class="modal-content delete-modal-content">
-                    <h2>Delete Recipe</h2>
-                    <p class="delete-message">Are you sure you want to delete this recipe?</p>
-                    <div class="delete-model-info">
-                        <div class="delete-preview">
-                            ${isVideo ?
-                    `<video src="${previewUrl}" controls muted loop playsinline style="max-width: 100%;"></video>` :
-                    `<img src="${previewUrl}" alt="${this.recipe.title}">`
-                }
-                        </div>
-                        <div class="delete-info">
-                            <h3>${this.recipe.title}</h3>
-                            <p>This action cannot be undone.</p>
-                        </div>
-                    </div>
-                    <p class="delete-note">Note: Deleting this recipe will not affect the LoRA files used in it.</p>
-                    <div class="modal-actions">
-                        <button class="cancel-btn" onclick="closeDeleteModal()">Cancel</button>
-                        <button class="delete-btn" onclick="confirmDelete()">Delete</button>
-                    </div>
-                </div>
-            `;
-
-            // Show the modal with custom content and setup callbacks
-            modalManager.showModal('deleteModal', deleteModalContent, () => {
-                // This is the onClose callback
-                const deleteModal = document.getElementById('deleteModal');
-                const deleteBtn = deleteModal.querySelector('.delete-btn');
-                deleteBtn.textContent = 'Delete';
-                deleteBtn.disabled = false;
-            });
-
-            // Set up the delete and cancel buttons with proper event handlers
-            const deleteModal = document.getElementById('deleteModal');
-            const cancelBtn = deleteModal.querySelector('.cancel-btn');
-            const deleteBtn = deleteModal.querySelector('.delete-btn');
-
-            // Store recipe ID in the modal for the delete confirmation handler
-            deleteModal.dataset.recipeId = recipeId;
-            deleteModal.dataset.filePath = filePath;
-
-            // Update button event handlers
-            cancelBtn.onclick = () => modalManager.closeModal('deleteModal');
-            deleteBtn.onclick = () => this.confirmDeleteRecipe();
-
-        } catch (error) {
-            console.error('Error showing delete confirmation:', error);
-            showToast('toast.recipes.deleteConfirmationError', {}, 'error');
-        }
+        showRecipeDeleteConfirmation(this.recipe);
     }
 
     confirmDeleteRecipe() {
-        const deleteModal = document.getElementById('deleteModal');
-        const recipeId = deleteModal.dataset.recipeId;
-
-        if (!recipeId) {
-            showToast('toast.recipes.cannotDelete', {}, 'error');
-            modalManager.closeModal('deleteModal');
-            return;
-        }
-
-        // Show loading state
-        const deleteBtn = deleteModal.querySelector('.delete-btn');
-        const originalText = deleteBtn.textContent;
-        deleteBtn.textContent = 'Deleting...';
-        deleteBtn.disabled = true;
-
-        // Call API to delete the recipe
-        fetch(`/api/lm/recipe/${recipeId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to delete recipe');
-                }
-                return response.json();
-            })
-            .then(data => {
-                showToast('toast.recipes.deletedSuccessfully', {}, 'success');
-
-                state.virtualScroller.removeItemByFilePath(deleteModal.dataset.filePath);
-
-                modalManager.closeModal('deleteModal');
-            })
-            .catch(error => {
-                console.error('Error deleting recipe:', error);
-                showToast('toast.recipes.deleteFailed', { message: error.message }, 'error');
-
-                // Reset button state
-                deleteBtn.textContent = originalText;
-                deleteBtn.disabled = false;
-            });
+        confirmRecipeDelete(this.recipe);
     }
 
     shareRecipe() {
@@ -494,6 +457,136 @@ class RecipeCard {
             showToast('toast.recipes.sharePreparationError', {}, 'error');
         }
     }
+}
+
+/**
+ * Show the delete confirmation modal for a recipe. Shared by RecipeCard and
+ * RecipeModal so the flow stays identical regardless of where it starts.
+ * @param {Object} recipe - The recipe to delete
+ */
+export function showRecipeDeleteConfirmation(recipe) {
+    try {
+        // Get recipe ID
+        const recipeId = recipe.id;
+        const filePath = recipe.file_path;
+        if (!recipeId) {
+            showToast('toast.recipes.cannotDelete', {}, 'error');
+            return;
+        }
+
+        // Create delete modal content
+        const previewUrl = recipe.file_url || '/loras_static/images/no-preview.png';
+        const isVideo = isVideoPreviewUrl(previewUrl);
+
+        const deleteModalContent = `
+            <div class="modal-content delete-modal-content">
+                <h2>${translate('loras.contextMenu.deleteRecipe', {}, 'Delete Recipe')}</h2>
+                <p class="delete-message">${translate('recipes.deleteModal.message', {}, 'Are you sure you want to delete this recipe?')}</p>
+                <div class="delete-model-info">
+                    <div class="delete-preview">
+                        ${isVideo ?
+                `<video src="${previewUrl}" controls muted loop playsinline style="max-width: 100%;"></video>` :
+            `<img src="${previewUrl}" alt="${recipe.title}" onerror="this.onerror=null; this.src='/loras_static/images/no-preview.png'">`
+            }
+                    </div>
+                    <div class="delete-info">
+                        <h3>${recipe.title}</h3>
+                        <p>${translate('modals.deleteRecipe.recoverableWarning')}</p>
+                    </div>
+                </div>
+                <p class="delete-note">${translate('recipes.deleteModal.note', {}, 'Deleting this recipe will not affect the LoRA files used in it.')}</p>
+                <div class="modal-actions">
+                    <button class="cancel-btn" onclick="closeDeleteModal()">${translate('common.actions.cancel', {}, 'Cancel')}</button>
+                    <button class="delete-btn" onclick="confirmDelete()">${translate('common.actions.delete', {}, 'Delete')}</button>
+                </div>
+            </div>
+        `;
+
+        // Show the modal with custom content and setup callbacks
+        modalManager.showModal('deleteModal', deleteModalContent, () => {
+            // This is the onClose callback
+            const deleteModal = document.getElementById('deleteModal');
+            const deleteBtn = deleteModal.querySelector('.delete-btn');
+            deleteBtn.textContent = translate('common.actions.delete', {}, 'Delete');
+            deleteBtn.disabled = false;
+        });
+
+        // Set up the delete and cancel buttons with proper event handlers
+        const deleteModal = document.getElementById('deleteModal');
+        const cancelBtn = deleteModal.querySelector('.cancel-btn');
+        const deleteBtn = deleteModal.querySelector('.delete-btn');
+
+        // Store recipe ID in the modal for the delete confirmation handler
+        deleteModal.dataset.recipeId = recipeId;
+        deleteModal.dataset.filePath = filePath;
+
+        // Update button event handlers
+        cancelBtn.onclick = () => modalManager.closeModal('deleteModal');
+        deleteBtn.onclick = () => confirmRecipeDelete(recipe);
+
+    } catch (error) {
+        console.error('Error showing delete confirmation:', error);
+        showToast('toast.recipes.deleteConfirmationError', {}, 'error');
+    }
+}
+
+/**
+ * Execute the recipe deletion after the user confirms in the delete modal.
+ * @param {Object} recipe - The recipe being deleted (used for toast messaging)
+ */
+function confirmRecipeDelete(recipe) {
+    const deleteModal = document.getElementById('deleteModal');
+    const recipeId = deleteModal.dataset.recipeId;
+
+    if (!recipeId) {
+        showToast('toast.recipes.cannotDelete', {}, 'error');
+        modalManager.closeModal('deleteModal');
+        return;
+    }
+
+    // Show loading state
+    const deleteBtn = deleteModal.querySelector('.delete-btn');
+    const originalText = deleteBtn.textContent;
+    deleteBtn.textContent = translate('recipes.deleteModal.deleting', {}, 'Deleting...');
+    deleteBtn.disabled = true;
+
+    // Call API to delete the recipe
+    fetch(`/api/lm/recipe/${recipeId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to delete recipe');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.batch_id) {
+                // Staged delete: offer undo instead of the plain success toast
+                const batchId = data.batch_id;
+                showActionToast('toast.undo.deleted', { name: recipe.title }, 'success', {
+                    actionText: translate('toast.undo.action'),
+                    onAction: () => handleUndoDelete(batchId, () => window.recipeManager.loadRecipes(true)),
+                });
+            } else {
+                showToast('toast.recipes.deletedSuccessfully', {}, 'success');
+            }
+
+            state.virtualScroller.removeItemByFilePath(deleteModal.dataset.filePath);
+
+            modalManager.closeModal('deleteModal');
+        })
+        .catch(error => {
+            console.error('Error deleting recipe:', error);
+            showToast('toast.recipes.deleteFailed', { message: error.message }, 'error');
+
+            // Reset button state
+            deleteBtn.textContent = originalText;
+            deleteBtn.disabled = false;
+        });
 }
 
 export { RecipeCard };

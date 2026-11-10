@@ -70,6 +70,7 @@ vi.mock('../../../static/js/components/DuplicatesManager.js', () => ({
 
 vi.mock('../../../static/js/utils/infiniteScroll.js', () => ({
   refreshVirtualScroll: refreshVirtualScrollMock,
+  recreateVirtualScroll: vi.fn(),
 }));
 
 vi.mock('../../../static/js/api/recipeApi.js', () => ({
@@ -165,6 +166,7 @@ describe('RecipeManager', () => {
   afterEach(() => {
     delete window.recipeManager;
     delete window.importManager;
+    delete window.settingsManager;
   });
 
   it('initializes page controls, restores filters, and wires sort interactions', async () => {
@@ -227,6 +229,38 @@ describe('RecipeManager', () => {
     expect(pageState.sortBy).toBe('name:asc');
     expect(refreshVirtualScrollMock).toHaveBeenCalledTimes(2);
     expect(initializePageFeaturesMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('wires the layout toggle and reflects the saved recipes layout setting', async () => {
+    const gridBtn = document.createElement('button');
+    gridBtn.className = 'layout-toggle-btn';
+    gridBtn.dataset.recipesLayout = 'grid';
+    gridBtn.setAttribute('aria-pressed', 'false');
+    const masonryBtn = document.createElement('button');
+    masonryBtn.className = 'layout-toggle-btn';
+    masonryBtn.dataset.recipesLayout = 'masonry';
+    masonryBtn.setAttribute('aria-pressed', 'false');
+    document.body.appendChild(gridBtn);
+    document.body.appendChild(masonryBtn);
+
+    const saveRecipesLayoutMock = vi.fn().mockResolvedValue();
+    window.settingsManager = { saveRecipesLayout: saveRecipesLayoutMock };
+
+    const manager = new RecipeManager();
+    await manager.initialize();
+
+    // Initial state follows the saved setting (default grid)
+    expect(gridBtn.classList.contains('active')).toBe(true);
+    expect(gridBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(masonryBtn.classList.contains('active')).toBe(false);
+
+    // Clicking the inactive option saves the new layout
+    masonryBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(saveRecipesLayoutMock).toHaveBeenCalledWith('masonry');
+
+    // Clicking the already-active option is a no-op
+    gridBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(saveRecipesLayoutMock).toHaveBeenCalledTimes(1);
   });
 
   it('skips loading when duplicates mode is active and refreshes otherwise', async () => {
@@ -336,5 +370,40 @@ describe('RecipeManager', () => {
     });
 
     window.location = originalLocation;
+  });
+
+  it('registers the R toolbar shortcut so the recipes page can refresh', async () => {
+    const refreshBtn = document.createElement('button');
+    refreshBtn.dataset.action = 'refresh';
+    document.body.appendChild(refreshBtn);
+
+    const manager = new RecipeManager();
+    await manager.initialize();
+
+    const { eventManager } = await import('../../../static/js/utils/EventManager.js');
+    const entry = (eventManager.handlers.get('keydown') || [])
+      .find((handler) => handler.source === 'pageControls-actions');
+    expect(entry).toBeDefined();
+
+    const keydownEvent = (key, target) => {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      Object.defineProperty(event, 'target', { value: target });
+      return event;
+    };
+
+    // R clicks the refresh button, reusing its click handler
+    const refreshEvent = keydownEvent('r', document.body);
+    expect(entry.handler(refreshEvent)).toBe(true);
+    expect(refreshEvent.defaultPrevented).toBe(true);
+    expect(refreshRecipesMock).toHaveBeenCalledWith(false);
+
+    // Not while typing
+    refreshRecipesMock.mockClear();
+    expect(entry.handler(keydownEvent('r', document.createElement('input')))).toBe(false);
+    expect(refreshRecipesMock).not.toHaveBeenCalled();
+
+    // Recipes has no fetch/download buttons, so F / D pass through
+    expect(entry.handler(keydownEvent('f', document.body))).toBe(false);
+    expect(entry.handler(keydownEvent('d', document.body))).toBe(false);
   });
 });

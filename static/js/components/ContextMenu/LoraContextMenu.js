@@ -20,9 +20,9 @@ export class LoraContextMenu extends BaseContextMenu {
         return getModelApiClient().saveModelMetadata(filePath, data);
     }
 
-    showMenu(x, y, card) {
-        super.showMenu(x, y, card);
+    prepareMenu(card) {
         this.updateExcludeMenuItem();
+        this.updateEnrichMenuItem(card);
     }
 
     handleMenuAction(action, menuItem) {
@@ -75,7 +75,9 @@ export class LoraContextMenu extends BaseContextMenu {
     sendLoraToWorkflow(replaceMode) {
         const card = this.currentCard;
         const usageTips = JSON.parse(card.dataset.usage_tips || '{}');
-        const loraSyntax = buildLoraSyntax(card.dataset.file_name, usageTips);
+        const folder = card.dataset.folder || '';
+        const loraName = folder ? `${folder}/${card.dataset.file_name}` : card.dataset.file_name;
+        const loraSyntax = buildLoraSyntax(loraName, usageTips);
 
         sendLoraToWorkflow(loraSyntax, replaceMode, 'lora');
     }

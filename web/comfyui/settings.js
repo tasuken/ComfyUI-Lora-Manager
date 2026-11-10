@@ -1,4 +1,5 @@
 import { app } from "../../scripts/app.js";
+import { lmUrl } from "./base_path.js";
 
 // ============================================================================
 // Setting IDs and Defaults
@@ -31,6 +32,9 @@ const TAG_SPACE_REPLACEMENT_DEFAULT = false;
 const USAGE_STATISTICS_SETTING_ID = "loramanager.usage_statistics";
 const USAGE_STATISTICS_DEFAULT = true;
 
+const ANIMA_LORA_BLOCK_REMAP_SETTING_ID = "loramanager.anima_lora_block_remap";
+const ANIMA_LORA_BLOCK_REMAP_DEFAULT = true;
+
 const NEW_TAB_TEMPLATE_ID = "loramanager.new_tab_template";
 const NEW_TAB_TEMPLATE_DEFAULT = "Default";
 
@@ -39,8 +43,8 @@ const NEW_TAB_ZOOM_LEVEL = 0.8;
 const STRENGTH_STEP_SETTING_ID = "loramanager.strength_step";
 const STRENGTH_STEP_DEFAULT = 0.05;
 
-const LORA_WIDGET_MAX_VISIBLE_SETTING_ID = "loramanager.lora_widget_max_visible_loras";
-const LORA_WIDGET_MAX_VISIBLE_DEFAULT = 12;
+const LORA_ACTIVE_FILTERS_AUTOCOMPLETE_SETTING_ID = "loramanager.lora_active_filters_autocomplete";
+const LORA_ACTIVE_FILTERS_AUTOCOMPLETE_DEFAULT = false;
 
 // ============================================================================
 // Helper Functions
@@ -55,7 +59,7 @@ const loadWorkflowOptions = async () => {
         return;
     }
     try {
-        const response = await fetch("/api/lm/example-workflows");
+        const response = await fetch(lmUrl("/api/lm/example-workflows"));
         const data = await response.json();
         if (data.success && data.workflows) {
             workflowOptionsFull = data.workflows;
@@ -81,7 +85,7 @@ const loadTemplateWorkflow = async (templateName) => {
         const workflow = workflowOptionsFull.find((w) => w.label === templateName);
         if (workflow && workflow.value) {
             const workflowResponse = await fetch(
-                `/api/lm/example-workflows/${encodeURIComponent(workflow.value)}`
+                lmUrl(`/api/lm/example-workflows/${encodeURIComponent(workflow.value)}`)
             );
             const workflowData = await workflowResponse.json();
             if (workflowData.success && workflowData.workflow) {
@@ -171,6 +175,66 @@ const getPromptTagAutocompletePreference = (() => {
         }
     };
 })();
+
+/**
+ * Persist a LoRA Manager setting through ComfyUI's setting API.
+ * Returns true when the setting was written successfully.
+ */
+const setLoraManagerSettingValue = async (settingId, value) => {
+    const settingManager = app?.extensionManager?.setting;
+    if (settingManager && typeof settingManager.set === "function") {
+        await settingManager.set(settingId, value);
+        return true;
+    }
+
+    const setting = app?.ui?.settings?.settingsById?.[settingId];
+    if (setting) {
+        app.ui.settings.setSettingValue(settingId, value);
+        return true;
+    }
+
+    return false;
+};
+
+// The Anima remap toggle lives in ComfyUI's settings (it controls a node's
+// behavior), but the value the Python loader reads is stored in LoRA Manager's
+// settings API. Keep the two in sync: pull the backend value on startup, push
+// user changes back to the backend, and ignore the change event fired by the
+// initial sync.
+let animaLoraBlockRemapSynced = false;
+
+const persistAnimaLoraBlockRemap = async (value) => {
+    try {
+        const response = await fetch(lmUrl("/api/lm/settings"), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ anima_lora_block_remap: value }),
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+    } catch (error) {
+        console.warn("LoRA Manager: failed to persist Anima LoRA block remap setting", error);
+    }
+};
+
+const syncAnimaLoraBlockRemapFromBackend = async () => {
+    try {
+        const response = await fetch(lmUrl("/api/lm/settings"));
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        const value = data?.settings?.anima_lora_block_remap !== false;
+        await setLoraManagerSettingValue(ANIMA_LORA_BLOCK_REMAP_SETTING_ID, value);
+    } catch (error) {
+        console.warn("LoRA Manager: failed to sync Anima LoRA block remap setting", error);
+    } finally {
+        animaLoraBlockRemapSynced = true;
+    }
+};
 
 const getAutocompleteAppendCommaPreference = (() => {
     let settingsUnavailableLogged = false;
@@ -363,28 +427,28 @@ const getStrengthStepPreference = (() => {
     };
 })();
 
-const getLoraWidgetMaxVisibleLoras = (() => {
+const getLoraActiveFiltersAutocompletePreference = (() => {
     let settingsUnavailableLogged = false;
 
     return () => {
         const settingManager = app?.extensionManager?.setting;
         if (!settingManager || typeof settingManager.get !== "function") {
             if (!settingsUnavailableLogged) {
-                console.warn("LoRA Manager: settings API unavailable, using default max visible loras.");
+                console.warn("LoRA Manager: settings API unavailable, using default lora active filters autocomplete setting.");
                 settingsUnavailableLogged = true;
             }
-            return LORA_WIDGET_MAX_VISIBLE_DEFAULT;
+            return LORA_ACTIVE_FILTERS_AUTOCOMPLETE_DEFAULT;
         }
 
         try {
-            const value = settingManager.get(LORA_WIDGET_MAX_VISIBLE_SETTING_ID);
-            return value ?? LORA_WIDGET_MAX_VISIBLE_DEFAULT;
+            const value = settingManager.get(LORA_ACTIVE_FILTERS_AUTOCOMPLETE_SETTING_ID);
+            return value ?? LORA_ACTIVE_FILTERS_AUTOCOMPLETE_DEFAULT;
         } catch (error) {
             if (!settingsUnavailableLogged) {
-                console.warn("LoRA Manager: unable to read max visible loras setting, using default.", error);
+                console.warn("LoRA Manager: unable to read lora active filters autocomplete setting, using default.", error);
                 settingsUnavailableLogged = true;
             }
-            return LORA_WIDGET_MAX_VISIBLE_DEFAULT;
+            return LORA_ACTIVE_FILTERS_AUTOCOMPLETE_DEFAULT;
         }
     };
 })();
@@ -422,8 +486,16 @@ app.registerExtension({
             name: "Enable Tag Autocomplete in Prompt Nodes",
             type: "boolean",
             defaultValue: PROMPT_TAG_AUTOCOMPLETE_DEFAULT,
-            tooltip: "When enabled, typing will trigger tag autocomplete suggestions. Commands (e.g., /character, /artist) always work regardless of this setting.",
+            tooltip: "When enabled, typing in a Prompt (LoraManager) node triggers tag autocomplete suggestions. You can also toggle it by typing /autocomplete or /noautocomplete in the node, or from the node's right-click menu. Slash commands (e.g., /character, /artist) always work regardless of this setting.",
             category: ["LoRA Manager", "Autocomplete", "Prompt"],
+        },
+        {
+            id: LORA_ACTIVE_FILTERS_AUTOCOMPLETE_SETTING_ID,
+            name: "Search LoRA autocomplete within active filters",
+            type: "boolean",
+            defaultValue: LORA_ACTIVE_FILTERS_AUTOCOMPLETE_DEFAULT,
+            tooltip: "When enabled, LoRA autocomplete suggestions respect the active filters (folder/base model/tags) set in the LoRA Manager page. You can also toggle it by typing /activefilters or /noactivefilters in the LoRA field, or from the node's right-click menu.",
+            category: ["LoRA Manager", "Autocomplete", "LoRA Active Filters"],
         },
         {
             id: AUTOCOMPLETE_APPEND_COMMA_SETTING_ID,
@@ -471,6 +543,20 @@ app.registerExtension({
             category: ["LoRA Manager", "Statistics", "Usage Tracking"],
         },
         {
+            id: ANIMA_LORA_BLOCK_REMAP_SETTING_ID,
+            name: "Legacy Anima LoRA block remap",
+            type: "boolean",
+            defaultValue: ANIMA_LORA_BLOCK_REMAP_DEFAULT,
+            tooltip: "Automatically remap LoRA block indices when an older Anima LoRA is loaded on Anima 2.9B (40 blocks) or 3.8B (52 blocks). Turn off to load the file unchanged.",
+            category: ["LoRA Manager", "LoRA Loader", "Anima Block Remap"],
+            onChange: async (value) => {
+                if (!animaLoraBlockRemapSynced) {
+                    return;
+                }
+                await persistAnimaLoraBlockRemap(value);
+            },
+        },
+        {
             id: NEW_TAB_TEMPLATE_ID,
             name: "New Tab Template Workflow",
             type: "combo",
@@ -492,22 +578,10 @@ app.registerExtension({
             tooltip: "Step size for adjusting LoRA strength via arrow buttons or keyboard (default: 0.05)",
             category: ["LoRA Manager", "LoRA Widget", "Strength Step"],
         },
-        {
-            id: LORA_WIDGET_MAX_VISIBLE_SETTING_ID,
-            name: "Node 2.0: Maximum visible LoRA entries",
-            type: "slider",
-            attrs: {
-                min: 3,
-                max: 50,
-                step: 1,
-            },
-            defaultValue: LORA_WIDGET_MAX_VISIBLE_DEFAULT,
-            tooltip: "When using Node 2.0 rendering, limit the loras widget height to show at most this many entries (default: 12). Excess entries are accessible via scrollbar.",
-            category: ["LoRA Manager", "LoRA Widget", "Max Visible"],
-        },
     ],
     async setup() {
         await loadWorkflowOptions();
+        await syncAnimaLoraBlockRemapFromBackend();
 
         const originalNewBlankWorkflow = async () => {
             const blankGraph = {
@@ -581,6 +655,8 @@ app.registerExtension({
 // ============================================================================
 
 export {
+    PROMPT_TAG_AUTOCOMPLETE_SETTING_ID,
+    LORA_ACTIVE_FILTERS_AUTOCOMPLETE_SETTING_ID,
     getWheelSensitivity,
     getAutoPathCorrectionPreference,
     getAutocompleteAppendCommaPreference,
@@ -591,5 +667,6 @@ export {
     getUsageStatisticsPreference,
     getNewTabTemplatePreference,
     getStrengthStepPreference,
-    getLoraWidgetMaxVisibleLoras,
+    getLoraActiveFiltersAutocompletePreference,
+    setLoraManagerSettingValue,
 };

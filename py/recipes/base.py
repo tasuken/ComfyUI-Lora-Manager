@@ -1,3 +1,7 @@
+# pyright: reportImportCycles=false
+# Lazy (function-local) imports still count as static edges in basedpyright's
+# reportImportCycles, so the ServiceRegistry singleton pattern necessarily forms
+# import cycles. Breaking them would require an architectural refactor.
 """Base classes for recipe parsers."""
 
 import json
@@ -7,7 +11,7 @@ import re
 from typing import Dict, List, Any, Optional, Tuple
 from abc import ABC, abstractmethod
 from ..config import config
-from ..utils.constants import VALID_LORA_TYPES, VALID_CHECKPOINT_SUB_TYPES
+from ..utils.constants import MODEL_WEIGHT_FILE_TYPES, VALID_LORA_TYPES, VALID_CHECKPOINT_SUB_TYPES
 from ..utils.civitai_utils import rewrite_preview_url
 
 logger = logging.getLogger(__name__)
@@ -38,7 +42,103 @@ class RecipeMetadataParser(ABC):
         pass
     
     @staticmethod
-    async def populate_lora_from_civitai(lora_entry: Dict[str, Any], civitai_info_tuple: Tuple[Dict[str, Any], Optional[str]], 
+    def populate_lora_from_local(lora_entry: Dict[str, Any], local_lora: Dict[str, Any], base_model_counts=None) -> Dict[str, Any]:
+        """Populate a recipe LoRA entry from the local scanner cache."""
+        local_path = local_lora.get('file_path') or ''
+        file_name = local_lora.get('file_name') or os.path.splitext(os.path.basename(local_path))[0]
+        base_model = local_lora.get('base_model') or ''
+
+        lora_entry['name'] = local_lora.get('model_name') or file_name or lora_entry.get('name', '')
+        lora_entry['file_name'] = file_name
+        lora_entry['hash'] = (local_lora.get('sha256') or lora_entry.get('hash') or '').lower()
+        lora_entry['localPath'] = local_path or None
+        lora_entry['size'] = local_lora.get('size', 0) or 0
+        lora_entry['baseModel'] = base_model
+        lora_entry['existsLocally'] = True
+        lora_entry['isDeleted'] = False
+
+        preview_url = local_lora.get('preview_url')
+        if preview_url:
+            lora_entry['thumbnailUrl'] = config.get_preview_static_url(preview_url)
+
+        civitai_info = local_lora.get('civitai') or {}
+        if isinstance(civitai_info, dict):
+            if civitai_info.get('id') is not None:
+                lora_entry['id'] = civitai_info['id']
+            if civitai_info.get('modelId') is not None:
+                lora_entry['modelId'] = civitai_info['modelId']
+            if civitai_info.get('name'):
+                lora_entry['version'] = civitai_info['name']
+
+        if base_model_counts is not None and base_model:
+            base_model_counts[base_model] = base_model_counts.get(base_model, 0) + 1
+
+        return lora_entry
+
+    @staticmethod
+    def populate_checkpoint_from_local(checkpoint: Dict[str, Any], local_checkpoint: Dict[str, Any]) -> Dict[str, Any]:
+        """Populate a recipe checkpoint entry from the local scanner cache."""
+        local_path = local_checkpoint.get('file_path') or ''
+        file_name = local_checkpoint.get('file_name') or os.path.splitext(os.path.basename(local_path))[0]
+
+        # Keep a display name already carried by the metadata (recipe JSON or
+        # the checkpoint's own name) when the local entry has no model name.
+        checkpoint['name'] = (
+            local_checkpoint.get('model_name')
+            or checkpoint.get('name')
+            or file_name
+        )
+        checkpoint['file_name'] = file_name
+        checkpoint['hash'] = (local_checkpoint.get('sha256') or checkpoint.get('hash') or '').lower()
+        checkpoint['localPath'] = local_path or None
+        checkpoint['size'] = local_checkpoint.get('size', 0) or 0
+        checkpoint['baseModel'] = local_checkpoint.get('base_model') or ''
+        checkpoint['existsLocally'] = True
+        checkpoint['isDeleted'] = False
+
+        preview_url = local_checkpoint.get('preview_url')
+        if preview_url:
+            checkpoint['thumbnailUrl'] = config.get_preview_static_url(preview_url)
+
+        civitai_info = local_checkpoint.get('civitai') or {}
+        if isinstance(civitai_info, dict):
+            if civitai_info.get('id') is not None:
+                checkpoint['id'] = civitai_info['id']
+            if civitai_info.get('modelId') is not None:
+                checkpoint['modelId'] = civitai_info['modelId']
+            if civitai_info.get('name'):
+                checkpoint['version'] = civitai_info['name']
+
+        return checkpoint
+
+    @staticmethod
+    async def resolve_local_lora_by_version_id(recipe_scanner, model_version_id: Any) -> Optional[Dict[str, Any]]:
+        """Return the cached local LoRA for a CivitAI version id, if any.
+
+        Parsers call this before asking a metadata provider so a LoRA that is
+        already in the library is filled from the local cache instead of
+        triggering a CivitAI request. Scanner doubles used by tests may not
+        implement the lookup; that counts as a miss.
+        """
+
+        lookup = getattr(recipe_scanner, "get_local_lora_by_version_id", None)
+        if lookup is None or model_version_id in (None, "", 0):
+            return None
+
+        return await lookup(model_version_id)
+
+    @staticmethod
+    async def resolve_local_checkpoint_by_version_id(recipe_scanner, model_version_id: Any) -> Optional[Dict[str, Any]]:
+        """Return the cached local checkpoint for a CivitAI version id, if any."""
+
+        lookup = getattr(recipe_scanner, "get_local_checkpoint_by_version_id", None)
+        if lookup is None or model_version_id in (None, "", 0):
+            return None
+
+        return await lookup(model_version_id)
+
+    @staticmethod
+    async def populate_lora_from_civitai(lora_entry: Dict[str, Any], civitai_info_tuple: Tuple[Dict[str, Any] | None, str | None] | Dict[str, Any],
                                          recipe_scanner=None, base_model_counts=None, hash_value=None) -> Optional[Dict[str, Any]]:
         """
         Populate a lora entry with information from Civitai API response
@@ -151,9 +251,9 @@ class RecipeMetadataParser(ABC):
             
             # Process file information if available
             if 'files' in civitai_info:
-                # Find the primary model file (type="Model" and primary=true) in the files list
+                # Find the primary model file (weights-type and primary=true) in the files list
                 model_file = next((file for file in civitai_info.get('files', []) 
-                                    if file.get('type') == 'Model' and file.get('primary') == True), None)
+                                    if file.get('type') in MODEL_WEIGHT_FILE_TYPES and file.get('primary') == True), None)
                 
                 if model_file:
                     # Get size
@@ -175,10 +275,18 @@ class RecipeMetadataParser(ABC):
                                 lora_entry['localPath'] = local_path
                                 lora_entry['file_name'] = os.path.splitext(os.path.basename(local_path))[0]
                                 
-                                # Get thumbnail from local preview if available
+                                # Get thumbnail from local preview if available.
+                                # Match the cache item by local path first (get_path_by_hash
+                                # cascade: 10-char autov2 / 12-char autov3), then by hash.
                                 lora_cache = await lora_scanner.get_cached_data()
-                                lora_item = next((item for item in lora_cache.raw_data 
-                                                    if item['sha256'].lower() == lora_entry['hash'].lower()), None)
+                                h = (lora_entry.get("hash") or "").lower()
+                                lora_item = next((item for item in lora_cache.raw_data
+                                                  if (item.get("file_path") or "") == local_path), None)
+                                if lora_item is None:
+                                    lora_item = next((item for item in lora_cache.raw_data
+                                                      if (item.get("sha256") or "").lower() == h
+                                                      or (item.get("autov3") or "").lower() == h
+                                                      or (item.get("sha256") or "")[:10].lower() == h), None)
                                 if lora_item and 'preview_url' in lora_item:
                                     lora_entry['thumbnailUrl'] = config.get_preview_static_url(lora_item['preview_url'])
                             except Exception as e:
@@ -194,7 +302,7 @@ class RecipeMetadataParser(ABC):
         return lora_entry
     
     @staticmethod
-    async def populate_checkpoint_from_civitai(checkpoint: Dict[str, Any], civitai_info: Dict[str, Any]) -> Dict[str, Any]:
+    async def populate_checkpoint_from_civitai(checkpoint: Dict[str, Any], civitai_info: Dict[str, Any] | Tuple[Dict[str, Any] | None, str | None] | None) -> Dict[str, Any]:
         """
         Populate checkpoint information from Civitai API response
         
@@ -249,11 +357,21 @@ class RecipeMetadataParser(ABC):
             checkpoint['id'] = civitai_data.get('id', 0)
 
             if 'files' in civitai_data:
+                # Prefer the file CivitAI marked primary; fall back to any
+                # weights-type file (providers without primary flags).
                 model_file = next(
                     (
                         file
                         for file in civitai_data.get('files', [])
-                        if file.get('type') == 'Model'
+                        if file.get('type') in MODEL_WEIGHT_FILE_TYPES
+                        and file.get('primary') is True
+                    ),
+                    None,
+                ) or next(
+                    (
+                        file
+                        for file in civitai_data.get('files', [])
+                        if file.get('type') in MODEL_WEIGHT_FILE_TYPES
                     ),
                     None,
                 )

@@ -1,4 +1,5 @@
 import copy
+import pathlib
 from unittest.mock import AsyncMock
 
 import pytest
@@ -35,9 +36,11 @@ class DummyDownloader:
 def reset_singletons():
     CivitaiClient._instance = None
     ModelMetadataProviderManager._instance = None
+    civitai_client_module._creator_model_count_cache.clear()
     yield
     CivitaiClient._instance = None
     ModelMetadataProviderManager._instance = None
+    civitai_client_module._creator_model_count_cache.clear()
 
 
 @pytest.fixture
@@ -95,6 +98,7 @@ async def test_get_model_by_hash_enriches_metadata(monkeypatch, downloader):
     result, error = await client.get_model_by_hash("hash")
 
     assert error is None
+    assert result is not None
     assert result["model"]["description"] == "desc"
     assert result["model"]["tags"] == ["tag"]
     assert result["creator"] == {"username": "user"}
@@ -195,6 +199,26 @@ async def test_get_model_versions_raises_on_not_found(monkeypatch, downloader):
         await client.get_model_versions("missing")
 
 
+@pytest.mark.parametrize("payload", ["Resource not found", {"error": "No model with id 3390681"}])
+async def test_get_model_versions_not_found_explains_id_and_access(payload, downloader, caplog):
+    downloader.make_request = AsyncMock(return_value=(False, payload))
+    client = await CivitaiClient.get_instance()
+
+    with caplog.at_level("INFO"), pytest.raises(ResourceNotFoundError) as exc_info:
+        await client.get_model_versions("3390681")
+
+    message = str(exc_info.value)
+    assert "3390681" in message
+    assert "/models/<id>" in message
+    assert "modelVersionId" in message
+    assert "/api/download/models/<id>" in message
+    assert "API key" in message
+    assert "no longer available" not in caplog.text
+    downloader.make_request.assert_awaited_once_with(
+        "GET", f"{client.base_url}/models/3390681", use_auth=True
+    )
+
+
 async def test_get_model_versions_raises_on_nested_not_found(monkeypatch, downloader):
     async def fake_make_request(method, url, use_auth=True, **kwargs):
         return False, {"error": {"message": "Resource not found"}}
@@ -252,7 +276,7 @@ async def test_get_model_versions_bulk_success(monkeypatch, downloader):
 
     client = await CivitaiClient.get_instance()
 
-    result = await client.get_model_versions_bulk([1, "2", 2])
+    result = await client.get_model_versions_bulk([1, "2", 2])  # pyright: ignore[reportArgumentType]
 
     assert result == {
         1: {
@@ -308,6 +332,7 @@ async def test_get_model_version_by_version_id(monkeypatch, downloader):
 
     result = await client.get_model_version(version_id=7)
 
+    assert result is not None
     assert result["model"]["description"] == "desc"
     assert result["model"]["tags"] == ["tag"]
     assert result["creator"] == {"username": "user"}
@@ -362,6 +387,7 @@ async def test_get_model_version_with_model_id_prefers_version_endpoint(monkeypa
 
     result = await client.get_model_version(model_id=99, version_id=7)
 
+    assert result is not None
     assert result["id"] == 7
     assert result["model"]["description"] == "desc"
     assert result["model"]["tags"] == ["tag"]
@@ -418,6 +444,7 @@ async def test_get_model_version_with_model_id_fallbacks_to_hash(monkeypatch, do
 
     result = await client.get_model_version(model_id=99, version_id=7)
 
+    assert result is not None
     assert result["id"] == 7
     assert result["model"]["description"] == "desc"
     assert result["model"]["tags"] == ["tag"]
@@ -459,6 +486,7 @@ async def test_get_model_version_with_model_id_builds_from_model_data(monkeypatc
 
     result = await client.get_model_version(model_id=99, version_id=7)
 
+    assert result is not None
     assert result["modelId"] == 99
     assert result["model"]["name"] == "Model"
     assert result["model"]["type"] == "LORA"
@@ -501,6 +529,7 @@ async def test_get_model_version_info_success(monkeypatch, downloader):
 
     assert result == expected
     assert error is None
+    assert result is not None
     assert "comfy" not in result["images"][0]["meta"]
     assert result["images"][0]["meta"]["other"] == "keep"
 
@@ -622,3 +651,395 @@ async def test_get_image_info_handles_invalid_id(monkeypatch, downloader, caplog
 
     assert result is None
     assert "Invalid image ID format" in caplog.text
+
+
+async def test_get_user_models_requests_first_page_with_stable_params(downloader):
+    request_calls = []
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        request_calls.append({"method": method, "url": url, "kwargs": kwargs})
+        return True, {
+            "items": [
+                {
+                    "id": 1,
+                    "modelVersions": [
+                        {"id": 100, "images": [{"meta": {"comfy": {"x": 1}}}]}
+                    ],
+                }
+            ],
+            "metadata": {"nextCursor": "next-token"},
+        }
+
+    downloader.make_request = fake_make_request
+
+    client = await CivitaiClient.get_instance()
+    result = await client.get_user_models("pixel")
+
+    assert result is not None
+    assert result["nextCursor"] == "next-token"
+    assert len(result["items"]) == 1
+    # comfy metadata is still stripped
+    assert "comfy" not in result["items"][0]["modelVersions"][0]["images"][0]["meta"]
+
+    call = request_calls[0]
+    assert call["method"] == "GET"
+    assert call["url"] == "https://civitai.red/api/v1/models"
+    params = call["kwargs"]["params"]
+    assert params["username"] == "pixel"
+    assert params["nsfw"] == "true"
+    assert params["limit"] == 100
+    assert params["sort"] == "Newest"
+    assert params["period"] == "AllTime"
+    assert "cursor" not in params
+
+
+async def test_get_user_models_passes_cursor_and_stringifies_next_cursor(downloader):
+    request_calls = []
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        request_calls.append(kwargs)
+        return True, {"items": [], "metadata": {"nextCursor": 12345}}
+
+    downloader.make_request = fake_make_request
+
+    client = await CivitaiClient.get_instance()
+    result = await client.get_user_models("pixel", cursor="opaque-token")
+
+    assert request_calls[0]["params"]["cursor"] == "opaque-token"
+    assert result == {"items": [], "nextCursor": "12345"}
+
+
+async def test_get_user_models_without_next_cursor_returns_none_cursor(downloader):
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        return True, {"items": [{"id": 1, "modelVersions": []}], "metadata": {}}
+
+    downloader.make_request = fake_make_request
+
+    client = await CivitaiClient.get_instance()
+    result = await client.get_user_models("pixel")
+
+    assert result == {"items": [{"id": 1, "modelVersions": []}], "nextCursor": None}
+
+
+async def test_get_user_models_failure_returns_none(downloader):
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        return False, "500 server error"
+
+    downloader.make_request = fake_make_request
+
+    client = await CivitaiClient.get_instance()
+    result = await client.get_user_models("pixel")
+
+    assert result is None
+
+
+async def test_get_creator_model_count_matches_exact_username(downloader):
+    request_calls = []
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        request_calls.append({"url": url, "kwargs": kwargs})
+        return True, {
+            "items": [
+                {"username": "pixelart", "modelCount": 5},
+                {"username": "Pixel", "modelCount": 2140},
+            ]
+        }
+
+    downloader.make_request = fake_make_request
+
+    client = await CivitaiClient.get_instance()
+    count = await client.get_creator_model_count("pixel")
+
+    assert count == 2140
+    assert request_calls[0]["url"] == "https://civitai.red/api/v1/creators"
+    assert request_calls[0]["kwargs"]["params"] == {"query": "pixel", "limit": 10}
+
+
+async def test_get_creator_model_count_without_exact_match_returns_none(downloader):
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        return True, {"items": [{"username": "pixelart", "modelCount": 5}]}
+
+    downloader.make_request = fake_make_request
+
+    client = await CivitaiClient.get_instance()
+    count = await client.get_creator_model_count("pixel")
+
+    assert count is None
+
+
+async def test_get_creator_model_count_caches_results(downloader):
+    request_count = 0
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        nonlocal request_count
+        request_count += 1
+        return True, {"items": [{"username": "pixel", "modelCount": 42}]}
+
+    downloader.make_request = fake_make_request
+
+    client = await CivitaiClient.get_instance()
+
+    assert await client.get_creator_model_count("pixel") == 42
+    # case-insensitive cache key, second call served from cache
+    assert await client.get_creator_model_count("Pixel") == 42
+    assert request_count == 1
+
+
+async def test_get_creator_model_count_caches_failures(downloader):
+    request_count = 0
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        nonlocal request_count
+        request_count += 1
+        return False, "500 server error"
+
+    downloader.make_request = fake_make_request
+
+    client = await CivitaiClient.get_instance()
+
+    assert await client.get_creator_model_count("pixel") is None
+    assert await client.get_creator_model_count("pixel") is None
+    assert request_count == 1
+
+
+async def test_get_creator_model_count_never_raises(downloader):
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        return True, "unexpected non-dict payload"
+
+    downloader.make_request = fake_make_request
+
+    client = await CivitaiClient.get_instance()
+    assert await client.get_creator_model_count("pixel") is None
+
+
+@pytest.mark.parametrize(
+    "placeholder_hash",
+    [
+        "e3b0c44298",  # AutoV2 (10 chars)
+        "e3b0c44298fc",  # AutoV3 (12 chars)
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",  # full SHA256
+    ],
+)
+async def test_get_model_by_hash_rejects_empty_placeholder_without_request(downloader, placeholder_hash):
+    """The empty-hash placeholder must never be resolved via the by-hash API:
+    CivitAI's index can contain polluted entries for it (e.g. a broken SD 1.5
+    LoRA whose AutoV3 equals the placeholder)."""
+    requested = []
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        requested.append(url)
+        return True, {}
+
+    downloader.make_request = fake_make_request
+
+    client = await CivitaiClient.get_instance()
+
+    result, error = await client.get_model_by_hash(placeholder_hash)
+
+    assert result is None
+    assert error == "Model not found"
+    assert requested == []
+
+
+async def test_get_version_file_mini_returns_payload(downloader):
+    """The mini endpoint returns the raw stored filename (#1100)."""
+    client = await CivitaiClient.get_instance()
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        assert method == "GET"
+        assert url.endswith("/model-versions/mini/3284136")
+        assert kwargs.get("params") == {"modelFileId": 3168412}
+        assert use_auth is True
+        return True, {"fileName": "CyberRealistic_zit_v8.0_bf16.safetensors"}
+
+    downloader.make_request = fake_make_request
+
+    result = await client.get_version_file_mini(3284136, 3168412)
+
+    assert result == {"fileName": "CyberRealistic_zit_v8.0_bf16.safetensors"}
+
+
+async def test_get_version_file_mini_returns_none_on_failure(downloader):
+    client = await CivitaiClient.get_instance()
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        return False, "Model file 2 not found in version 1"
+
+    downloader.make_request = fake_make_request
+
+    assert await client.get_version_file_mini(1, 2) is None
+
+
+async def test_get_version_file_mini_propagates_rate_limit(downloader):
+    client = await CivitaiClient.get_instance()
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        return False, RateLimitError("limited", retry_after=1.0)
+
+    downloader.make_request = fake_make_request
+
+    with pytest.raises(RateLimitError):
+        await client.get_version_file_mini(1, 2)
+
+
+async def test_get_model_prices_parses_public_page(downloader):
+    """Prices come from the page payload, read anonymously (no API key)."""
+    client = await CivitaiClient.get_instance()
+    page_html = (
+        '<script id="__NEXT_DATA__" type="application/json">'
+        '{"props":{"pageProps":{"trpcState":{"json":{"queries":['
+        '{"queryKey":[["model","getById"],{"input":{"id":7}}],"state":{"data":'
+        '{"modelVersions":[{"id":42,"paidAccess":{"endsAt":null,'
+        '"timeframeDays":null,"terms":{"download":{"price":5000}},'
+        '"sale":null}}]}}}]}}}}}</script>'
+    )
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        assert method == "GET"
+        assert "/models/7" in url
+        assert use_auth is False
+        assert kwargs.get("custom_headers", {}).get("Accept") == "text/html"
+        return True, page_html
+
+    downloader.make_request = fake_make_request
+
+    result = await client.get_model_prices(7)
+
+    assert result is not None
+    assert result[42]["price_buzz"] == 5000
+
+
+async def test_get_model_prices_returns_none_on_unusable_page(downloader):
+    client = await CivitaiClient.get_instance()
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        return True, "<html><body>challenge</body></html>"
+
+    downloader.make_request = fake_make_request
+
+    assert await client.get_model_prices(7) is None
+
+
+async def test_get_model_prices_rejects_json_body(downloader):
+    """A JSON response is not the page; it must not be parsed as one."""
+    client = await CivitaiClient.get_instance()
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        return True, {"error": "nope"}
+
+    downloader.make_request = fake_make_request
+
+    assert await client.get_model_prices(7) is None
+
+
+async def test_get_model_prices_propagates_rate_limit(downloader):
+    client = await CivitaiClient.get_instance()
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        return False, RateLimitError("limited", retry_after=1.0)
+
+    downloader.make_request = fake_make_request
+
+    with pytest.raises(RateLimitError):
+        await client.get_model_prices(7)
+
+
+# --- Model page host fallback -------------------------------------------------
+
+_PAGE_FIXTURE = (
+    pathlib.Path(__file__).resolve().parents[1]
+    / "utils"
+    / "fixtures"
+    / "civitai_model_page_paid.html"
+)
+
+
+def _page_html() -> str:
+    return _PAGE_FIXTURE.read_text(encoding="utf-8")
+
+
+async def test_get_model_prices_falls_back_when_the_preferred_host_refuses(
+    downloader, monkeypatch
+):
+    """civitai.red refuses non-browser clients (Cloudflare); the price must still
+    be readable from a host that answers. This is the user-visible bug: with
+    civitai_host=civitai.red every fetch used to fail."""
+
+    client = await CivitaiClient.get_instance()
+    monkeypatch.setattr(client, "_page_host", lambda: "civitai.red")
+    seen = []
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        seen.append(url)
+        if "civitai.red" in url:
+            return False, "Access forbidden"
+        return True, _page_html()
+
+    downloader.make_request = fake_make_request
+
+    result = await client.get_model_prices(4242)
+
+    assert result is not None
+    assert result[1001]["price_buzz"] == 5000
+    assert seen[0].startswith("https://civitai.red/")
+    assert any("civitai.com" in url for url in seen)
+    # The working host is remembered and the refusing one is parked.
+    assert client._page_host_preference == "civitai.com"
+    assert "civitai.red" in client._page_host_blocked
+
+
+async def test_get_model_prices_reuses_the_working_host(downloader, monkeypatch):
+    client = await CivitaiClient.get_instance()
+    monkeypatch.setattr(client, "_page_host", lambda: "civitai.red")
+    calls = []
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        calls.append(url)
+        if "civitai.red" in url:
+            return False, "Access forbidden"
+        return True, _page_html()
+
+    downloader.make_request = fake_make_request
+
+    await client.get_model_prices(4242)
+    calls.clear()
+    await client.get_model_prices(4242)
+
+    # Second time around the parked host is not retried.
+    assert calls and all("civitai.red" not in url for url in calls)
+
+
+async def test_get_model_prices_returns_none_when_no_host_can_serve(downloader, monkeypatch):
+    """Mature models: 404 on civitai.com/green, challenge on civitai.red."""
+
+    client = await CivitaiClient.get_instance()
+    monkeypatch.setattr(client, "_page_host", lambda: "civitai.com")
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        if "civitai.red" in url:
+            return False, "Access forbidden"
+        return False, "Resource not found"
+
+    downloader.make_request = fake_make_request
+
+    assert await client.get_model_prices(2981320) is None
+
+
+async def test_get_model_prices_does_not_park_a_host_on_404(downloader, monkeypatch):
+    """A 404 is model-specific (mature content hidden anonymously), not a reason
+    to stop using the host for other models."""
+
+    client = await CivitaiClient.get_instance()
+    monkeypatch.setattr(client, "_page_host", lambda: "civitai.com")
+
+    async def fake_make_request(method, url, use_auth=True, **kwargs):
+        if "civitai.com" in url:
+            return False, "Resource not found"
+        return False, "Access forbidden"
+
+    downloader.make_request = fake_make_request
+
+    await client.get_model_prices(1)
+
+    assert "civitai.com" not in client._page_host_blocked
+    assert "civitai.red" in client._page_host_blocked

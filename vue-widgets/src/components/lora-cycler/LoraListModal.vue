@@ -58,6 +58,7 @@
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import ModalWrapper from '../lora-pool/modals/ModalWrapper.vue'
 import type { LoraItem } from '../../composables/types'
+import { lmApiUrl } from '@/utils/basePath'
 
 interface LoraListItem {
   index: number
@@ -131,7 +132,7 @@ const selectLora = (index: number) => {
 // in the Vue widgets build, so we need to use the full path with /api prefix
 const customPreviewUrlResolver = async (modelName: string) => {
   const response = await fetch(
-    `/api/lm/loras/preview-url?name=${encodeURIComponent(modelName)}&license_flags=true`
+    lmApiUrl(`/api/lm/loras/preview-url?name=${encodeURIComponent(modelName)}&license_flags=true`)
   )
   if (!response.ok) {
     throw new Error('Failed to fetch preview URL')
@@ -207,28 +208,28 @@ onUnmounted(() => {
   transform: translateY(-50%);
   width: 14px;
   height: 14px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
 }
 
 .search-input {
   width: 100%;
   padding: 8px 32px;
-  background: var(--comfy-input-bg, #333);
-  border: 1px solid var(--border-color, #444);
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border);
   border-radius: 6px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   font-size: 13px;
   outline: none;
   box-sizing: border-box;
 }
 
 .search-input:focus {
-  border-color: rgba(66, 153, 225, 0.6);
+  border-color: var(--lm-accent-border);
 }
 
 .search-input::placeholder {
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.4;
 }
 
@@ -257,7 +258,7 @@ onUnmounted(() => {
 .clear-button svg {
   width: 12px;
   height: 12px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
 }
 
 .lora-list {
@@ -280,18 +281,18 @@ onUnmounted(() => {
 }
 
 .lora-item:hover {
-  background: rgba(66, 153, 225, 0.15);
+  background: var(--lm-accent-soft);
 }
 
 .lora-item.active {
-  background: rgba(66, 153, 225, 0.25);
-  border-left-color: rgba(66, 153, 225, 0.8);
+  background: var(--lm-surface-selected);
+  border-left-color: var(--lm-accent);
 }
 
 .lora-index {
   font-family: 'SF Mono', 'Roboto Mono', monospace;
   font-size: 12px;
-  color: rgba(226, 232, 240, 0.5);
+  color: var(--lm-fg-subtle);
   min-width: 3ch;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -300,7 +301,7 @@ onUnmounted(() => {
 .lora-name {
   flex: 1;
   font-size: 13px;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -309,26 +310,26 @@ onUnmounted(() => {
 .current-badge {
   font-size: 11px;
   padding: 2px 8px;
-  background: rgba(66, 153, 225, 0.3);
-  border: 1px solid rgba(66, 153, 225, 0.5);
+  background: var(--lm-accent-soft);
+  border: 1px solid var(--lm-accent-border);
   border-radius: 4px;
-  color: rgba(191, 219, 254, 1);
+  color: var(--lm-accent-text);
   font-weight: 500;
 }
 
 .lora-item.no-lora-item .lora-name {
   font-style: italic;
-  color: rgba(226, 232, 240, 0.6);
+  color: var(--lm-fg-subtle);
 }
 
 .lora-item.no-lora-item:hover .lora-name {
-  color: rgba(226, 232, 240, 0.8);
+  color: var(--lm-fg-muted);
 }
 
 .no-results {
   padding: 32px 20px;
   text-align: center;
-  color: var(--fg-color, #fff);
+  color: var(--lm-fg);
   opacity: 0.5;
   font-size: 13px;
 }

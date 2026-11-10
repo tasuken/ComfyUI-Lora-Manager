@@ -1,5 +1,10 @@
 # Library Switching and Preview Routes
 
+> **Deprecated:** Multi-library support (and therefore library switching) is
+> deprecated and will be removed in an upcoming release. The dynamic preview
+> route described here will remain — it also serves single-library
+> installations.
+
 Library switching no longer requires restarting the backend. The preview
 thumbnails shown in the UI are now served through a dynamic endpoint that
 resolves files against the folders registered for the active library at request
@@ -8,10 +13,17 @@ the aiohttp router, so previews remain available immediately after a switch.
 
 ## How the dynamic preview endpoint works
 
-* `config.get_preview_static_url()` now returns `/api/lm/previews?path=<encoded>`
-  for any preview path. The raw filesystem location is URL encoded so that it
-  can be passed through the query string without leaking directory structure in
-  the route itself.【F:py/config.py†L398-L404】
+* `config.get_preview_static_url()` now returns
+  `/api/lm/previews?path=<encoded>&v=<mtime_ns>` for any preview path. The raw
+  filesystem location is URL encoded so that it can be passed through the query
+  string without leaking directory structure in the route itself. The `v`
+  parameter carries the preview file's modification time so a rewritten preview
+  (e.g. delete + recreate an LM-managed workflow) produces a fresh URL that
+  bypasses the browser's day-long cache; the handler ignores it.【F:py/config.py†L398-L404】
+  Because the URL no longer ends with the media extension, clients must not
+  pick between `<img>` and `<video>` with a suffix check: derive the extension
+  from the decoded `path` value (`static/js/utils/mediaTypes.js` for the web
+  UI, `web/comfyui/mediaTypes.js` for the ComfyUI widgets).
 * `PreviewRoutes` exposes the `/api/lm/previews` handler which validates the
   decoded path against the directories registered for the current library. The
   request is rejected if it falls outside those roots or if the file does not

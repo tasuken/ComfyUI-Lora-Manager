@@ -38,9 +38,6 @@ export class LorasControls extends PageControls {
                 return await resetAndReload(updateFolders);
             },
             
-            refreshModels: async (fullRebuild = false) => {
-                return await getModelApiClient().refreshModels(fullRebuild);
-            },
             
             // LoRA-specific API functions
             fetchFromCivitai: async () => {

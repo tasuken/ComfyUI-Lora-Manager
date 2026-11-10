@@ -1,3 +1,7 @@
+# pyright: reportImportCycles=false
+# Lazy (function-local) imports still count as static edges in basedpyright's
+# reportImportCycles, so the ServiceRegistry singleton pattern necessarily forms
+# import cycles. Breaking them would require an architectural refactor.
 import asyncio
 import json
 import logging
@@ -6,10 +10,12 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from ..utils.models import CheckpointMetadata
-from ..utils.file_utils import find_preview_file, normalize_path
+from ..utils.file_utils import find_preview_file, normalize_path, calculate_autov3
+from ..utils.gguf_utils import detect_quantization
 from ..utils.metadata_manager import MetadataManager
+from ..utils.sidecar_paths import get_preview_dir, is_centralized
 from ..config import config
-from .model_scanner import ModelScanner
+from .model_scanner import ModelScanner, _is_excluded_dir
 from .model_hash_index import ModelHashIndex
 
 logger = logging.getLogger(__name__)
@@ -57,10 +63,18 @@ class CheckpointScanner(ModelScanner):
                 return None
 
             base_name = os.path.splitext(os.path.basename(file_path))[0]
-            dir_path = os.path.dirname(file_path)
 
             # Find preview image
-            preview_url = find_preview_file(base_name, dir_path)
+            preview_url = find_preview_file(base_name, get_preview_dir(file_path))
+
+            # AutoV3 reads only the safetensors header, so it is cheap even for
+            # large checkpoints; record the checked state at creation time ("" =
+            # checked but unavailable).
+            autov3 = calculate_autov3(real_path)
+
+            # Quantization detection is likewise header-only (GGUF file_type /
+            # safetensors dtypes). "" = checked, no quantization detected.
+            quantization = detect_quantization(real_path)
 
             # Create metadata WITHOUT calculating hash
             metadata = CheckpointMetadata(
@@ -77,6 +91,8 @@ class CheckpointScanner(ModelScanner):
                 sub_type="checkpoint",
                 from_civitai=False,  # Mark as local model since no hash yet
                 hash_status="pending",  # Mark hash as pending
+                autov3=autov3 or "",
+                quantization=quantization or "",
             )
 
             # Save the created metadata
@@ -114,6 +130,17 @@ class CheckpointScanner(ModelScanner):
                 and metadata.hash_status == "completed"
                 and metadata.sha256
             ):
+                # Ensure the in-memory hash index is populated even when
+                # the hash was already computed and persisted to the metadata
+                # file.  Without this, usage tracking (and any other caller
+                # that queries get_hash_by_filename first) will miss on every
+                # lookup and keep calling back into this method, creating a
+                # tight loop that never populates the index.
+                self._hash_index.add_entry(
+                    metadata.sha256.lower(),
+                    file_path,
+                    getattr(metadata, "autov3", None) or None,
+                )
                 return metadata.sha256
 
             async with self._hash_calculation_lock:
@@ -125,6 +152,11 @@ class CheckpointScanner(ModelScanner):
                     and metadata.hash_status == "completed"
                     and metadata.sha256
                 ):
+                    self._hash_index.add_entry(
+                        metadata.sha256.lower(),
+                        file_path,
+                        getattr(metadata, "autov3", None) or None,
+                    )
                     return metadata.sha256
 
                 task = self._hash_calculation_tasks.get(real_path)
@@ -175,6 +207,13 @@ class CheckpointScanner(ModelScanner):
 
             # Check if hash is already calculated
             if metadata.hash_status == "completed" and metadata.sha256:
+                # Populate the in-memory hash index even for pre-computed
+                # hashes, mirroring the fix in calculate_hash_for_model.
+                self._hash_index.add_entry(
+                    metadata.sha256.lower(),
+                    file_path,
+                    getattr(metadata, "autov3", None) or None,
+                )
                 return metadata.sha256
 
             # Update status to calculating
@@ -184,6 +223,18 @@ class CheckpointScanner(ModelScanner):
             # Calculate hash
             logger.info(f"Calculating hash for checkpoint: {file_path}")
             sha256 = await calculate_sha256(real_path)
+            if not sha256:
+                # Nothing was read (the file is empty or was truncated while
+                # open): there is no identity to store. Keep the lazy-hash
+                # state so a later pass retries once the file has content, and
+                # never index the empty-string placeholder (issue #1162).
+                logger.warning(
+                    "No bytes read from checkpoint %s; keeping hash pending",
+                    file_path,
+                )
+                metadata.hash_status = "pending"
+                await MetadataManager.save_metadata(file_path, metadata)
+                return None
 
             # Update metadata with hash
             metadata.sha256 = sha256
@@ -191,7 +242,26 @@ class CheckpointScanner(ModelScanner):
             await MetadataManager.save_metadata(file_path, metadata)
 
             # Update hash index
-            self._hash_index.add_entry(sha256.lower(), file_path)
+            self._hash_index.add_entry(
+                sha256.lower(),
+                file_path,
+                getattr(metadata, "autov3", None) or None,
+            )
+
+            # Update the in-memory cache entry so that subsequent
+            # _persist_current_cache / _save_persistent_cache calls
+            # write the hash back to the SQLite models table.  Without
+            # this the hash only lives in the metadata file and the
+            # in-memory hash index, both of which are lost across
+            # restarts, causing the same re-computation loop on the
+            # next session.
+            if self._cache is not None and self._cache.raw_data:
+                for entry in self._cache.raw_data:
+                    if entry.get("file_path") == file_path:
+                        entry["sha256"] = sha256.lower()
+                        entry["hash_status"] = "completed"
+                        self.bump_cache_version()
+                        break
 
             logger.info(f"Hash calculated for checkpoint: {file_path}")
             return sha256
@@ -270,13 +340,19 @@ class CheckpointScanner(ModelScanner):
 
     async def _find_pending_models_from_filesystem(self) -> List[Dict[str, Any]]:
         """Scan filesystem for checkpoint metadata files with pending hash status."""
+        # Centralized mode stores sidecars in the mirror tree, not next to the
+        # models; walk the mirror instead of the model folders.
+        if is_centralized():
+            return self._find_pending_models_in_sidecar_mirror()
+
         pending_models = []
 
         for root_path in self.get_model_roots():
             if not os.path.exists(root_path):
                 continue
 
-            for dirpath, _dirnames, filenames in os.walk(root_path):
+            for dirpath, dirnames, filenames in os.walk(root_path):
+                dirnames[:] = [d for d in dirnames if not _is_excluded_dir(d)]
                 for filename in filenames:
                     if not filename.endswith(".metadata.json"):
                         continue
@@ -357,6 +433,10 @@ class CheckpointScanner(ModelScanner):
 
         return None
 
+    def resolve_sub_type_for_path(self, file_path: Optional[str]) -> Optional[str]:
+        """Resolve sub_type from the configured root that contains the file."""
+        return self._resolve_sub_type(self._find_root_for_file(file_path))
+
     def adjust_metadata(self, metadata, file_path, root_path):
         """Adjust metadata during scanning to set sub_type."""
         sub_type = self._resolve_sub_type(root_path)
@@ -366,9 +446,7 @@ class CheckpointScanner(ModelScanner):
 
     def adjust_cached_entry(self, entry: Dict[str, Any]) -> Dict[str, Any]:
         """Adjust entries loaded from the persisted cache to ensure sub_type is set."""
-        sub_type = self._resolve_sub_type(
-            self._find_root_for_file(entry.get("file_path"))
-        )
+        sub_type = self.resolve_sub_type_for_path(entry.get("file_path"))
         if sub_type:
             entry["sub_type"] = sub_type
         return entry
@@ -380,7 +458,7 @@ class CheckpointScanner(ModelScanner):
         roots.extend(config.extra_checkpoints_roots or [])
         roots.extend(config.extra_unet_roots or [])
         # Remove duplicates while preserving order
-        seen: set = set()
+        seen: set[str] = set()
         unique_roots: List[str] = []
         for root in roots:
             if root not in seen:

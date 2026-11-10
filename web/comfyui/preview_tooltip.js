@@ -1,7 +1,9 @@
 import { api } from "../../scripts/api.js";
 import { ensureLmStyles } from "./lm_styles_loader.js";
+import { lmUrl } from "./base_path.js";
+import { isVideoPreviewUrl } from "./mediaTypes.js";
 
-const LICENSE_ICON_PATH = "/loras_static/images/tabler/";
+const LICENSE_ICON_PATH = lmUrl("/loras_static/images/tabler/");
 const LICENSE_FLAG_BITS = {
   allowNoCredit: 1 << 0,
   allowOnImages: 1 << 1,
@@ -321,7 +323,7 @@ export class PreviewTooltip {
       const mediaContainer = document.createElement("div");
       mediaContainer.className = "lm-tooltip__media-container";
 
-      const isVideo = previewUrl.endsWith(".mp4");
+      const isVideo = isVideoPreviewUrl(previewUrl);
       const mediaElement = isVideo
         ? document.createElement("video")
         : document.createElement("img");

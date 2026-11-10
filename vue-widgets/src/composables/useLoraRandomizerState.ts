@@ -1,5 +1,6 @@
 import { ref, computed, watch } from 'vue'
 import type { ComponentWidget, RandomizerConfig, LoraEntry } from './types'
+import { lmApiUrl } from '@/utils/basePath'
 
 export function useLoraRandomizerState(widget: ComponentWidget<RandomizerConfig>) {
   // Flag to prevent infinite loops during config restoration
@@ -88,6 +89,15 @@ export function useLoraRandomizerState(widget: ComponentWidget<RandomizerConfig>
     }
   }
 
+  // Reset the seed chain after the displayed loras are set out-of-band (manual
+  // roll buttons). Otherwise the next beforeQueued shifts the stale seeds and
+  // the backend regenerates the previous seeded roll, silently discarding what
+  // the widget currently displays.
+  const resetSeeds = () => {
+    executionSeed.value = null
+    nextSeed.value = null
+  }
+
   // Restore state from config object
   const restoreFromConfig = (config: RandomizerConfig) => {
     // Set flag to prevent buildConfig from triggering widget.value updates during restoration
@@ -160,7 +170,7 @@ export function useLoraRandomizerState(widget: ComponentWidget<RandomizerConfig>
       }
 
       // Call API endpoint
-      const response = await fetch('/api/lm/loras/random-sample', {
+      const response = await fetch(lmApiUrl('/api/lm/loras/random-sample'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -250,5 +260,6 @@ export function useLoraRandomizerState(widget: ComponentWidget<RandomizerConfig>
     useLastUsed,
     generateNewSeed,
     initializeNextSeed,
+    resetSeeds,
   }
 }

@@ -10,11 +10,15 @@ civitai/
 stats/
 wildcards/
 backups/
+# Portable-mode centralized sidecar storage (<repo>/sidecars): user data that
+# must survive pulls and stay out of git status
+/sidecars/
 logs/
 node_modules/
 coverage/
 .coverage
 model_cache/
+recipe_cache/
 
 # agent / dev tooling
 .opencode/
@@ -25,6 +29,7 @@ model_cache/
 reasonix.toml
 .reasonix/
 .codegraph/
+.playwright-mcp/
 
 # Vue widgets development cache (but keep build output)
 vue-widgets/node_modules/
@@ -36,3 +41,7 @@ vue-widgets/dist/
 
 # Working/research notes (not committed)
 .docs/
+
+# HF enrichment validation baseline snapshots (contain potentially
+# NSFW README content fetched from community model repos)
+tests/enrich_hf_validation/baselines/

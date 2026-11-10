@@ -1,10 +1,11 @@
 import importlib
 import logging
-import re
+import os
 
-import comfy.sd  # type: ignore
-import comfy.utils  # type: ignore
+import comfy.sd  # pyright: ignore[reportMissingImports]
+import comfy.utils  # pyright: ignore[reportMissingImports]
 
+from ..utils.lora_compat import LoraCompatibilityError, prepare_lora
 from ..utils.utils import get_lora_info_absolute
 from .utils import (
     FlexibleOptionalInputType,
@@ -12,8 +13,11 @@ from .utils import (
     apply_lora_syntax_format,
     detect_nunchaku_model_kind,
     extract_lora_name,
+    get_anima_lora_remap_enabled,
     get_loras_list,
     nunchaku_load_lora,
+    parse_lora_syntax,
+    validate_lora_entries,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,7 +40,9 @@ def _collect_stack_entries(lora_stack):
 
     for lora_path, model_strength, clip_strength in lora_stack:
         lora_name = extract_lora_name(lora_path)
-        absolute_lora_path, trigger_words = get_lora_info_absolute(lora_name)
+        absolute_lora_path, trigger_words = get_lora_info_absolute(
+            lora_path if os.path.isabs(lora_path) else lora_name
+        )
         entries.append({
             "name": lora_name,
             "absolute_path": absolute_lora_path,
@@ -48,9 +54,9 @@ def _collect_stack_entries(lora_stack):
     return entries
 
 
-def _collect_widget_entries(kwargs):
+def _collect_widget_entries(loras):
     entries = []
-    for lora in get_loras_list(kwargs):
+    for lora in get_loras_list({"loras": loras}):
         if not lora.get("active", False):
             continue
         lora_name = apply_lora_syntax_format(lora["name"])
@@ -80,7 +86,56 @@ def _format_loaded_loras(loaded_loras):
     return " ".join(formatted_loras)
 
 
+def _prepare_lora(lora, model, name):
+    """Run model-family compatibility adapters before ComfyUI loads the LoRA."""
+    try:
+        remapped, report = prepare_lora(lora, model, name=name)
+    except LoraCompatibilityError:
+        raise
+    except Exception:
+        logger.exception(
+            "LoRA compatibility preparation failed; loading %s unchanged", name
+        )
+        return lora
+
+    if report:
+        logger.info("%s", report)
+    return remapped
+
+
+def _warn_duplicate_entries(lora_entries: list[dict]) -> None:
+    """Warn when the same LoRA file appears more than once in one load call.
+
+    Entries are still loaded exactly as provided; this only surfaces accidental
+    double loads such as a stack plus its own derived text syntax.
+    """
+    entries_by_path: dict[str, list[dict]] = {}
+    for entry in lora_entries:
+        path = entry.get("absolute_path") or entry.get("input_path")
+        if not path:
+            continue
+        key = os.path.normcase(os.path.abspath(path))
+        entries_by_path.setdefault(key, []).append(entry)
+
+    for entries in entries_by_path.values():
+        if len(entries) < 2:
+            continue
+        strengths = ", ".join(
+            f"{entry['model_strength']}/{entry['clip_strength']}" for entry in entries
+        )
+        logger.warning(
+            "LoRA '%s' (%s) appears %d times in the same loader input "
+            "(model/clip strengths: %s). All entries will be loaded as provided; "
+            "if this is intentional, ignore this warning.",
+            entries[0]["name"],
+            entries[0].get("absolute_path") or entries[0].get("input_path"),
+            len(entries),
+            strengths,
+        )
+
+
 def _apply_entries(model, clip, lora_entries, nunchaku_model_kind):
+    _warn_duplicate_entries(lora_entries)
     loaded_loras = []
     all_trigger_words = []
 
@@ -100,11 +155,15 @@ def _apply_entries(model, clip, lora_entries, nunchaku_model_kind):
             model = nunchaku_load_qwen_loras(model, qwen_lora_configs)
         return model, clip, loaded_loras, all_trigger_words
 
+    anima_remap_enabled = get_anima_lora_remap_enabled()
+
     for entry in lora_entries:
         if nunchaku_model_kind == "flux":
             model = nunchaku_load_lora(model, entry["input_path"], entry["model_strength"])
         else:
             lora = comfy.utils.load_torch_file(entry["absolute_path"], safe_load=True)
+            if anima_remap_enabled:
+                lora = _prepare_lora(lora, model, entry["name"])
             model, clip = comfy.sd.load_lora_for_models(
                 model,
                 clip,
@@ -138,20 +197,26 @@ class LoraLoaderLM:
                     "placeholder": "Search LoRAs to add...",
                     "tooltip": "Format: <lora:lora_name:strength> separated by spaces or punctuation",
                 }),
+                "loras": ("LORAS", {}),
             },
             "optional": FlexibleOptionalInputType(any_type),
         }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, loras=None):
+        """Queue-time validation: reject missing local LoRAs before execution."""
+        return validate_lora_entries({"loras": loras}) or True
 
     RETURN_TYPES = ("MODEL", "CLIP", "STRING", "STRING")
     RETURN_NAMES = ("MODEL", "CLIP", "trigger_words", "loaded_loras")
     FUNCTION = "load_loras"
 
-    def load_loras(self, model, text, **kwargs):
-        """Loads multiple LoRAs based on the kwargs input and lora_stack."""
+    def load_loras(self, model, text, loras, **kwargs):
+        """Loads multiple LoRAs based on the widget input and lora_stack."""
         del text
         clip = kwargs.get("clip", None)
         lora_entries = _collect_stack_entries(kwargs.get("lora_stack", None))
-        lora_entries.extend(_collect_widget_entries(kwargs))
+        lora_entries.extend(_collect_widget_entries(loras))
 
         nunchaku_model_kind = detect_nunchaku_model_kind(model)
         if nunchaku_model_kind == "flux":
@@ -189,25 +254,10 @@ class LoraTextLoaderLM:
     RETURN_NAMES = ("MODEL", "CLIP", "trigger_words", "loaded_loras")
     FUNCTION = "load_loras_from_text"
 
-    def parse_lora_syntax(self, text):
-        """Parse LoRA syntax from text input."""
-        pattern = r"<lora:([^:>]+):([^:>]+)(?::([^:>]+))?>"
-        matches = re.findall(pattern, text, re.IGNORECASE)
-
-        loras = []
-        for match in matches:
-            model_strength = float(match[1])
-            loras.append({
-                "name": match[0],
-                "model_strength": model_strength,
-                "clip_strength": float(match[2]) if match[2] else model_strength,
-            })
-        return loras
-
     def load_loras_from_text(self, model, lora_syntax, clip=None, lora_stack=None):
         """Load LoRAs based on text syntax input."""
         lora_entries = _collect_stack_entries(lora_stack)
-        for lora in self.parse_lora_syntax(lora_syntax):
+        for lora in parse_lora_syntax(lora_syntax):
             lora_path, trigger_words = get_lora_info_absolute(lora["name"])
             lora_entries.append({
                 "name": lora["name"],

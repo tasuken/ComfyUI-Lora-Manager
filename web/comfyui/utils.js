@@ -1,6 +1,7 @@
 export const CONVERTED_TYPE = 'converted-widget';
 import { app } from "../../scripts/app.js";
 import { AutoComplete } from "./autocomplete.js";
+import { lmUrl } from "./base_path.js";
 
 const ROOT_GRAPH_ID = "root";
 
@@ -8,6 +9,7 @@ export const LORA_PROVIDER_NODE_TYPES = [
   "Lora Stacker (LoraManager)",
   "Lora Randomizer (LoraManager)",
   "Lora Cycler (LoraManager)",
+  "Create Hook LoRA (LoraManager)",
 ];
 
 export const LORA_STACK_AGGREGATOR_NODE_TYPES = [
@@ -35,7 +37,11 @@ function isMapLike(collection) {
     return collection && typeof collection.entries === "function" && typeof collection.values === "function";
 }
 
-function getChildGraphs(graph) {
+/**
+ * Return the subgraph LGraph instances nested under `graph`, across both
+ * Map-like and plain-object `_subgraphs` containers.
+ */
+export function getChildGraphs(graph) {
     if (!graph || !graph._subgraphs) {
         return [];
     }
@@ -180,6 +186,109 @@ export function chainCallback(object, property, callback) {
   } else {
     object[property] = callback;
   }
+}
+
+/**
+ * Find a `mode` accessor (getter/setter) on the node's prototype chain.
+ * Since ComfyUI frontend 1.53, `LGraphNode.mode` is a prototype accessor
+ * backed by the node's shell state (`node._state.mode`); on legacy frontends
+ * `mode` is a plain data property on the instance and no accessor exists.
+ */
+function findModeAccessor(node) {
+  let proto = Object.getPrototypeOf(node);
+  while (proto && proto !== Object.prototype) {
+    const descriptor = Object.getOwnPropertyDescriptor(proto, "mode");
+    if (descriptor && (descriptor.get || descriptor.set)) {
+      return descriptor;
+    }
+    proto = Object.getPrototypeOf(proto);
+  }
+  return null;
+}
+
+/**
+ * Observe node mode changes (Always/Never/On Trigger/Bypass) without
+ * breaking the frontend's own `mode` property.
+ *
+ * Since ComfyUI frontend 1.53, `mode` is a prototype accessor backed by
+ * shell state and serialization reads that state directly. Redefining `mode`
+ * on the instance would shadow the prototype setter, so bypass/mute never
+ * reaches the serialized workflow and silently reverts to Always on reload.
+ * When a prototype accessor exists we delegate to it and only observe the
+ * change; on legacy frontends we keep the value in a closure as before.
+ *
+ * Multiple listeners can be registered on the same node; the accessor is
+ * intercepted only once and every change is broadcast to all listeners.
+ *
+ * @param {Object} node - The litegraph node instance
+ * @param {(newMode: number, oldMode: number) => void} onModeChange - Called when the mode actually changes
+ */
+export function interceptModeChange(node, onModeChange) {
+  if (!node || typeof onModeChange !== "function") {
+    return;
+  }
+
+  if (!Array.isArray(node._lmModeChangeListeners)) {
+    Object.defineProperty(node, "_lmModeChangeListeners", {
+      configurable: true,
+      writable: true,
+      value: [],
+    });
+  }
+  node._lmModeChangeListeners.push(onModeChange);
+
+  if (node._lmModeChangeIntercepted) {
+    return;
+  }
+  Object.defineProperty(node, "_lmModeChangeIntercepted", {
+    configurable: true,
+    writable: true,
+    value: true,
+  });
+
+  const notify = (newMode, oldMode) => {
+    for (const listener of node._lmModeChangeListeners ?? []) {
+      try {
+        listener(newMode, oldMode);
+      } catch (listenerError) {
+        console.error("LoRA Manager: mode change listener failed", listenerError);
+      }
+    }
+  };
+
+  const delegate = findModeAccessor(node);
+
+  if (delegate && typeof delegate.get === "function" && typeof delegate.set === "function") {
+    Object.defineProperty(node, "mode", {
+      configurable: true,
+      get() {
+        return delegate.get.call(this);
+      },
+      set(value) {
+        const oldValue = delegate.get.call(this);
+        delegate.set.call(this, value);
+        if (oldValue !== value) {
+          notify(value, oldValue);
+        }
+      },
+    });
+    return;
+  }
+
+  let currentMode = node.mode;
+  Object.defineProperty(node, "mode", {
+    configurable: true,
+    get() {
+      return currentMode;
+    },
+    set(value) {
+      const oldValue = currentMode;
+      currentMode = value;
+      if (oldValue !== value) {
+        notify(value, oldValue);
+      }
+    },
+  });
 }
 
 /**
@@ -391,27 +500,59 @@ export function collectActiveLorasFromChain(node, visited = new Set()) {
     return allActiveLoraNames;
 }
 
-// Update trigger words for connected toggle nodes
+// Pending trigger-word sync per source node (node key -> timeout id). Stored
+// on the node itself instead of module scope because this module is loaded
+// twice: once directly (lora_loader.js) and once inlined into the Vue widget
+// bundle (main.ts). Callers from both copies must coalesce together.
+const TRIGGER_WORD_SYNC_TIMER = "__lmTriggerWordSyncTimer";
+const TRIGGER_WORD_SYNC_DELAY_MS = 50;
+
+/**
+ * Update trigger words for connected toggle nodes.
+ *
+ * Calls are coalesced per source node: while a workflow configures, the same
+ * loader is asked to sync several times within one task - first when its own
+ * restored `loras` widget fires (the upstream cycler/randomizer has not
+ * configured its widget yet, so the resolved LoRA set is empty), then again
+ * once that upstream node reflects the saved selection (the real set). Sending
+ * the intermediate empty set clears the connected toggle nodes right before
+ * they are repopulated; a draft or change-tracker snapshot taken in that
+ * window then makes an untouched workflow compare dirty. Only the last
+ * computed set is sent.
+ */
 export function updateConnectedTriggerWords(node, loraNames) {
     const connectedNodes = getConnectedTriggerToggleNodes(node);
-    if (connectedNodes.length > 0) {
-        const nodeIds = connectedNodes
-            .map((connectedNode) => getNodeReference(connectedNode))
-            .filter((reference) => reference !== null);
+    if (connectedNodes.length === 0) {
+        return;
+    }
 
-        if (nodeIds.length === 0) {
-            return;
-        }
+    const nodeIds = connectedNodes
+        .map((connectedNode) => getNodeReference(connectedNode))
+        .filter((reference) => reference !== null);
 
-        fetch("/api/lm/loras/get_trigger_words", {
+    if (nodeIds.length === 0) {
+        return;
+    }
+
+    const pendingTimer = node[TRIGGER_WORD_SYNC_TIMER];
+    if (pendingTimer) {
+        clearTimeout(pendingTimer);
+    }
+
+    const loraNamesSnapshot = Array.from(loraNames);
+
+    node[TRIGGER_WORD_SYNC_TIMER] = setTimeout(() => {
+        delete node[TRIGGER_WORD_SYNC_TIMER];
+
+        fetch(lmUrl("/api/lm/loras/get_trigger_words"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                lora_names: Array.from(loraNames),
+                lora_names: loraNamesSnapshot,
                 node_ids: nodeIds
             })
         }).catch(err => console.error("Error fetching trigger words:", err));
-    }
+    }, TRIGGER_WORD_SYNC_DELAY_MS);
 }
 
 export function mergeLoras(lorasText, lorasArr) {
@@ -438,6 +579,8 @@ export function mergeLoras(lorasText, lorasArr) {
         active: lora.active !== undefined ? lora.active : true,
         expanded: lora.expanded !== undefined ? lora.expanded : false,
         clipStrength: lora.clipStrength !== undefined ? lora.clipStrength : parsedLoras[lora.name].clipStrength,
+        selected: !!lora.selected,
+        locked: lora.locked !== undefined ? lora.locked : false,
       });
       usedNames.add(lora.name);
     }
@@ -451,6 +594,7 @@ export function mergeLoras(lorasText, lorasArr) {
         strength: parsedLoras[name].strength,
         active: true,
         clipStrength: parsedLoras[name].clipStrength,
+        selected: false,
       });
     }
   }

@@ -4,7 +4,11 @@ import { getStorageItem, setStorageItem, removeStorageItem, getSessionItem, setS
 import { showToast, openCivitaiByMetadata } from '../../utils/uiHelpers.js';
 import { performModelUpdateCheck } from '../../utils/updateCheckHelpers.js';
 import { sidebarManager } from '../SidebarManager.js';
-import { initSortDropdown } from './SortDropdown.js';
+import { getModelApiClient } from '../../api/modelApiFactory.js';
+import { initSortDropdown, applySortToSelect, randomizeSortValue } from './SortDropdown.js';
+import { initModelTypeDropdown } from './ModelTypeDropdown.js';
+import { renderScanScopeMenu, resolveScanScopeTarget } from './ScanScopeMenu.js';
+import { handleActionShortcut as runActionShortcut, registerActionShortcuts } from './ActionShortcuts.js';
 
 /**
  * PageControls class - Unified control management for model pages
@@ -81,7 +85,18 @@ export class PageControls {
      * @param {Object} api - API methods for the page
      */
     registerAPI(api) {
-        this.api = api;
+        this.api = {
+            ...api,
+            // These two are identical for every page and must stay in sync with
+            // the scan API: the refresh scope menu reads the root list, and a
+            // scoped refresh has to pass `roots` through. They are defined here
+            // rather than in each page facade so a page cannot silently drop
+            // them (which is exactly how the scope menu ended up empty).
+            fetchModelRoots: async () => getModelApiClient().fetchModelRoots(),
+            // Forward the exact arguments: an unscoped refresh must keep calling
+            // the client with a single argument.
+            refreshModels: async (...args) => getModelApiClient().refreshModels(...args),
+        };
         console.log(`API methods registered for ${this.pageType} page`);
         
         // Initialize sidebar manager after API is registered
@@ -108,13 +123,27 @@ export class PageControls {
         const sortSelect = document.getElementById('sortSelect');
         if (sortSelect) {
             initSortDropdown(sortSelect);
-            sortSelect.value = this.pageState.sortBy;
+            applySortToSelect(this.pageState.sortBy);
             sortSelect.addEventListener('change', async (e) => {
-                this.pageState.sortBy = e.target.value;
-                this.saveSortPreference(e.target.value);
+                let value = e.target.value;
+                if (value.startsWith('random')) {
+                    // Every pick of Random reshuffles the list: generate a
+                    // fresh seed so the backend keeps a stable order across
+                    // paginated requests.
+                    value = randomizeSortValue();
+                }
+                this.pageState.sortBy = value;
+                this.saveSortPreference(value);
+                // Reset the seeded Random option when switching away from
+                // Random, or re-apply the fresh seed when picking it again.
+                applySortToSelect(value);
                 await this.resetAndReload();
             });
         }
+
+        // Model type quick-switch dropdown (loras / checkpoints / other pages;
+        // hides itself when the page has a single sub-type)
+        initModelTypeDropdown(this.pageType);
         
         // Refresh button handler
         const refreshBtn = document.querySelector('[data-action="refresh"]');
@@ -136,6 +165,26 @@ export class PageControls {
 
         // Page-specific event listeners
         this.initPageSpecificListeners();
+
+        // Keyboard shortcuts for the actions toolbar (R / F / D)
+        this.registerKeyboardShortcuts();
+    }
+
+    /**
+     * Register keyboard shortcuts for the actions toolbar buttons
+     * (R = refresh, F = fetch metadata, D = download)
+     */
+    registerKeyboardShortcuts() {
+        registerActionShortcuts();
+    }
+
+    /**
+     * Handle a keydown event for the actions toolbar shortcuts
+     * @param {KeyboardEvent} e
+     * @returns {boolean} True when the event was handled and propagation should stop
+     */
+    handleActionShortcut(e) {
+        return runActionShortcut(e);
     }
 
     initExcludedViewControls() {
@@ -166,7 +215,10 @@ export class PageControls {
                 });
                 
                 // Toggle current dropdown
-                dropdownGroup.classList.toggle('active');
+                const isOpen = dropdownGroup.classList.toggle('active');
+                if (isOpen) {
+                    this.loadScanScopeMenu();
+                }
             });
         });
         
@@ -177,6 +229,21 @@ export class PageControls {
                 e.stopPropagation();
                 this.refreshModels(true);
                 // Close the dropdown
+                document.querySelector('.dropdown-group.active')?.classList.remove('active');
+            });
+        }
+
+        // Per-root scan rows are rendered dynamically, so they are wired by
+        // delegation instead of a direct querySelector per item.
+        const scopeMenu = document.getElementById('refreshScopeMenu');
+        if (scopeMenu) {
+            scopeMenu.addEventListener('click', (e) => {
+                const item = e.target.closest('[data-action="scan-root"]');
+                if (!item) {
+                    return;
+                }
+                e.stopPropagation();
+                this.handleScanRootSelection(item);
                 document.querySelector('.dropdown-group.active')?.classList.remove('active');
             });
         }
@@ -197,6 +264,55 @@ export class PageControls {
                 });
             }
         });
+    }
+
+    /**
+     * Render the per-root scan entries of the refresh dropdown.
+     *
+     * Roots come from the backend (label, model count, reachability) so the menu
+     * always names a root exactly like the scan progress line does. The list is
+     * cached until the next scan finishes.
+     */
+    async loadScanScopeMenu() {
+        const menu = document.getElementById('refreshScopeMenu');
+        if (!menu || typeof this.api?.fetchModelRoots !== 'function') {
+            return;
+        }
+
+        if (this._scanScopeDetails) {
+            this.renderScanScopeMenu(this._scanScopeDetails);
+            return;
+        }
+        if (this._scanScopeLoading) {
+            return;
+        }
+
+        this._scanScopeLoading = true;
+        try {
+            const payload = await this.api.fetchModelRoots();
+            const details = Array.isArray(payload?.root_details) ? payload.root_details : [];
+            this._scanScopeDetails = details;
+            renderScanScopeMenu(menu, details);
+        } catch (error) {
+            console.error('Error loading model roots:', error);
+            menu.innerHTML = '';
+        } finally {
+            this._scanScopeLoading = false;
+        }
+    }
+
+    handleScanRootSelection(item) {
+        const { rootPath, label, offline } = resolveScanScopeTarget(item);
+        if (!rootPath) {
+            return;
+        }
+        if (offline) {
+            // showToast(key, params, type): the sentence must NOT be passed here,
+            // it used to land in the `type` slot and produced an unstyled toast.
+            showToast('toast.api.scanRootUnreachable', { scope: label }, 'info');
+            return;
+        }
+        this.refreshModels(false, { roots: [rootPath] });
     }
 
     async handleCheckModelUpdates(menuItem) {
@@ -326,10 +442,7 @@ export class PageControls {
             // Handle legacy format conversion
             const convertedSort = this.convertLegacySortFormat(savedSort);
             this.pageState.sortBy = convertedSort;
-            const sortSelect = document.getElementById('sortSelect');
-            if (sortSelect) {
-                sortSelect.value = convertedSort;
-            }
+            applySortToSelect(convertedSort);
         }
     }
     
@@ -418,14 +531,27 @@ export class PageControls {
      * Refresh models list
      * @param {boolean} fullRebuild - Whether to perform a full rebuild
      */
-    async refreshModels(fullRebuild = false) {
+    async refreshModels(fullRebuild = false, { roots = null, folder = null } = {}) {
         if (!this.api) {
             console.error('API methods not registered');
             return;
         }
 
+        // Root labels / reachability may have changed with the scan, and the
+        // model counts definitely did.
+        this._scanScopeDetails = null;
+        const scopedRoots = Array.isArray(roots) ? roots.filter(Boolean) : [];
+        const scopedFolder = typeof folder === 'string' && folder ? folder : null;
+
         try {
-            await this.api.refreshModels(fullRebuild);
+            if (scopedRoots.length || scopedFolder) {
+                await this.api.refreshModels(fullRebuild, {
+                    ...(scopedRoots.length ? { roots: scopedRoots } : {}),
+                    ...(scopedFolder ? { folder: scopedFolder } : {}),
+                });
+            } else {
+                await this.api.refreshModels(fullRebuild);
+            }
             
             // Refresh sidebar after rebuild
             if (this.sidebarManager) {
@@ -523,9 +649,9 @@ export class PageControls {
         this.pageState.sortBy = restoredSort;
         this.saveSortPreference(restoredSort);
         this._removeVlmSortOption();
+        applySortToSelect(restoredSort);
         const sortSelect = document.getElementById('sortSelect');
         if (sortSelect) {
-            sortSelect.value = restoredSort;
             sortSelect.disabled = false;
         }
     }
@@ -575,10 +701,7 @@ export class PageControls {
             const savedGroupedSort = getStorageItem(groupedKey);
             if (savedGroupedSort) {
                 this.pageState.sortBy = savedGroupedSort;
-                const sortSelect = document.getElementById('sortSelect');
-                if (sortSelect) {
-                    sortSelect.value = savedGroupedSort;
-                }
+                applySortToSelect(savedGroupedSort);
             }
         } else {
             // Leaving group mode: persist current sort for next time, restore non-group sort
@@ -586,10 +709,7 @@ export class PageControls {
             const savedNormalSort = getStorageItem(`${this.pageType}_sort`);
             if (savedNormalSort) {
                 this.pageState.sortBy = savedNormalSort;
-                const sortSelect = document.getElementById('sortSelect');
-                if (sortSelect) {
-                    sortSelect.value = savedNormalSort;
-                }
+                applySortToSelect(savedNormalSort);
             }
         }
     }
@@ -859,6 +979,16 @@ export class PageControls {
             });
         });
 
+        // The model-type dropdown decides its own initial visibility: it stays
+        // hidden when the page has a single sub-type (see ModelTypeDropdown.js).
+        // Un-hiding it here unconditionally would surface an empty, unwired
+        // trigger (just the caret) on single-type pages such as Checkpoints.
+        const modelTypeDropdown = document.getElementById('modelTypeDropdown');
+        if (modelTypeDropdown) {
+            const isAvailable = modelTypeDropdown.dataset.modelTypeAvailable === '1';
+            modelTypeDropdown.classList.toggle('hidden', isExcludedView || !isAvailable);
+        }
+
         if (customFilterIndicator && isExcludedView) {
             customFilterIndicator.classList.add('hidden');
         }
@@ -874,7 +1004,7 @@ export class PageControls {
         }
 
         if (sortSelect) {
-            sortSelect.value = this.pageState.sortBy;
+            applySortToSelect(this.pageState.sortBy);
         }
         if (searchInput) {
             searchInput.value = this.pageState.filters?.search || '';

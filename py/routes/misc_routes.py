@@ -7,7 +7,7 @@ import os
 from typing import Awaitable, Callable, Mapping
 
 from aiohttp import web
-from server import PromptServer  # type: ignore
+from server import PromptServer  # pyright: ignore[reportMissingImports]
 
 from ..services.metadata_service import (
     get_metadata_archive_manager,
@@ -15,6 +15,7 @@ from ..services.metadata_service import (
     update_metadata_providers,
 )
 from ..services.settings_manager import get_settings_manager
+from ..services.first_run_manager import get_first_run_manager
 from ..services.downloader import get_downloader
 from ..utils.usage_stats import UsageStats
 from .handlers.misc_handlers import (
@@ -22,6 +23,7 @@ from .handlers.misc_handlers import (
     DoctorHandler,
     ExampleWorkflowsHandler,
     FileSystemHandler,
+    FirstRunHandler,
     HealthCheckHandler,
     LoraCodeHandler,
     BackupHandler,
@@ -32,6 +34,7 @@ from .handlers.misc_handlers import (
     NodeRegistry,
     NodeRegistryHandler,
     SettingsHandler,
+    SidecarMigrationHandler,
     SupportersHandler,
     TrainedWordsHandler,
     UsageStatsHandler,
@@ -39,7 +42,9 @@ from .handlers.misc_handlers import (
     build_service_registry_adapter,
 )
 from .handlers.base_model_handlers import BaseModelHandlerSet
-from .handlers.hf_handlers import HfHandler
+from .handlers.model_source_handlers import ModelSourceHandler
+from .handlers.agent_handlers import AgentHandler
+from .handlers.download_routing_handlers import DownloadRoutingHandler
 from .misc_route_registrar import MiscRouteRegistrar
 
 logger = logging.getLogger(__name__)
@@ -105,7 +110,7 @@ class MiscRoutes:
         return self._handler_mapping
 
     def _create_handler_set(self) -> MiscHandlerSet:
-        health = HealthCheckHandler()
+        health = HealthCheckHandler(first_run_manager=get_first_run_manager())
         settings_handler = SettingsHandler(
             settings_service=self._settings,
             metadata_provider_updater=self._metadata_provider_updater,
@@ -137,7 +142,11 @@ class MiscRoutes:
         doctor = DoctorHandler(settings_service=self._settings)
         example_workflows = ExampleWorkflowsHandler()
         base_model = BaseModelHandlerSet()
-        hf_handler = HfHandler()
+        model_source_handler = ModelSourceHandler()
+        agent_handler = AgentHandler()
+        download_routing = DownloadRoutingHandler()
+        sidecar_migration = SidecarMigrationHandler()
+        first_run = FirstRunHandler()
 
         return self._handler_set_factory(
             health=health,
@@ -157,7 +166,11 @@ class MiscRoutes:
             doctor=doctor,
             example_workflows=example_workflows,
             base_model=base_model,
-            hf_handler=hf_handler,
+            model_source_handler=model_source_handler,
+            agent_handler=agent_handler,
+            download_routing=download_routing,
+            sidecar_migration=sidecar_migration,
+            first_run=first_run,
         )
 
 

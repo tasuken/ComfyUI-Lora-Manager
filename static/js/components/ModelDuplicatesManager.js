@@ -1,7 +1,10 @@
 // Model Duplicates Manager Component for LoRAs and Checkpoints
-import { showToast } from '../utils/uiHelpers.js';
+import { showToast, showActionToast } from '../utils/uiHelpers.js';
+import { handleUndoDelete } from '../utils/undoHelpers.js';
+import { translate } from '../utils/i18nHelpers.js';
 import { state, getCurrentPageState } from '../state/index.js';
 import { formatDate } from '../utils/formatters.js';
+import { getPreviewMediaExtension, isVideoPreviewUrl } from '../utils/mediaTypes.js';
 import { resetAndReload} from '../api/modelApiFactory.js';
 import { getShowDuplicatesNotification, setShowDuplicatesNotification } from '../utils/storageHelpers.js';
 
@@ -273,7 +276,7 @@ export class ModelDuplicatesManager {
         if (duplicatesBtn) {
             duplicatesBtn.classList.remove('active');
             duplicatesBtn.title = 'Find duplicate models';
-            duplicatesBtn.innerHTML = '<i class="fas fa-clone"></i> Duplicates <span id="duplicatesBadge" class="badge"></span>';
+            duplicatesBtn.innerHTML = 'Duplicates <span id="duplicatesBadge" class="badge"></span>';
             
             // Restore badge
             const newBadge = duplicatesBtn.querySelector('#duplicatesBadge');
@@ -461,12 +464,13 @@ export class ModelDuplicatesManager {
         const previewContainer = document.createElement('div');
         previewContainer.className = 'card-preview';
         
-        // Determine if preview is a video
-        const isVideo = model.preview_url && model.preview_url.endsWith('.mp4');
+        // Determine if preview is a video (the URL may be versioned, so the
+        // extension lives in the decoded `path` query parameter)
+        const isVideo = isVideoPreviewUrl(model.preview_url);
         let preview;
         
         if (isVideo) {
-            // Create video element for MP4 previews
+            // Create video element for video previews
             preview = document.createElement('video');
             preview.loading = 'lazy';
             preview.controls = true;
@@ -475,7 +479,7 @@ export class ModelDuplicatesManager {
             
             const source = document.createElement('source');
             source.src = model.preview_url;
-            source.type = 'video/mp4';
+            source.type = getPreviewMediaExtension(model.preview_url) === '.webm' ? 'video/webm' : 'video/mp4';
             preview.appendChild(source);
         } else {
             // Create image element for standard previews
@@ -732,8 +736,54 @@ export class ModelDuplicatesManager {
             if (!data.success) {
                 throw new Error(data.error || 'Unknown error deleting models');
             }
-            
-            showToast('toast.duplicates.deleteSuccess', { count: data.total_deleted, type: this.modelType }, 'success');
+
+            const results = Array.isArray(data.results) ? data.results : [];
+            const failures = results.filter(entry => entry && entry.success === false);
+
+            const batchIds = !data.batch_id && Array.isArray(data.batch_ids) && data.batch_ids.length
+                ? data.batch_ids
+                : null;
+
+            if (data.batch_id || batchIds) {
+                // One undo action restores the whole selected group
+                const refreshFn = () => resetAndReload(true);
+                const onAction = data.batch_id
+                    ? () => handleUndoDelete(data.batch_id, refreshFn)
+                    : async () => {
+                        for (const id of batchIds) {
+                            const succeeded = await handleUndoDelete(id, null, { showToast: false, refresh: false });
+                            if (!succeeded) {
+                                showToast('toast.undo.failed', { error: '' }, 'error');
+                                return;
+                            }
+                        }
+                        refreshFn();
+                        showToast('toast.undo.restored', {}, 'success');
+                    };
+                showActionToast('toast.undo.deletedBulk', { count: data.total_deleted }, 'success', {
+                    actionText: translate('toast.undo.action'),
+                    onAction,
+                });
+            } else {
+                showToast('toast.duplicates.deleteSuccess', { count: data.total_deleted, type: this.modelType }, 'success');
+            }
+
+            // Per-file failures are reported in `results` while the request as
+            // a whole still succeeded; never hide them behind the success toast.
+            if (failures.length > 0) {
+                showToast('toast.duplicates.deletePartialFailed', {
+                    failed: failures.length,
+                    type: this.modelType,
+                    message: failures[0].error || '',
+                }, 'error');
+            }
+
+            // Files are gone from disk but the library cache was not updated:
+            // the deleted cards would otherwise reappear after the refresh and
+            // only a full rebuild can clear them.
+            if (data.cache_updated === false && data.total_deleted > 0) {
+                showToast('toast.duplicates.cacheUpdateFailed', {}, 'warning');
+            }
             
             // If models were successfully deleted
             if (data.total_deleted > 0) {

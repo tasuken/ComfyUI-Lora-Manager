@@ -17,7 +17,8 @@ vi.mock('../../../static/js/state/index.js', () => ({
                 }
             }
         }
-    }
+    },
+    getCurrentPageState: vi.fn(() => ({ activeFolder: null, searchOptions: {} }))
 }));
 
 vi.mock('../../../static/js/managers/ModalManager.js', () => ({
@@ -36,12 +37,14 @@ vi.mock('../../../static/js/utils/storageHelpers.js', () => ({
     setStorageItem: vi.fn()
 }));
 
+const { showToastMock } = vi.hoisted(() => ({ showToastMock: vi.fn() }));
+
 vi.mock('../../../static/js/utils/uiHelpers.js', () => ({
-    showToast: vi.fn()
+    showToast: showToastMock
 }));
 
 vi.mock('../../../static/js/utils/i18nHelpers.js', () => ({
-    translate: vi.fn(key => key)
+    translate: vi.fn((key, params = {}, fallback = null) => fallback || key)
 }));
 
 describe('MoveManager', () => {
@@ -49,6 +52,8 @@ describe('MoveManager', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        state.currentPageType = 'loras';
+        state.selectedModels.clear();
         
         // Setup DOM
         document.body.innerHTML = `
@@ -90,6 +95,63 @@ describe('MoveManager', () => {
         await moveManager.showMoveModal('some/file.safetensors');
         
         expect(moveManager.folderTreeManager.getSelectedPath()).toBe('');
+    });
+
+    it('should fetch the folder tree including empty directories', async () => {
+        await moveManager.initializeFolderTree();
+
+        expect(mockApiClient.fetchUnifiedFolderTree).toHaveBeenCalledWith({ includeEmpty: true });
+    });
+
+    it('should name workflows in the move dialog on the workflows page', async () => {
+        state.currentPageType = 'workflows';
+        mockApiClient.modelType = 'workflows';
+        mockApiClient.apiConfig.config.displayName = 'Workflow';
+
+        try {
+            await moveManager.showMoveModal('/library/workflows/flow.json');
+
+            expect(document.getElementById('moveModalTitle').textContent).toBe('Move Workflow');
+            expect(document.getElementById('moveRootLabel').textContent).toBe('Select Workflow Root:');
+        } finally {
+            state.currentPageType = 'loras';
+            mockApiClient.modelType = 'loras';
+            mockApiClient.apiConfig.config.displayName = 'LoRA';
+        }
+    });
+
+    it('should keep the model wording in the move dialog on model pages', async () => {
+        await moveManager.showMoveModal('/models/loras/a.safetensors');
+
+        expect(document.getElementById('moveModalTitle').textContent).toBe('Move LoRA');
+        expect(document.getElementById('moveRootLabel').textContent).toBe('Select LoRA Root:');
+    });
+
+    it('should use page-specific copy for move toasts', () => {
+        state.currentPageType = 'recipes';
+        expect(moveManager._moveFailedKey()).toBe('recipes.move.failed');
+        expect(moveManager._noSelectionKey()).toBe('recipes.bulk.noSelection');
+
+        state.currentPageType = 'workflows';
+        expect(moveManager._moveFailedKey()).toBe('workflows.modals.move.failed');
+        expect(moveManager._noSelectionKey()).toBe('workflows.bulk.noSelection');
+
+        state.currentPageType = 'loras';
+        expect(moveManager._moveFailedKey()).toBe('toast.models.moveFailed');
+        expect(moveManager._noSelectionKey()).toBe('toast.models.noModelsSelected');
+    });
+
+    it('should use the page-specific warning when bulk-moving with nothing selected', async () => {
+        state.currentPageType = 'workflows';
+        state.selectedModels.clear();
+
+        try {
+            await moveManager.showMoveModal('bulk');
+            expect(showToastMock).toHaveBeenCalledWith('workflows.bulk.noSelection', {}, 'warning');
+            expect(mockApiClient.fetchModelRoots).not.toHaveBeenCalled();
+        } finally {
+            state.currentPageType = 'loras';
+        }
     });
 
     it('should ignore manual folder selection when useDefaultPath is true', async () => {
@@ -155,5 +217,76 @@ describe('MoveManager', () => {
             '/models/loras',
             true
         );
+    });
+
+    it('should propagate the recalculated sub_type from the move response to the card', async () => {
+        // Setup state: moving a checkpoint into the unet root
+        moveManager.useDefaultPath = false;
+        moveManager.bulkFilePaths = null;
+        moveManager.currentFilePath = '/models/checkpoints/model.safetensors';
+        moveManager.modelRoots = ['/models/checkpoints', '/models/unet'];
+        document.getElementById('moveModelRoot').innerHTML = '<option value="/models/unet">/models/unet</option>';
+        document.getElementById('moveModelRoot').value = '/models/unet';
+        moveManager.folderTreeManager.selectedPath = '';
+
+        const updateSingleItem = vi.fn();
+        state.virtualScroller = {
+            updateSingleItem,
+            removeMultipleItemsByFilePath: vi.fn()
+        };
+
+        mockApiClient.moveSingleModel = vi.fn().mockResolvedValue({
+            success: true,
+            original_file_path: '/models/checkpoints/model.safetensors',
+            new_file_path: '/models/unet/model.safetensors',
+            cache_entry: { sub_type: 'diffusion_model' }
+        });
+
+        try {
+            await moveManager.moveModel();
+
+            expect(updateSingleItem).toHaveBeenCalledWith(
+                '/models/checkpoints/model.safetensors',
+                expect.objectContaining({
+                    file_path: '/models/unet/model.safetensors',
+                    sub_type: 'diffusion_model'
+                })
+            );
+        } finally {
+            delete state.virtualScroller;
+        }
+    });
+
+    it('should omit sub_type from the card update when the response has no cache entry', async () => {
+        moveManager.useDefaultPath = false;
+        moveManager.bulkFilePaths = null;
+        moveManager.currentFilePath = '/models/loras/a.safetensors';
+        moveManager.modelRoots = ['/models/loras'];
+        document.getElementById('moveModelRoot').innerHTML = '<option value="/models/loras">/models/loras</option>';
+        document.getElementById('moveModelRoot').value = '/models/loras';
+        moveManager.folderTreeManager.selectedPath = '';
+
+        const updateSingleItem = vi.fn();
+        state.virtualScroller = {
+            updateSingleItem,
+            removeMultipleItemsByFilePath: vi.fn()
+        };
+
+        mockApiClient.moveSingleModel = vi.fn().mockResolvedValue({
+            success: true,
+            original_file_path: '/models/loras/a.safetensors',
+            new_file_path: '/models/loras/b/a.safetensors'
+        });
+
+        try {
+            await moveManager.moveModel();
+
+            expect(updateSingleItem).toHaveBeenCalledWith(
+                '/models/loras/a.safetensors',
+                expect.not.objectContaining({ sub_type: expect.anything() })
+            );
+        } finally {
+            delete state.virtualScroller;
+        }
     });
 });

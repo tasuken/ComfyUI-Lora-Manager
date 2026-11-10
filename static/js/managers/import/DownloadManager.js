@@ -3,6 +3,7 @@ import { translate } from '../../utils/i18nHelpers.js';
 import { getModelApiClient } from '../../api/modelApiFactory.js';
 import { MODEL_TYPES } from '../../api/apiConfig.js';
 import { getStorageItem } from '../../utils/storageHelpers.js';
+import { state } from '../../state/index.js';
 
 export class DownloadManager {
     constructor(importManager) {
@@ -17,6 +18,10 @@ export class DownloadManager {
             showToast('toast.recipes.enterRecipeName', {}, 'error');
             return;
         }
+
+        console.log(
+            `[RecipeImport] Saving recipe "${this.importManager.recipeName}" (download-only=${isDownloadOnly}, skipDownload=${skipDownload})`
+        );
 
         try {
             // Show progress indicator
@@ -60,6 +65,22 @@ export class DownloadManager {
                     raw_metadata: this.importManager.recipeData.raw_metadata || {},
                 };
 
+                // Pass analysis diagnostics through so the backend can record
+                // why the recipe ended up with no LoRAs (recipe modal panel).
+                const diagnostics = this.importManager.recipeData.diagnostics;
+                if (diagnostics && typeof diagnostics === 'object') {
+                    completeMetadata.diagnostics = diagnostics;
+                }
+
+                // A ComfyUI workflow recovered from the source's original
+                // rendition: CivitAI's optimized preview is re-encoded and
+                // metadata-free, so the workflow travels as data and the
+                // backend embeds it into the stored image.
+                const workflow = this.importManager.recipeData.workflow;
+                if (workflow) {
+                    completeMetadata.workflow = workflow;
+                }
+
                 // Preserve preview_nsfw_level from analysis so the saved
                 // recipe applies the correct NSFW blur on the preview image.
                 const nsfwLevel = this.importManager.recipeData.preview_nsfw_level;
@@ -101,6 +122,7 @@ export class DownloadManager {
                 if (!result.success) {
                     // Handle save error
                     console.error("Failed to save recipe:", result.error);
+                    console.log('[RecipeImport] Save failed; closing import modal.');
                     showToast('toast.recipes.recipeSaveFailed', { error: result.error }, 'error');
                     // Close modal
                     modalManager.closeModal('importModal');
@@ -111,6 +133,7 @@ export class DownloadManager {
             // Check if we need to download LoRAs (skip if skipDownload is true)
             let failedDownloads = 0;
             if (!skipDownload && this.importManager.downloadableLoRAs && this.importManager.downloadableLoRAs.length > 0) {
+                console.log(`[RecipeImport] Downloading ${this.importManager.downloadableLoRAs.length} missing LoRA(s)...`);
                 await this.downloadMissingLoras();
             }
 
@@ -125,11 +148,26 @@ export class DownloadManager {
                 showToast('toast.recipes.nameSaved', { name: this.importManager.recipeName }, 'success');
             }
 
-            // Close modal
             modalManager.closeModal('importModal');
+            console.log(`[RecipeImport] Recipe "${this.importManager.recipeName}" saved successfully.`);
 
-            // Refresh the recipe
-            window.recipeManager.loadRecipes(true);
+            if (isDownloadOnly && state.virtualScroller) {
+                const recipeId = this.importManager.recipeId;
+                try {
+                    const detailRes = await fetch(`/api/lm/recipe/${encodeURIComponent(recipeId)}`);
+                    if (detailRes.ok) {
+                        const updated = await detailRes.json();
+                        state.virtualScroller.updateSingleItem(updated.file_path, updated);
+                    } else {
+                        throw new Error(`API returned ${detailRes.status}`);
+                    }
+                } catch (e) {
+                    console.warn('Failed to update recipe card in-place, falling back to reload:', e);
+                    await window.recipeManager.loadRecipes({ resetPage: true, preserveScroll: true });
+                }
+            } else {
+                window.recipeManager.loadRecipes({ resetPage: true, preserveScroll: true });
+            }
 
         } catch (error) {
             console.error('Error:', error);
@@ -168,6 +206,18 @@ export class DownloadManager {
         let failedDownloads = 0;
         let accessFailures = 0;
         let currentLoraProgress = 0;
+        let cancelled = false;
+
+        this.importManager.loadingManager.showCancelButton(async () => {
+            if (cancelled) return;
+            cancelled = true;
+            try {
+                const loraClient = getModelApiClient(MODEL_TYPES.LORA);
+                await loraClient.cancelDownload(batchDownloadId);
+            } catch (e) {
+                console.error('Cancel request failed:', e);
+            }
+        });
 
         // Set up progress tracking for current download
         ws.onmessage = (event) => {
@@ -176,6 +226,11 @@ export class DownloadManager {
             // Handle download ID confirmation
             if (data.type === 'download_id') {
                 console.log(`Connected to batch download progress with ID: ${data.download_id}`);
+                return;
+            }
+
+            if (data.status === 'cancelled') {
+                cancelled = true;
                 return;
             }
 
@@ -221,6 +276,8 @@ export class DownloadManager {
         const useDefaultPaths = getStorageItem('use_default_path_loras', false);
 
         for (let i = 0; i < this.importManager.downloadableLoRAs.length; i++) {
+            if (cancelled) break;
+
             const lora = this.importManager.downloadableLoRAs[i];
 
             // Reset current LoRA progress for new download
@@ -241,15 +298,13 @@ export class DownloadManager {
                     batchDownloadId
                 );
 
+                if (cancelled) break;
+
                 if (!response.success) {
                     console.error(`Failed to download LoRA ${lora.name}: ${response.error}`);
-
                     failedDownloads++;
-                    // Continue with next download
                 } else {
                     completedDownloads++;
-
-                    // Update progress to show completion of current LoRA
                     updateProgress(100, completedDownloads, '');
 
                     if (completedDownloads + failedDownloads < this.importManager.downloadableLoRAs.length) {
@@ -259,9 +314,10 @@ export class DownloadManager {
                     }
                 }
             } catch (downloadError) {
-                console.error(`Error downloading LoRA ${lora.name}:`, downloadError);
-                failedDownloads++;
-                // Continue with next download
+                if (!cancelled) {
+                    console.error(`Error downloading LoRA ${lora.name}:`, downloadError);
+                    failedDownloads++;
+                }
             }
         }
 
@@ -269,7 +325,10 @@ export class DownloadManager {
         ws.close();
 
         // Show appropriate completion message based on results
-        if (failedDownloads === 0) {
+        if (cancelled) {
+            showToast('toast.downloads.downloadStopped', {}, 'info',
+                `Download cancelled. ${completedDownloads} item(s) completed.`);
+        } else if (failedDownloads === 0) {
             showToast('toast.loras.allDownloadSuccessful', { count: completedDownloads }, 'success');
         } else {
             if (accessFailures > 0) {

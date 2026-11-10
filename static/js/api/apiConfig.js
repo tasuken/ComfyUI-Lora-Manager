@@ -9,7 +9,9 @@ import { state } from '../state/index.js';
 export const MODEL_TYPES = {
     LORA: 'loras',
     CHECKPOINT: 'checkpoints',
-    EMBEDDING: 'embeddings' // Future model type
+    EMBEDDING: 'embeddings',
+    OTHER: 'other',
+    WORKFLOW: 'workflows'
 };
 
 // Base API configuration for each model type
@@ -21,6 +23,7 @@ export const MODEL_CONFIG = {
         supportsLetterFilter: true,
         supportsBulkOperations: true,
         supportsMove: true,
+        supportsFolderManagement: true,
         templateName: 'loras.html'
     },
     [MODEL_TYPES.CHECKPOINT]: {
@@ -30,6 +33,7 @@ export const MODEL_CONFIG = {
         supportsLetterFilter: false,
         supportsBulkOperations: true,
         supportsMove: true,
+        supportsFolderManagement: true,
         templateName: 'checkpoints.html'
     },
     [MODEL_TYPES.EMBEDDING]: {
@@ -39,7 +43,28 @@ export const MODEL_CONFIG = {
         supportsLetterFilter: true,
         supportsBulkOperations: true,
         supportsMove: true,
+        supportsFolderManagement: true,
         templateName: 'embeddings.html'
+    },
+    [MODEL_TYPES.OTHER]: {
+        displayName: 'Other Model',
+        singularName: 'other',
+        defaultPageSize: 100,
+        supportsLetterFilter: false,
+        supportsBulkOperations: true,
+        supportsMove: true,
+        supportsFolderManagement: true,
+        templateName: 'other.html'
+    },
+    [MODEL_TYPES.WORKFLOW]: {
+        displayName: 'Workflow',
+        singularName: 'workflow',
+        defaultPageSize: 100,
+        supportsLetterFilter: false,
+        supportsBulkOperations: true,
+        supportsMove: true,
+        supportsFolderManagement: true,
+        templateName: 'workflows.html'
     }
 };
 
@@ -49,10 +74,6 @@ export const MODEL_CONFIG = {
  * @returns {Object} Object containing all API endpoints for the model type
  */
 export function getApiEndpoints(modelType) {
-    if (!Object.values(MODEL_TYPES).includes(modelType)) {
-        throw new Error(`Invalid model type: ${modelType}`);
-    }
-
     return {
         // Base CRUD operations
         list: `/api/lm/${modelType}/list`,
@@ -73,11 +94,23 @@ export function getApiEndpoints(modelType) {
         // Move operations (now common for all model types that support move)
         moveModel: `/api/lm/${modelType}/move_model`,
         moveBulk: `/api/lm/${modelType}/move_models_bulk`,
+        createFolder: `/api/lm/${modelType}/create-folder`,
+        deleteFolder: `/api/lm/${modelType}/delete-folder`,
+        // Drops the sidebar records of a folder that no longer exists on disk:
+        // the only cleanup left for a node whose directory was moved or deleted
+        // outside LoRA Manager.
+        forgetFolder: `/api/lm/${modelType}/forget-folder`,
+        renameFolder: `/api/lm/${modelType}/rename-folder`,
+        // Resolves a tree-relative folder onto the root(s) that hold it: the
+        // unified folder tree merges every root, so a node does not carry its
+        // own absolute path.
+        resolveFolder: `/api/lm/${modelType}/resolve-folder`,
 
         // CivitAI integration
         fetchCivitai: `/api/lm/${modelType}/fetch-civitai`,
         fetchAllCivitai: `/api/lm/${modelType}/fetch-all-civitai`,
         relinkCivitai: `/api/lm/${modelType}/relink-civitai`,
+        civitaiModelByVersion: `/api/lm/${modelType}/civitai/model/version`,
         civitaiVersions: `/api/lm/${modelType}/civitai/versions`,
         refreshUpdates: `/api/lm/${modelType}/updates/refresh`,
         fetchMissingLicenses: `/api/lm/${modelType}/updates/fetch-missing-license`,
@@ -86,6 +119,9 @@ export function getApiEndpoints(modelType) {
         ignoreModelUpdate: `/api/lm/${modelType}/updates/ignore`,
         ignoreVersionUpdate: `/api/lm/${modelType}/updates/ignore-version`,
 
+        // Price alerts are app-wide (all model types in one query), so they are
+        // not part of this per-type endpoint map; see UpdateService.js.
+
         // Preview management
         replacePreview: `/api/lm/${modelType}/replace-preview`,
         setPreviewFromUrl: `/api/lm/${modelType}/set-preview-from-url`,
@@ -93,6 +129,7 @@ export function getApiEndpoints(modelType) {
         // Query operations
         scan: `/api/lm/${modelType}/scan`,
         topTags: `/api/lm/${modelType}/top-tags`,
+        searchTags: `/api/lm/${modelType}/search-tags`,
         baseModels: `/api/lm/${modelType}/base-models`,
         roots: `/api/lm/${modelType}/roots`,
         folders: `/api/lm/${modelType}/folders`,
@@ -107,6 +144,9 @@ export function getApiEndpoints(modelType) {
         // Auto-organize operations
         autoOrganize: `/api/lm/${modelType}/auto-organize`,
         autoOrganizeProgress: `/api/lm/${modelType}/auto-organize-progress`,
+
+        // Filename template operations
+        applyFilenameTemplate: `/api/lm/${modelType}/apply-filename-template`,
 
         // Model-specific endpoints (will be merged with specific configs)
         specific: {}
@@ -125,7 +165,6 @@ export const MODEL_SPECIFIC_ENDPOINTS = {
         civitaiUrl: `/api/lm/${MODEL_TYPES.LORA}/civitai-url`,
         metadata: `/api/lm/${MODEL_TYPES.LORA}/metadata`,
         getTriggerWordsPost: `/api/lm/${MODEL_TYPES.LORA}/get_trigger_words`,
-        civitaiModelByVersion: `/api/lm/${MODEL_TYPES.LORA}/civitai/model/version`,
         civitaiModelByHash: `/api/lm/${MODEL_TYPES.LORA}/civitai/model/hash`,
     },
     [MODEL_TYPES.CHECKPOINT]: {
@@ -136,6 +175,18 @@ export const MODEL_SPECIFIC_ENDPOINTS = {
     },
     [MODEL_TYPES.EMBEDDING]: {
         metadata: `/api/lm/${MODEL_TYPES.EMBEDDING}/metadata`,
+    },
+    [MODEL_TYPES.OTHER]: {
+        metadata: `/api/lm/${MODEL_TYPES.OTHER}/metadata`,
+        roots_by_subtype: `/api/lm/${MODEL_TYPES.OTHER}/roots_by_subtype`,
+    },
+    [MODEL_TYPES.WORKFLOW]: {
+        metadata: `/api/lm/${MODEL_TYPES.WORKFLOW}/metadata`,
+        sendToComfy: `/api/lm/${MODEL_TYPES.WORKFLOW}/send-to-comfy`,
+        content: `/api/lm/${MODEL_TYPES.WORKFLOW}/content`,
+        comfyuiState: `/api/lm/${MODEL_TYPES.WORKFLOW}/comfyui-state`,
+        updateFromComfy: `/api/lm/${MODEL_TYPES.WORKFLOW}/update-from-comfy`,
+        restore: `/api/lm/${MODEL_TYPES.WORKFLOW}/restore`,
     }
 };
 
@@ -187,13 +238,23 @@ export const DOWNLOAD_ENDPOINTS = {
     downloadGet: '/api/lm/download-model-get',
     cancelGet: '/api/lm/cancel-download-get',
     progress: '/api/lm/download-progress',
-    exampleImages: '/api/lm/force-download-example-images' // New endpoint for downloading example images
+    routing: '/api/lm/download/routing',
+    exampleImages: '/api/lm/force-download-example-images', // Re-process example images ignoring previous status
+    exampleImagesMissing: '/api/lm/download-example-images' // Download only missing example images
 };
 
-// Hugging Face API endpoints
+// External model source endpoints (Hugging Face / ModelScope).
+// The hf-* paths are the historical names, kept as server-side aliases.
+export const MODEL_SOURCE_ENDPOINTS = {
+    repoFiles: '/api/lm/model-source-files',
+    download: '/api/lm/download-model-source',
+    sources: '/api/lm/model-sources',
+};
+
+/** @deprecated use MODEL_SOURCE_ENDPOINTS */
 export const HF_ENDPOINTS = {
-    repoFiles: '/api/lm/hf-repo-files',
-    download: '/api/lm/download-hf-model',
+    repoFiles: MODEL_SOURCE_ENDPOINTS.repoFiles,
+    download: MODEL_SOURCE_ENDPOINTS.download,
 };
 
 // WebSocket endpoints

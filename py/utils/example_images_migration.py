@@ -3,16 +3,32 @@ import logging
 import os
 import re
 import json
+import shutil
 from ..services.settings_manager import get_settings_manager
 from ..services.service_registry import ServiceRegistry
-from ..utils.example_images_paths import iter_library_roots
+from ..utils.example_images_paths import (
+    get_example_images_root,
+    is_hash_folder,
+    iter_library_roots,
+    uses_library_scoped_folders,
+    _library_folder_has_only_hash_dirs,
+)
 from ..utils.metadata_manager import MetadataManager
 from ..utils.example_images_processor import ExampleImagesProcessor
+from ..utils.example_images_metadata import (
+    repair_local_video_dimensions,
+    update_cache_from_metadata,
+)
 from ..utils.constants import SUPPORTED_MEDIA_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 
-CURRENT_NAMING_VERSION = 2  # Increment this when naming conventions change
+CURRENT_NAMING_VERSION = 3  # Increment this when naming conventions change
+
+# Example files worth inspecting during the dimension repair.
+_REPAIRABLE_EXTENSIONS = frozenset(
+    SUPPORTED_MEDIA_EXTENSIONS["images"] + SUPPORTED_MEDIA_EXTENSIONS["videos"]
+)
 
 
 class _SettingsProxy:
@@ -37,12 +53,100 @@ class ExampleImagesMigration:
     """Handles migrations for example images naming conventions"""
     
     @staticmethod
+    def _consolidate_library_folders():
+        """Move hash folders from library-named subdirectories back to root.
+
+        When a user switches from multi-library mode back to single-library
+        mode, example images previously stored under e.g.
+        ``<root>/default/<hash>/`` need to be moved back to
+        ``<root>/<hash>/``.  Running this once at startup removes the need
+        for ``get_model_folder()`` to perform directory scans on every
+        request.
+        """
+        if uses_library_scoped_folders():
+            return
+
+        root = get_example_images_root()
+        if not root or not os.path.isdir(root):
+            return
+
+        moved: list[str] = []
+        cleaned: list[str] = []
+
+        try:
+            for entry in os.listdir(root):
+                # Fast regex checks first — no filesystem I/O.
+                if is_hash_folder(entry) or entry == "_deleted":
+                    continue
+
+                entry_path = os.path.join(root, entry)
+                if not os.path.isdir(entry_path):
+                    continue
+                if not _library_folder_has_only_hash_dirs(entry_path):
+                    continue
+
+                try:
+                    for hash_entry in os.listdir(entry_path):
+                        hash_path = os.path.join(entry_path, hash_entry)
+                        if not os.path.isdir(hash_path) or not is_hash_folder(hash_entry):
+                            continue
+                        target = os.path.join(root, hash_entry)
+                        if not os.path.exists(target):
+                            try:
+                                shutil.move(hash_path, target)
+                                moved.append(hash_entry)
+                            except (OSError, shutil.Error) as exc:
+                                logger.error(
+                                    "Failed to move '%s' → '%s': %s",
+                                    hash_path, target, exc,
+                                )
+                except OSError as exc:
+                    logger.error(
+                        "Failed to list library subdirectory '%s': %s",
+                        entry_path, exc,
+                    )
+
+                try:
+                    remaining = os.listdir(entry_path)
+                except OSError:
+                    remaining = []
+                if not remaining:
+                    try:
+                        os.rmdir(entry_path)
+                        cleaned.append(entry)
+                    except OSError as exc:
+                        logger.debug(
+                            "Could not remove empty library dir '%s': %s",
+                            entry_path, exc,
+                        )
+        except OSError as exc:
+            logger.error(
+                "Failed to list example images root during consolidation: %s",
+                exc,
+            )
+
+        if moved:
+            logger.info(
+                "Consolidated %d example image folder(s) to root",
+                len(moved),
+            )
+        if cleaned:
+            logger.info(
+                "Removed %d empty library directories",
+                len(cleaned),
+            )
+
+    @staticmethod
     async def check_and_run_migrations():
         """Check if migrations are needed and run them in background"""
         root = settings.get('example_images_path')
         if not root or not os.path.exists(root):
             logger.debug("No example images path configured or path doesn't exist, skipping migrations")
             return
+
+        # Run library-to-root consolidation once at startup so the hot
+        # path (get_model_folder) stays a pure-path computation.
+        ExampleImagesMigration._consolidate_library_folders()
 
         for library_name, library_path in iter_library_roots():
             if not library_path or not os.path.exists(library_path):
@@ -88,6 +192,9 @@ class ExampleImagesMigration:
             
             if from_version < 2 and to_version >= 2:
                 await ExampleImagesMigration._migrate_to_v2(model_folders)
+            
+            if from_version < 3 and to_version >= 3:
+                await ExampleImagesMigration._migrate_to_v3(example_images_path, model_folders)
             
             # Update version in progress file
             progress_file = os.path.join(example_images_path, '.download_progress.json')
@@ -275,7 +382,7 @@ class ExampleImagesMigration:
                                 found = True
                                 break
                                 
-                        if not found:
+                        if not found or old_path is None:
                             logger.warning(f"Could not find file for index {index} in {model_hash}, skipping")
                             continue
                         
@@ -326,7 +433,7 @@ class ExampleImagesMigration:
                         await MetadataManager.save_metadata(file_path, model_copy)
                         
                         # Update scanner cache
-                        await scanner.update_single_model_cache(file_path, file_path, model_metadata)
+                        await update_cache_from_metadata(scanner, file_path, model_copy)
                         
                         updated_models += 1
                     except Exception as e:
@@ -342,3 +449,136 @@ class ExampleImagesMigration:
                 migration_errors += 1
         
         logger.info(f"Migration to v2 complete: migrated {count} custom examples across {updated_models} models with {migration_errors} errors")
+
+    @staticmethod
+    def _build_local_file_map(folder):
+        """Map entry markers to their files inside a model's example folder.
+
+        Keys are the marker alone (``custom_<id>`` → ``<id>``,
+        ``image_<index>`` → ``<index>``) so they line up with the metadata
+        entries' ``id``/positional index without any prefix ambiguity.
+        """
+
+        local_files = {}
+        try:
+            entries = os.listdir(folder)
+        except OSError as exc:
+            logger.debug("Could not list example folder %s: %s", folder, exc)
+            return local_files
+
+        for name in entries:
+            stem, ext = os.path.splitext(name)
+            if ext.lower() not in _REPAIRABLE_EXTENSIONS:
+                continue
+            if stem.startswith("custom_"):
+                local_files[stem[len("custom_"):]] = os.path.join(folder, name)
+            elif stem.startswith("image_"):
+                local_files[stem[len("image_"):]] = os.path.join(folder, name)
+
+        return local_files
+
+    @staticmethod
+    async def _find_scanner_for_hash(model_hash):
+        """Return the scanner owning ``model_hash``, or ``None``."""
+
+        lora_scanner = await ServiceRegistry.get_lora_scanner()
+        checkpoint_scanner = await ServiceRegistry.get_checkpoint_scanner()
+        embedding_scanner = await ServiceRegistry.get_embedding_scanner()
+
+        for scanner in (lora_scanner, checkpoint_scanner, embedding_scanner):
+            if scanner is None:
+                continue
+            try:
+                if scanner.has_hash(model_hash):
+                    return scanner
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.debug("has_hash check failed for %s: %s", type(scanner).__name__, exc)
+        return None
+
+    @staticmethod
+    async def _migrate_to_v3(example_images_path, model_folders):
+        """Backfill real dimensions for locally imported example videos.
+
+        Imported videos were stored with a hardcoded ``720x1280`` placeholder
+        (issue #1115), so landscape clips were rendered inside a portrait
+        container. Only entries with an empty ``url`` are touched — those have
+        no remote source, which makes the local file authoritative and the
+        rewrite lossless. Entries already carrying the right size are left
+        untouched, so re-running this migration is a no-op.
+
+        This runs once per library via the ``naming_version`` gate in
+        ``run_migrations``; it is deliberately not wired into any request path.
+        """
+
+        repaired_entries = 0
+        updated_models = 0
+        migration_errors = 0
+
+        logger.info(
+            "Starting v3 migration (local example video dimensions) for %d model folders",
+            len(model_folders),
+        )
+
+        for folder in model_folders:
+            try:
+                model_hash = os.path.basename(folder)
+                if not model_hash or len(model_hash) != 64:
+                    continue
+
+                local_files = ExampleImagesMigration._build_local_file_map(folder)
+                if not local_files:
+                    continue
+
+                scanner = await ExampleImagesMigration._find_scanner_for_hash(model_hash)
+                if scanner is None:
+                    logger.debug(
+                        "Model %s not found in any scanner cache, skipping dimension repair",
+                        model_hash,
+                    )
+                    continue
+
+                cache = await scanner.get_cached_data()
+                model_data = None
+                for item in cache.raw_data:
+                    if item.get("sha256") == model_hash:
+                        model_data = item
+                        break
+
+                if not model_data:
+                    continue
+
+                file_path = model_data.get("file_path")
+                if not file_path:
+                    continue
+
+                payload = await MetadataManager.load_metadata_payload(file_path)
+                if not isinstance(payload, dict):
+                    continue
+
+                repaired = repair_local_video_dimensions(payload, local_files)
+                if repaired <= 0:
+                    continue
+
+                # The model cache shape differs from the on-disk payload, so
+                # persist the file first and let the cache sync re-read it.
+                await MetadataManager.save_metadata(file_path, payload)
+                await update_cache_from_metadata(scanner, file_path, payload)
+
+                repaired_entries += repaired
+                updated_models += 1
+
+            except Exception as exc:
+                logger.error(
+                    "Failed to repair example video dimensions for %s: %s",
+                    folder,
+                    exc,
+                )
+                migration_errors += 1
+
+        logger.info(
+            "Migration to v3 complete: repaired %d example entr(ies) across %d model(s) "
+            "with %d error(s)",
+            repaired_entries,
+            updated_models,
+            migration_errors,
+        )

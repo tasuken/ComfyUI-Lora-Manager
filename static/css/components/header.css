@@ -4,7 +4,7 @@
   position: fixed;
   top: 0;
   z-index: var(--z-header);
-  height: 48px;
+  height: var(--header-height, 48px);
   /* Reduced height */
   width: 100%;
   box-shadow: var(--shadow-md);
@@ -12,7 +12,7 @@
 }
 
 .header-container {
-  max-width: 1400px;
+  max-width: none;
   margin: 0 auto;
   padding: 0 15px;
   display: flex;
@@ -36,19 +36,6 @@
   align-items: center;
   gap: 1rem;
   flex-shrink: 0;
-}
-
-/* Responsive header container for larger screens */
-@media (min-width: 2150px) {
-  .header-container {
-    max-width: 1800px;
-  }
-}
-
-@media (min-width: 3000px) {
-  .header-container {
-    max-width: 2400px;
-  }
 }
 
 /* Logo and title styling */
@@ -77,6 +64,20 @@
   margin: 0;
 }
 
+/* Current page name, shown next to the logo on phone widths where the tab bar
+   lives in the hamburger menu - without it the bar gives no sense of place. */
+.page-title {
+  display: none;
+  margin-left: 8px;
+  max-width: 7rem;
+  overflow: hidden;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-color);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 /* Navigation styling */
 .main-nav {
   display: flex;
@@ -96,6 +97,12 @@
   white-space: nowrap;
 }
 
+/* Opt-in pages (e.g. Other Models) hide their nav entry until enabled.
+   A class is used instead of [hidden] because .nav-item sets display: flex. */
+.nav-item--hidden {
+  display: none;
+}
+
 .nav-item:hover,
 .nav-item:focus-visible {
   background-color: var(--lora-surface-hover, oklch(95% 0.02 256));
@@ -111,7 +118,7 @@
 
 .nav-item.active {
   background-color: var(--lora-accent);
-  color: white;
+  color: var(--text-on-accent);
 }
 
 /* Header search - Centered with VS Code command palette style */
@@ -120,6 +127,9 @@
   display: flex;
   justify-content: center;
   max-width: 600px;
+  /* No hard floor: the field shrinks with the available space instead of parking
+     at a fixed width and crowding its own placeholder (see the 1366px query). */
+  min-width: 0;
   margin: 0 auto;
   transition: opacity 0.2s ease;
 }
@@ -128,6 +138,7 @@
 .header-search .search-container {
   width: 100%;
   max-width: 600px;
+  min-width: 0;
   position: relative;
   display: flex;
   align-items: center;
@@ -149,7 +160,12 @@
   width: 100%;
   padding: 0.5rem 0.75rem;
   padding-left: 2.25rem !important;
-  padding-right: 6.75rem !important; /* clear room for options + filter + clear/cue toggles */
+  /* Reserve exactly the inline chrome so typed text never runs under it:
+     cue(58) + clear(28) + toggles(28 + 28 + 4 gap) + edges(8 + 8) = 126px.
+     Below 1366px the cue is hidden and the reservation drops to 68px.
+     !important is required: search-filter.css loads later and sets its own
+     right padding at equal specificity (.search-container input). */
+  padding-right: 7.875rem !important;
   border: none;
   background: transparent;
   color: var(--text-color);
@@ -249,10 +265,10 @@
   font-family: inherit;
   font-size: 0.68rem;
   font-weight: 500;
-  color: var(--text-muted);
-  /* Subtle tint derived from text color so it adapts to both light & dark themes */
-  background: color-mix(in oklch, var(--text-muted) 12%, transparent);
-  border: 1px solid color-mix(in oklch, var(--text-muted) 25%, transparent);
+  color: var(--shortcut-text);
+  background: var(--shortcut-bg);
+  border: 1px solid var(--shortcut-border);
+  box-shadow: var(--shortcut-shadow);
   border-radius: var(--border-radius-xs, 3px);
   line-height: 1;
 }
@@ -352,7 +368,7 @@
 
 .header-controls>div:hover {
   background: var(--lora-accent);
-  color: white;
+  color: var(--text-on-accent);
   transform: translateY(-2px);
 }
 
@@ -570,7 +586,7 @@
 }
 
 /* Dark mode: use each preset's dark-mode accent lightness for visibility.
-   These match the --color-accent-l values from [data-theme="dark"][data-theme-preset="..."]
+   These match the --color-accent-l values from :root[data-theme="dark"][data-theme-preset="..."]
    in tokens/colors.css so the swatch accurately previews what the theme looks like. */
 
 [data-theme="dark"] .preset-swatch-default {
@@ -697,8 +713,57 @@
   margin: 0.25rem 0;
 }
 
-/* Responsive: Early optimization at 1200px - reduce gaps and padding */
-@media (max-width: 1200px) {
+/* Page tabs inside the hamburger menu. They mirror the main nav for phone
+   widths, where the nav itself is hidden (see the <=520px block below);
+   everywhere else they stay out of the menu. */
+.hamburger-dropdown .hamburger-nav-item,
+.hamburger-dropdown .hamburger-nav-divider {
+  display: none;
+}
+
+/* SettingsManager hides the opt-in entries (Other, Workflows) on both copies. */
+.hamburger-dropdown .hamburger-nav-item[hidden] {
+  display: none !important;
+}
+
+.hamburger-nav-item.active {
+  color: var(--lora-accent);
+  /* Accent tint instead of the hover surface token, which has no dark-mode
+     value (its fallback is a fixed light grey). */
+  background: color-mix(in oklab, var(--lora-accent) 14%, transparent);
+  font-weight: 600;
+}
+
+/* The menu entries are anchors (the actions are divs), so drop the UA underline. */
+.hamburger-dropdown a.hamburger-nav-item {
+  text-decoration: none;
+}
+
+/* Responsive ladder for the header.
+   Worst case measured in the browser (both opt-in pages enabled, 7 tabs):
+   icon + label nav ≈ 783px, labels only ≈ 619px (517px once the 1366px tier
+   below applies). The bar also spends a fixed ~424px on padding, branding,
+   the five round controls and gaps. Every tier below therefore exists to keep
+   the search field usable - at 1280px the old ladder left it 73px wide, i.e.
+   nothing but its two inline toggles. */
+
+/* ≤1500px: nav icons are a wide-screen affordance. The labels keep the tabs
+   scannable on their own, and dropping the icons hands ~168px back to the
+   search field. Above 1500px there is room for both. */
+@media (max-width: 1500px) {
+  .nav-item {
+    gap: 0;
+  }
+
+  .nav-item i {
+    display: none;
+  }
+}
+
+/* ≤1366px: compact chrome (tighter gaps, padding and nav font), and drop the
+   Ctrl+F cue - it is pure decoration and the widest thing inside the field.
+   The shortcut itself keeps working; only the visual hint goes away. */
+@media (max-width: 1366px) {
   .header-container {
     gap: 0.75rem;
     padding: 0 12px;
@@ -717,38 +782,27 @@
     gap: 6px;
   }
 
-  .header-controls > div {
-    width: 30px;
-    height: 30px;
-  }
-}
-
-/* Responsive: Hide nav icons at 1100px to save space */
-@media (max-width: 1100px) {
-  .nav-item {
-    gap: 0;
-    padding: 0.25rem 0.4rem;
-  }
-
-  .nav-item i {
+  .header-search .search-shortcut-cue {
     display: none;
   }
 
-  .header-search {
-    max-width: 450px;
+  .header-search input {
+    padding-right: 4.25rem !important;
   }
 }
 
-@media (max-width: 950px) {
+/* ≤1150px: the app title is the cheapest ~137px left in the bar - the logo
+   still identifies the app, while the nav labels are what people navigate by. */
+@media (max-width: 1150px) {
   .app-title {
     display: none !important;
   }
+}
 
-  .header-container {
-    padding: 0 10px;
-    gap: 0.5rem;
-  }
-
+/* ≤1100px: collapse the five round controls into the hamburger. Its dropdown
+   already carries the same five actions, so nothing is lost, and the bar
+   reclaims ~192px for the nav and the search field. */
+@media (max-width: 1100px) {
   .header-controls {
     display: none !important;
   }
@@ -763,6 +817,14 @@
 
   .hamburger-dropdown.active {
     display: flex;
+  }
+}
+
+/* ≤950px: give the search field the whole flexible row and tighten the nav. */
+@media (max-width: 950px) {
+  .header-container {
+    padding: 0 10px;
+    gap: 0.5rem;
   }
 
   .header-search {
@@ -783,6 +845,31 @@
   }
 }
 
+/* Below 780px the labelled nav (461px) can no longer coexist with the 200px
+   search floor and the hamburger: the row overflowed and clipped the
+   hamburger by ~40px at 720px. Collapse the labels to icons (190px) and give
+   the width back to the search field. The tooltip + aria-label on each tab
+   keep the icon-only state usable. */
+@media (max-width: 780px) {
+  .main-nav {
+    display: flex;
+    gap: 0.15rem;
+    margin-right: 0;
+  }
+
+  .nav-item {
+    padding: 0.25rem 0.4rem;
+  }
+
+  .nav-item span {
+    display: none;
+  }
+
+  .nav-item i {
+    display: block;
+  }
+}
+
 /* Responsive: Compact mode at 768px */
 @media (max-width: 768px) {
   .header-search input {
@@ -797,17 +884,11 @@
   }
 }
 
-/* For very small screens - switch nav to icons only */
+/* Small tablets: keep the icon tabs, tighten the chrome. */
 @media (max-width: 600px) {
   .header-container {
     padding: 0 8px;
     gap: 0.4rem;
-  }
-
-  .main-nav {
-    display: flex;
-    gap: 0.15rem;
-    margin-right: 0;
   }
 
   .nav-item {
@@ -815,13 +896,70 @@
     font-size: 0.75rem;
   }
 
-  .nav-item span {
+  .nav-item i {
+    font-size: 1rem;
+  }
+}
+
+/* Phone widths (<=520px): seven icon tabs no longer fit next to a usable search
+   field, so the tabs move into the hamburger menu (the template repeats them
+   there) and the search becomes a full-width pill: logo + page name | search |
+   menu. 521px is the first width where the icon nav and the 200px search floor
+   coexist, which is where the cut belongs. */
+@media (max-width: 520px) {
+  .main-nav {
     display: none;
   }
 
-  .nav-item i {
+  .page-title {
+    display: inline-block;
+  }
+
+  .hamburger-dropdown .hamburger-nav-item {
+    display: flex;
+  }
+
+  .hamburger-dropdown .hamburger-nav-divider {
     display: block;
+  }
+
+  /* The menu now holds 7 tabs + 5 actions: let it scroll on short screens. */
+  .hamburger-dropdown {
+    max-height: calc(100vh - 72px);
+    overflow-y: auto;
+  }
+
+  .header-search {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    margin: 0 4px;
+  }
+
+  /* Same corner radius as the wide-screen field. With a pill radius the 1px
+     border disappeared along both arcs (the container's overflow:hidden
+     rounded clip), which read as a broken outline. */
+  .header-search .search-container {
+    width: 100%;
+    border-radius: var(--border-radius-sm, 6px);
+  }
+
+  .header-search input {
+    width: 100%;
+    min-width: 0;
+    padding: 0.4rem 0.75rem !important;
+    padding-left: 2rem !important;
+    padding-right: 4.25rem !important;
+    /* 16px stops mobile browsers zooming the page on focus. */
     font-size: 1rem;
+  }
+}
+
+/* The smallest phones need the page name's width for the search field. */
+@media (max-width: 380px) {
+  .page-title {
+    display: none;
   }
 }
 

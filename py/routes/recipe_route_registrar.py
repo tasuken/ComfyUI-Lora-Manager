@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Mapping
+from typing import Any, Callable, Mapping
 
 from aiohttp import web
 
@@ -29,6 +29,7 @@ ROUTE_DEFINITIONS: tuple[RouteDefinition, ...] = (
     RouteDefinition("POST", "/api/lm/recipes/save", "save_recipe"),
     RouteDefinition("DELETE", "/api/lm/recipe/{recipe_id}", "delete_recipe"),
     RouteDefinition("GET", "/api/lm/recipes/top-tags", "get_top_tags"),
+    RouteDefinition("GET", "/api/lm/recipes/search-tags", "search_tags"),
     RouteDefinition("GET", "/api/lm/recipes/base-models", "get_base_models"),
     RouteDefinition("GET", "/api/lm/recipes/roots", "get_roots"),
     RouteDefinition("GET", "/api/lm/recipes/folders", "get_folders"),
@@ -42,9 +43,37 @@ ROUTE_DEFINITIONS: tuple[RouteDefinition, ...] = (
     ),
     RouteDefinition("GET", "/api/lm/recipe/{recipe_id}/syntax", "get_recipe_syntax"),
     RouteDefinition("PUT", "/api/lm/recipe/{recipe_id}/update", "update_recipe"),
+    RouteDefinition(
+        "POST", "/api/lm/recipe/{recipe_id}/opened", "record_recipe_open"
+    ),
     RouteDefinition("POST", "/api/lm/recipe/move", "move_recipe"),
     RouteDefinition("POST", "/api/lm/recipes/move-bulk", "move_recipes_bulk"),
     RouteDefinition("POST", "/api/lm/recipe/lora/reconnect", "reconnect_lora"),
+    RouteDefinition("POST", "/api/lm/recipe/lora/restore", "restore_lora"),
+    RouteDefinition(
+        "GET",
+        "/api/lm/recipe/{recipe_id}/lora/{lora_index}/reconnect-suggestions",
+        "get_reconnect_suggestions",
+    ),
+    RouteDefinition(
+        "POST", "/api/lm/recipe/lora/mark-hash-invalid", "mark_lora_hash_invalid"
+    ),
+    RouteDefinition(
+        "POST", "/api/lm/recipe/checkpoint/reconnect", "reconnect_checkpoint"
+    ),
+    RouteDefinition(
+        "POST", "/api/lm/recipe/checkpoint/restore", "restore_checkpoint"
+    ),
+    RouteDefinition(
+        "GET",
+        "/api/lm/recipe/{recipe_id}/checkpoint/reconnect-suggestions",
+        "get_checkpoint_reconnect_suggestions",
+    ),
+    RouteDefinition(
+        "POST",
+        "/api/lm/recipe/checkpoint/mark-hash-invalid",
+        "mark_checkpoint_hash_invalid",
+    ),
     RouteDefinition("GET", "/api/lm/recipes/find-duplicates", "find_duplicates"),
     RouteDefinition("POST", "/api/lm/recipes/bulk-delete", "bulk_delete"),
     RouteDefinition(
@@ -55,11 +84,11 @@ ROUTE_DEFINITIONS: tuple[RouteDefinition, ...] = (
         "GET", "/api/lm/recipes/for-checkpoint", "get_recipes_for_checkpoint"
     ),
     RouteDefinition("GET", "/api/lm/recipes/scan", "scan_recipes"),
-    RouteDefinition("POST", "/api/lm/recipes/repair", "repair_recipes"),
-    RouteDefinition("POST", "/api/lm/recipes/cancel-repair", "cancel_repair"),
-    RouteDefinition("POST", "/api/lm/recipe/{recipe_id}/repair", "repair_recipe"),
-    RouteDefinition("POST", "/api/lm/recipes/repair-bulk", "repair_recipes_bulk"),
-    RouteDefinition("GET", "/api/lm/recipes/repair-progress", "get_repair_progress"),
+    RouteDefinition("POST", "/api/lm/recipes/rematch", "rematch_recipes"),
+    RouteDefinition("POST", "/api/lm/recipes/rematch-bulk", "rematch_recipes_bulk"),
+    RouteDefinition("POST", "/api/lm/recipe/{recipe_id}/rematch", "rematch_recipe"),
+    RouteDefinition("POST", "/api/lm/recipes/cancel-rematch", "cancel_rematch"),
+    RouteDefinition("GET", "/api/lm/recipes/rematch-progress", "get_rematch_progress"),
     RouteDefinition("POST", "/api/lm/recipes/batch-import/start", "start_batch_import"),
     RouteDefinition(
         "GET", "/api/lm/recipes/batch-import/progress", "get_batch_import_progress"
@@ -80,6 +109,14 @@ ROUTE_DEFINITIONS: tuple[RouteDefinition, ...] = (
     ),
     RouteDefinition(
         "POST", "/api/lm/recipe/{recipe_id}/reimport", "reimport_recipe"
+    ),
+    # The companion browser extension only ever issues GET requests, so the
+    # payload-based re-import variant must also be reachable via GET.
+    RouteDefinition(
+        "GET", "/api/lm/recipe/{recipe_id}/reimport", "reimport_recipe"
+    ),
+    RouteDefinition(
+        "POST", "/api/lm/recipe/{recipe_id}/send-workflow", "send_recipe_workflow"
     ),
 )
 
@@ -104,7 +141,7 @@ class RecipeRouteRegistrar:
             handler = handler_lookup[definition.handler_name]
             self._bind_route(definition.method, definition.path, handler)
 
-    def _bind_route(self, method: str, path: str, handler: Callable) -> None:
+    def _bind_route(self, method: str, path: str, handler: Callable[..., Any]) -> None:
         add_method_name = self._METHOD_MAP[method.upper()]
         add_method = getattr(self._app.router, add_method_name)
         add_method(path, handler)

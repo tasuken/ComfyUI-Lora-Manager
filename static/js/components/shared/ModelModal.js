@@ -1,9 +1,8 @@
-import { showToast, openCivitai, sendLoraToWorkflow, sendEmbeddingToWorkflow, sendModelPathToWorkflow, buildLoraSyntax } from '../../utils/uiHelpers.js';
+import { showToast, openCivitai, sendLoraToWorkflow, sendEmbeddingToWorkflow, sendModelPathToWorkflow, buildLoraSyntax, copyToClipboard } from '../../utils/uiHelpers.js';
+import { getModelSource, getModelSourceInfo, getModelSourceGroupKey, getModelSourceViewTitle, openModelSource } from '../../utils/modelSourceHelpers.js';
 import { modalManager } from '../../managers/ModalManager.js';
 import { MODEL_TYPES } from '../../api/apiConfig.js';
 import {
-    toggleShowcase,
-    setupShowcaseScroll,
     scrollToTop,
     loadExampleImages
 } from './showcase/ShowcaseView.js';
@@ -16,12 +15,14 @@ import {
 } from './ModelMetadata.js';
 import { setupTagEditMode } from './ModelTags.js';
 import { getModelApiClient } from '../../api/modelApiFactory.js';
-import { renderCompactTags, setupTagTooltip, formatFileSize, escapeAttribute, escapeHtml } from './utils.js';
+import { renderCompactTags, setupTagTooltip, formatFileSize, escapeAttribute, escapeHtml, hasCivitaiSource } from './utils.js';
 import { renderTriggerWords, setupTriggerWordsEditMode } from './TriggerWords.js';
 import { parsePresets, renderPresetTags } from './PresetTags.js';
 import { initVersionsTab } from './ModelVersionsTab.js';
 import { loadRecipesForModel } from './RecipeTab.js';
 import { translate } from '../../utils/i18nHelpers.js';
+import { showDeleteModal } from '../../utils/modalUtils.js';
+import { sendWorkflowToComfy } from '../../utils/workflowActions.js';
 import { state } from '../../state/index.js';
 
 function getModalFilePath(fallback = '') {
@@ -30,6 +31,18 @@ function getModalFilePath(fallback = '') {
         return modalElement.dataset.filePath;
     }
     return fallback;
+}
+
+/**
+ * Source descriptor for a model that was hash-enriched from the OpenModelDB
+ * catalogue: it carries no `source_url`, so `getModelSourceInfo` finds
+ * nothing and the page link lives in the civitai payload instead.
+ */
+function getOpenModelDBSourceInfo(model) {
+    const url = model?.civitai?.openmodeldb?.url;
+    if (typeof url !== 'string' || !url) return null;
+    const descriptor = getModelSource('openmodeldb');
+    return descriptor ? { ...descriptor, sourceId: '', url } : null;
 }
 
 const COMMERCIAL_ICON_CONFIG = [
@@ -353,18 +366,109 @@ export async function showModelModal(model, modelType) {
     };
     const escapedFilePathAttr = escapeAttribute(modelWithFullData.file_path || '');
     const escapedFolderPath = escapeHtml((modelWithFullData.file_path || '').replace(/[^/]+$/, '') || 'N/A');
+    // Centralized sidecar storage moves .metadata.json into a mirror tree, so
+    // the model path link can no longer reveal it — offer a dedicated entry
+    // only in that mode (alongside mode keeps sidecars next to the model).
+    const sidecarLocationButton = state.global.settings.sidecar_storage_mode === 'centralized'
+        ? `<button class="location-action-btn" title="${translate('modals.model.actions.openSidecarLocation', {}, 'Open metadata location')}"
+                data-action="open-sidecar-location"
+                data-filepath="${escapedFilePathAttr}">
+                <i class="fas fa-file-alt"></i>
+            </button>`
+        : '';
+    // De-emphasized hash display: a borderless full-width footnote line below
+    // the info grid — sha256 middle-truncated (first 10 + last 6), autov3 in
+    // full (12 chars); the full value is copied via data-hash. Civitai model /
+    // version ids join the same line on the right when the model comes from
+    // the Civitai ecosystem (a model card corresponds to one Civitai version).
+    const modelSha256 = modelWithFullData.sha256 || '';
+    const modelAutov3 = modelWithFullData.autov3 || '';
+    const truncatedSha256 = modelSha256.length > 16
+        ? `${modelSha256.slice(0, 10)}\u2026${modelSha256.slice(-6)}`
+        : modelSha256;
+    const copyHashTitle = translate('modals.model.actions.copyHash', {}, 'Copy hash');
+    const hashEntries = [];
+    if (modelSha256) {
+        hashEntries.push(`
+            <span class="hash-entry">
+                <span class="hash-kind">SHA256</span>
+                <span class="model-hash-value" title="${escapeAttribute(modelSha256)}">${escapeHtml(truncatedSha256)}</span>
+                <button class="hash-copy-btn" data-action="copy-hash" data-hash="${escapeAttribute(modelSha256)}" title="${copyHashTitle}">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </span>`);
+    }
+    if (modelAutov3) {
+        hashEntries.push(`
+            <span class="hash-entry">
+                <span class="hash-kind">AutoV3</span>
+                <span class="model-hash-value" title="${escapeAttribute(modelAutov3)}">${escapeHtml(modelAutov3)}</span>
+                <button class="hash-copy-btn" data-action="copy-hash" data-hash="${escapeAttribute(modelAutov3)}" title="${copyHashTitle}">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </span>`);
+    }
+    const normalizeCivitaiId = (value) => {
+        if (value === undefined || value === null) return '';
+        const normalized = String(value).trim();
+        // "0" is used as a placeholder for unknown ids in some metadata sources
+        return normalized && normalized !== '0' ? normalized : '';
+    };
+    const civitaiInfo = modelWithFullData.civitai || {};
+    const footnoteModelId = normalizeCivitaiId(civitaiInfo.modelId ?? civitaiInfo.model_id);
+    const footnoteVersionId = normalizeCivitaiId(civitaiInfo.id);
+    const copyCivitaiIdTitle = translate('modals.model.actions.copyCivitaiId', {}, 'Copy Civitai ID');
+    const civitaiIdCopiedToast = escapeAttribute(translate('modals.model.actions.civitaiIdCopied', {}, 'Civitai ID copied to clipboard'));
+    const civitaiIdEntries = [];
+    if (footnoteModelId) {
+        civitaiIdEntries.push(`
+            <span class="hash-entry civitai-id-entry">
+                <span class="hash-kind">${translate('modals.model.metadata.civitaiModelId', {}, 'Model ID')}</span>
+                <span class="model-hash-value" title="${escapeAttribute(footnoteModelId)}">${escapeHtml(footnoteModelId)}</span>
+                <button class="hash-copy-btn" data-action="copy-hash" data-hash="${escapeAttribute(footnoteModelId)}" data-toast="${civitaiIdCopiedToast}" title="${copyCivitaiIdTitle}">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </span>`);
+    }
+    if (footnoteVersionId) {
+        civitaiIdEntries.push(`
+            <span class="hash-entry civitai-id-entry">
+                <span class="hash-kind">${translate('modals.model.metadata.civitaiVersionId', {}, 'Version ID')}</span>
+                <span class="model-hash-value" title="${escapeAttribute(footnoteVersionId)}">${escapeHtml(footnoteVersionId)}</span>
+                <button class="hash-copy-btn" data-action="copy-hash" data-hash="${escapeAttribute(footnoteVersionId)}" data-toast="${civitaiIdCopiedToast}" title="${copyCivitaiIdTitle}">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </span>`);
+    }
+    const footnoteParts = [];
+    if (hashEntries.length) {
+        footnoteParts.push(hashEntries.join('<span class="hash-sep">·</span>'));
+    }
+    if (civitaiIdEntries.length) {
+        footnoteParts.push(`<span class="civitai-id-group">${civitaiIdEntries.join('<span class="hash-sep">·</span>')}</span>`);
+    }
+    const hashesMarkup = footnoteParts.length ? `
+                        <div class="hash-footnote" aria-label="${translate('modals.model.metadata.hashes', {}, 'Hashes')}">${footnoteParts.join('')}
+                        </div>` : '';
     const useNewIcons = state.global.settings.use_new_license_icons !== false;
     const licenseIcons = useNewIcons
         ? renderNewLicenseIcons(modelWithFullData)
         : renderLicenseIcons(modelWithFullData);
-    const viewOnCivitaiAction = modelWithFullData.from_civitai ? `
+    // Gate the CivitAI link on actual CivitAI data, not the `from_civitai`
+    // provenance flag: a model can be linked to HuggingFace and to CivitAI at
+    // the same time, and both links must coexist (#1094).
+    const hasCivitai = hasCivitaiSource(modelWithFullData.civitai);
+    const viewOnCivitaiAction = hasCivitai ? `
 <div class="civitai-view" title="${translate('modals.model.actions.viewOnCivitai', {}, 'View on Civitai')}" data-action="view-civitai" data-filepath="${escapedFilePathAttr}">
     <i class="fas fa-globe"></i> ${translate('modals.model.actions.viewOnCivitaiText', {}, 'View on Civitai')}
 </div>`.trim() : '';
-    const escapedHfUrl = modelWithFullData.hf_url ? escapeAttribute(modelWithFullData.hf_url) : '';
-    const viewOnHuggingFaceAction = escapedHfUrl ? `
-<div class="civitai-view" title="${translate('modals.model.actions.viewOnHuggingFace', {}, 'View on Hugging Face')}" data-action="view-huggingface" data-hf-url="${escapedHfUrl}">
-    <i class="fas fa-globe"></i> ${translate('modals.model.actions.viewOnHuggingFaceText', {}, 'View on Hugging Face')}
+    const sourceInfo = getModelSourceInfo(modelWithFullData) || getOpenModelDBSourceInfo(modelWithFullData);
+    const escapedSourceUrl = sourceInfo?.url ? escapeAttribute(sourceInfo.url) : '';
+    const isHuggingFaceSource = sourceInfo?.platform === 'huggingface';
+    const sourceTitle = sourceInfo ? getModelSourceViewTitle(sourceInfo) : '';
+    const viewOnHuggingFaceAction = escapedSourceUrl ? `
+<div class="civitai-view" title="${escapeAttribute(sourceTitle)}" data-action="${isHuggingFaceSource ? 'view-huggingface' : 'view-model-source'}" ${isHuggingFaceSource ? 'data-hf-url' : 'data-source-url'}="${escapedSourceUrl}">
+    <i class="fas fa-globe"></i> ${escapeHtml(sourceTitle)}
 </div>`.trim() : '';
     const creatorInfoAction = modelWithFullData.civitai?.creator ? `
 <div class="creator-info" data-username="${modelWithFullData.civitai.creator.username}" data-action="view-creator" title="${translate('modals.model.actions.viewCreatorProfile', {}, 'View Creator Profile')}">
@@ -396,16 +500,28 @@ export async function showModelModal(model, modelType) {
         ].join('\n')
         : '';
     const headerActionItems = [];
-    
-    // Add send to ComfyUI button for all model types
-    const sendToWorkflowTitle = translate('modals.model.actions.sendToWorkflow', {}, 'Send to ComfyUI');
-    const sendToWorkflowButton = `
+
+    // Add send to ComfyUI button for all model types. Workflows hide it in
+    // standalone mode: there is no running ComfyUI graph to push into.
+    const hideSendButton = modelType === MODEL_TYPES.WORKFLOW && state.global.settings.standalone_mode;
+    if (!hideSendButton) {
+        // Workflows load a whole graph document, so the action reads "Open";
+        // model types that insert into the current graph keep "Send".
+        const isWorkflow = modelType === MODEL_TYPES.WORKFLOW;
+        const sendToWorkflowTitle = isWorkflow
+            ? translate('workflows.contextMenu.sendToComfy', {}, 'Open in ComfyUI')
+            : translate('modals.model.actions.sendToWorkflow', {}, 'Send to ComfyUI');
+        const sendToWorkflowText = isWorkflow
+            ? translate('workflows.contextMenu.sendToComfy', {}, 'Open in ComfyUI')
+            : translate('modals.model.actions.sendToWorkflowText', {}, 'Send to ComfyUI');
+        const sendToWorkflowButton = `
         <button class="modal-send-btn" data-action="send-to-workflow" data-model-type="${modelType}" title="${sendToWorkflowTitle}">
             <i class="fas fa-paper-plane"></i>
-            <span>${translate('modals.model.actions.sendToWorkflowText', {}, 'Send to ComfyUI')}</span>
+            <span>${sendToWorkflowText}</span>
         </button>
     `.trim();
-    headerActionItems.push(indentMarkup(sendToWorkflowButton, 20));
+        headerActionItems.push(indentMarkup(sendToWorkflowButton, 20));
+    }
     
     if (creatorActionsMarkup) {
         headerActionItems.push(creatorActionsMarkup);
@@ -413,6 +529,17 @@ export async function showModelModal(model, modelType) {
     if (licenseIcons) {
         headerActionItems.push(indentMarkup(licenseIcons.trim(), 20));
     }
+
+    // Destructive action stays last (rightmost). The license icons' auto
+    // margin right-anchors the [license][delete] cluster as one group.
+    const deleteModelTitle = translate('modals.model.actions.deleteModelWithShortcut', {}, 'Delete model (Del)');
+    const deleteModelButton = `
+        <button class="modal-delete-btn" data-action="delete-model" title="${deleteModelTitle}" aria-label="${deleteModelTitle}">
+            <i class="fas fa-trash" aria-hidden="true"></i>
+        </button>
+    `.trim();
+    headerActionItems.push(indentMarkup(deleteModelButton, 20));
+
     const headerActionsMarkup = headerActionItems.length
         ? [
             '                <div class="modal-header-actions">',
@@ -473,7 +600,14 @@ export async function showModelModal(model, modelType) {
     const loadingExamplesText = translate('modals.model.loading.examples', {}, 'Loading examples...');
 
     const loadingVersionsText = translate('modals.model.loading.versions', {}, 'Loading versions...');
-    const civitaiModelId = modelWithFullData.civitai?.modelId || '';
+    // Use CivitAI modelId, or derive a source group key for externally-linked models
+    let civitaiModelId = modelWithFullData.civitai?.modelId || '';
+    if (!civitaiModelId) {
+        const sourceGroupKey = getModelSourceGroupKey(modelWithFullData);
+        if (sourceGroupKey) {
+            civitaiModelId = sourceGroupKey;
+        }
+    }
     const civitaiVersionId = modelWithFullData.civitai?.id || '';
     const navAriaLabel = translate('modals.model.navigation.label', {}, 'Model navigation');
     const previousTitle = translate('modals.model.navigation.previousWithShortcut', {}, 'Previous model (←)');
@@ -586,11 +720,14 @@ export async function showModelModal(model, modelType) {
                         <div class="info-item">
                             <div class="location-wrapper">
                                 <label>${translate('modals.model.metadata.location', {}, 'Location')}</label>
-                                <span class="file-path" title="${translate('modals.model.actions.openFileLocation', {}, 'Open file location')}"
-                                    data-action="open-file-location"
-                                    data-filepath="${escapedFilePathAttr}">
-                                    ${escapedFolderPath}
-                                </span>
+                                <div class="file-path-wrapper">
+                                    <span class="file-path" title="${translate('modals.model.actions.openFileLocation', {}, 'Open file location')}"
+                                        data-action="open-file-location"
+                                        data-filepath="${escapedFilePathAttr}">
+                                        ${escapedFolderPath}
+                                    </span>
+                                    ${sidecarLocationButton}
+                                </div>
                             </div>
                         </div>
                         <div class="info-item base-size">
@@ -608,6 +745,7 @@ export async function showModelModal(model, modelType) {
                                 <span>${formatFileSize(modelWithFullData.file_size)}</span>
                             </div>
                         </div>
+                        ${hashesMarkup}
                         ${typeSpecificContent}
                         <div class="info-item notes">
                             <div class="notes-header">
@@ -720,18 +858,12 @@ export async function showModelModal(model, modelType) {
         updateCardUpdateAvailability(hasUpdate);
     }
 
-    let showcaseCleanup;
-
     const onCloseCallback = function () {
         // Clean up all handlers when modal closes for LoRA
         const modalElement = document.getElementById(modalId);
         if (modalElement && modalElement._clickHandler) {
             modalElement.removeEventListener('click', modalElement._clickHandler);
             delete modalElement._clickHandler;
-        }
-        if (showcaseCleanup) {
-            showcaseCleanup();
-            showcaseCleanup = null;
         }
         cleanupNavigationShortcuts();
     };
@@ -752,6 +884,14 @@ export async function showModelModal(model, modelType) {
         if (modelType === 'embeddings' && modelWithFullData.folder) {
             activeModalElement.dataset.folder = modelWithFullData.folder;
         }
+        // Show the back-to-top button once the modal content is scrolled
+        const modalContent = activeModalElement.querySelector('.modal-content');
+        const backToTopBtn = activeModalElement.querySelector('.back-to-top');
+        if (modalContent && backToTopBtn) {
+            modalContent.addEventListener('scroll', () => {
+                backToTopBtn.classList.toggle('visible', modalContent.scrollTop > 300);
+            });
+        }
     }
     updateVersionsTabBadge(updateAvailabilityState.hasUpdateAvailable);
     const versionsTabController = initVersionsTab({
@@ -764,7 +904,6 @@ export async function showModelModal(model, modelType) {
         onUpdateStatusChange: handleUpdateStatusChange,
     });
     setupEditableFields(modelWithFullData.file_path, modelType);
-    showcaseCleanup = setupShowcaseScroll(modalId);
     setupTabSwitching({
         onTabChange: async (tab) => {
             if (tab === 'versions') {
@@ -807,7 +946,7 @@ export async function showModelModal(model, modelType) {
     const customImages = modelWithFullData.civitai?.customImages || [];
     // Combine images - regular images first, then custom images
     const allImages = [...regularImages, ...customImages];
-    loadExampleImages(allImages, modelWithFullData.sha256);
+    loadExampleImages(allImages, modelWithFullData.sha256, modelWithFullData.preview_url || '');
 }
 
 function renderLoraSpecificContent(lora, escapedWords) {
@@ -825,8 +964,9 @@ function renderLoraSpecificContent(lora, escapedWords) {
                         <option value="clip_strength">${translate('modals.model.usageTips.clipStrength', {}, 'Clip Strength')}</option>
                         <option value="clip_skip">${translate('modals.model.usageTips.clipSkip', {}, 'Clip Skip')}</option>
                     </select>
-                    <input type="number" id="preset-value" step="0.01" placeholder="${translate('modals.model.usageTips.valuePlaceholder', {}, 'Value')}" style="display:none;">
-                    <button class="add-preset-btn">${translate('modals.model.usageTips.add', {}, 'Add')}</button>
+                    <!-- autofill opt-out attrs prevent password managers / email-alias extensions from attaching popups -->
+                    <input type="number" id="preset-value" step="0.01" placeholder="${translate('modals.model.usageTips.valuePlaceholder', {}, 'Value')}" style="display:none;" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
+                    <button class="add-preset-btn" disabled>${translate('modals.model.usageTips.add', {}, 'Add')}</button>
                 </div>
                 <div class="preset-tags">
                     ${renderPresetTags(parsePresets(lora.usage_tips))}
@@ -882,16 +1022,28 @@ function setupEventHandlers(filePath, modelType) {
                     window.open(target.dataset.hfUrl, '_blank', 'noopener,noreferrer');
                 }
                 break;
+            case 'view-model-source':
+                if (target.dataset.sourceUrl) {
+                    openModelSource(target.dataset.sourceUrl);
+                }
+                break;
             case 'view-creator':
                 const username = target.dataset.username;
                 if (username) {
-                    window.open(`https://civitai.com/user/${username}`, '_blank');
+                    const host = state.global.settings.civitai_host || 'civitai.com';
+                    window.open(`https://${host}/user/${username}`, '_blank');
                 }
                 break;
             case 'open-file-location':
                 const filePath = target.dataset.filepath || getModalFilePath();
                 if (filePath) {
                     openFileLocation(filePath);
+                }
+                break;
+            case 'open-sidecar-location':
+                const sidecarModelPath = target.dataset.filepath || getModalFilePath();
+                if (sidecarModelPath) {
+                    openSidecarLocation(sidecarModelPath);
                 }
                 break;
             case 'nav-prev':
@@ -902,6 +1054,14 @@ function setupEventHandlers(filePath, modelType) {
                 break;
             case 'send-to-workflow':
                 handleSendToWorkflow(target, modelType);
+                break;
+            case 'delete-model':
+                handleDeleteModel();
+                break;
+            case 'copy-hash':
+                if (target.dataset.hash) {
+                    copyToClipboard(target.dataset.hash, target.dataset.toast || 'Hash copied to clipboard');
+                }
                 break;
         }
     }
@@ -1025,6 +1185,11 @@ function setupLoraSpecificFields(filePath) {
 
     if (!presetSelector || !presetValue || !addPresetBtn || !presetTags) return;
 
+    // Add button stays disabled until both a parameter and a value are provided
+    const updateAddPresetButtonState = () => {
+        addPresetBtn.disabled = !(presetSelector.value && presetValue.value.trim());
+    };
+
     presetSelector.addEventListener('change', function () {
         const selected = this.value;
         if (selected) {
@@ -1050,12 +1215,16 @@ function setupLoraSpecificFields(filePath) {
         } else {
             presetValue.style.display = 'none';
         }
+        updateAddPresetButtonState();
     });
+
+    presetValue.addEventListener('input', updateAddPresetButtonState);
 
     addPresetBtn.addEventListener('click', async function () {
         const key = presetSelector.value;
-        const value = presetValue.value;
+        const value = presetValue.value.trim();
 
+        // Unreachable via UI while the button is disabled; kept as a safety net
         if (!key || !value) return;
 
         const currentPath = resolveFilePath();
@@ -1070,9 +1239,11 @@ function setupLoraSpecificFields(filePath) {
             document.querySelector(`.model-card[data-filepath="${escapedFilePath}"]`);
         const currentPresets = parsePresets(loraCard?.dataset.usage_tips);
 
+        let isUpdate;
         if (key === 'strength_range') {
             const rangeMatch = value.match(/^(-?\d*\.?\d+)\s*[-~]\s*(-?\d*\.?\d+)$/);
             if (rangeMatch) {
+                isUpdate = 'strength_min' in currentPresets || 'strength_max' in currentPresets;
                 currentPresets['strength_min'] = parseFloat(rangeMatch[1]);
                 currentPresets['strength_max'] = parseFloat(rangeMatch[2]);
             } else {
@@ -1080,17 +1251,36 @@ function setupLoraSpecificFields(filePath) {
                 return;
             }
         } else {
-            currentPresets[key] = parseFloat(value);
+            const numericValue = parseFloat(value);
+            if (!Number.isFinite(numericValue)) {
+                showToast('modals.model.usageTips.invalidValue', {}, 'error', 'Please enter a valid number');
+                return;
+            }
+            isUpdate = key in currentPresets;
+            currentPresets[key] = numericValue;
         }
         const newPresetsJson = JSON.stringify(currentPresets);
 
-        await getModelApiClient().saveModelMetadata(currentPath, { usage_tips: newPresetsJson });
+        try {
+            await getModelApiClient().saveModelMetadata(currentPath, { usage_tips: newPresetsJson });
+        } catch (error) {
+            console.error('Failed to save preset parameter:', error);
+            showToast('modals.model.usageTips.saveFailed', {}, 'error', 'Failed to save preset parameter');
+            return;
+        }
 
         presetTags.innerHTML = renderPresetTags(currentPresets);
+        showToast(
+            isUpdate ? 'modals.model.usageTips.updated' : 'modals.model.usageTips.added',
+            {},
+            'success',
+            isUpdate ? 'Preset parameter updated' : 'Preset parameter added'
+        );
 
         presetSelector.value = '';
         presetValue.value = '';
         presetValue.style.display = 'none';
+        addPresetBtn.disabled = true;
     });
 
     // Add keydown event for preset value
@@ -1172,10 +1362,24 @@ function setupNavigationShortcuts(modelType) {
         } else if (event.key === 'ArrowRight') {
             event.preventDefault();
             handleDirectionalNavigation('next', navigationModelType);
+        } else if (event.key === 'Delete') {
+            event.preventDefault();
+            handleDeleteModel();
         }
     };
 
     document.addEventListener('keydown', navigationKeyHandler);
+}
+
+/**
+ * Open the shared delete confirmation for the model currently shown in the
+ * modal. Showing the delete modal replaces this modal (ModalManager only
+ * keeps one modal open), which also unregisters these shortcuts.
+ */
+function handleDeleteModel() {
+    const filePath = getModalFilePath();
+    if (!filePath) return;
+    showDeleteModal(filePath);
 }
 
 async function handleDirectionalNavigation(direction, modelType) {
@@ -1237,6 +1441,37 @@ async function openFileLocation(filePath) {
         }
     } catch (err) {
         showToast('modals.model.openFileLocation.failed', {}, 'error');
+    }
+}
+
+/**
+ * Call backend to open the model's .metadata.json sidecar location
+ * @param {string} filePath model file path (backend derives the sidecar path)
+ */
+async function openSidecarLocation(filePath) {
+    try {
+        const resp = await fetch('/api/lm/models/open-sidecar-location', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 'file_path': filePath })
+        });
+        if (!resp.ok) throw new Error('Failed to open sidecar location');
+
+        const data = await resp.json();
+
+        if (data.mode === 'clipboard' && data.path) {
+            try {
+                await navigator.clipboard.writeText(data.path);
+                showToast('modals.model.openSidecarLocation.copied', { path: data.path }, 'success');
+            } catch (clipboardErr) {
+                console.warn('Clipboard API not available:', clipboardErr);
+                showToast('modals.model.openSidecarLocation.clipboardFallback', { path: data.path }, 'info');
+            }
+        } else {
+            showToast('modals.model.openSidecarLocation.success', {}, 'success');
+        }
+    } catch (err) {
+        showToast('modals.model.openSidecarLocation.failed', {}, 'error');
     }
 }
 
@@ -1302,13 +1537,15 @@ async function handleSendToWorkflow(target, modelType) {
         const name = currentFileName.replace(/\.[^.]+$/, '');
         const embeddingCode = folder ? `embedding:${folder}/${name}` : `embedding:${name}`;
         await sendEmbeddingToWorkflow(embeddingCode);
+    } else if (modelType === MODEL_TYPES.WORKFLOW) {
+        // Workflow send loads the whole graph document into ComfyUI.
+        await sendWorkflowToComfy(filePath);
     }
 }
 
 // Export the model modal API
 const modelModal = {
     show: showModelModal,
-    toggleShowcase,
     scrollToTop
 };
 

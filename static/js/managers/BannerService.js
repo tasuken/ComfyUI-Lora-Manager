@@ -6,9 +6,12 @@ import {
 import { translate } from '../utils/i18nHelpers.js';
 import { state } from '../state/index.js';
 import { getModelApiClient } from '../api/modelApiFactory.js';
+import { enableOtherModels, openOtherModelsSettings } from '../utils/otherModels.js';
 
 const COMMUNITY_SUPPORT_BANNER_ID = 'community-support';
 const CACHE_HEALTH_BANNER_ID = 'cache-health-warning';
+const OTHER_MODELS_BANNER_ID = 'other-models-announcement';
+const BULK_FETCH_PROMPT_BANNER_ID = 'first-scan-bulk-fetch';
 const COMMUNITY_SUPPORT_BANNER_DELAY_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
 const COMMUNITY_SUPPORT_FIRST_SEEN_AT_KEY = 'community_support_banner_first_seen_at';
 const COMMUNITY_SUPPORT_VERSION_KEY = 'community_support_banner_state_version';
@@ -29,6 +32,9 @@ class BannerService {
         this.banners = new Map();
         this.container = null;
         this.initialized = false;
+        // Only one banner is rendered at a time; this index selects which of
+        // the active (non-dismissed) banners is currently displayed.
+        this.currentBannerIndex = 0;
         this.recentHistory = this.loadBannerHistory();
         this.bannerHistoryViewedAt = this.loadBannerHistoryViewedAt();
 
@@ -50,36 +56,48 @@ class BannerService {
         // Load dismissed banners from backend first (for persistence across browser modes)
         await this.loadDismissedBannersFromBackend();
 
-        // Register default banners
-        this.registerBanner('civitai-extension', {
-            id: 'civitai-extension',
-            title: 'New Tool Available: LM Civitai Extension!',
-            content: 'LM Civitai Extension is a browser extension designed to work seamlessly with LoRA Manager to significantly enhance your Civitai browsing experience! See which models you already have, download new ones with a single click, and manage your downloads efficiently.',
-            actions: [
-                {
-                    text: 'Chrome Web Store',
-                    icon: 'fab fa-chrome',
-                    url: 'https://chromewebstore.google.com/detail/capigligggeijgmocnaflanlbghnamgm?utm_source=item-share-cb',
-                    type: 'secondary'
-                },
-                {
-                    text: 'Firefox Extension',
-                    icon: 'fab fa-firefox-browser',
-                    url: 'https://github.com/willmiao/lm-civitai-extension-firefox/releases/latest/download/extension.xpi',
-                    type: 'secondary'
-                },
-                {
-                    text: 'Read more...',
-                    icon: 'fas fa-book',
-                    url: 'https://github.com/willmiao/ComfyUI-Lora-Manager/wiki/LoRA-Manager-Civitai-Extension-(Chrome-Extension)',
-                    type: 'tertiary'
-                }
-            ],
-            dismissible: true,
-            priority: 1
-        });
+        // Promotional banners compete with the first-run welcome page, the
+        // initialization screen and the onboarding tour for the user's
+        // attention, so they are only registered once the onboarding flow is
+        // done (or skipped). Alert-style banners (startup messages,
+        // cache-health warnings) are registered elsewhere and unaffected.
+        const onboardingDone = getStorageItem('onboarding_completed') || getStorageItem('onboarding_skipped');
+        const firstRunOrInitPage = document.getElementById('firstRunContainer') || document.getElementById('initializationContainer');
+        const showPromos = Boolean(onboardingDone) && !firstRunOrInitPage;
 
-        this.prepareCommunitySupportBanner();
+        if (showPromos) {
+            this.registerBanner('civitai-extension', {
+                id: 'civitai-extension',
+                title: 'New Tool Available: LM Civitai Extension!',
+                content: 'LM Civitai Extension is a browser extension designed to work seamlessly with LoRA Manager to significantly enhance your Civitai browsing experience! See which models you already have, download new ones with a single click, and manage your downloads efficiently.',
+                actions: [
+                    {
+                        text: 'Chrome Web Store',
+                        icon: 'fab fa-chrome',
+                        url: 'https://chromewebstore.google.com/detail/capigligggeijgmocnaflanlbghnamgm?utm_source=item-share-cb',
+                        type: 'secondary'
+                    },
+                    {
+                        text: 'Firefox Extension',
+                        icon: 'fab fa-firefox-browser',
+                        url: 'https://github.com/willmiao/lm-civitai-extension-firefox/releases/latest/download/extension.xpi',
+                        type: 'secondary'
+                    },
+                    {
+                        text: 'Read more...',
+                        icon: 'fas fa-book',
+                        url: 'https://github.com/willmiao/ComfyUI-Lora-Manager/wiki/LoRA-Manager-Civitai-Extension-(Chrome-Extension)',
+                        type: 'tertiary'
+                    }
+                ],
+                dismissible: true,
+                priority: 1
+            });
+
+            this.prepareCommunitySupportBanner();
+            this.prepareOtherModelsBanner();
+            await this.prepareBulkFetchPromptBanner();
+        }
 
         await this.showActiveBanners();
         this.initialized = true;
@@ -118,12 +136,22 @@ class BannerService {
      */
     registerBanner(id, bannerConfig) {
         this.banners.set(id, bannerConfig);
-        
-        // If already initialized, render the banner immediately
-        if (this.initialized && !this.isBannerDismissed(id) && this.container) {
-            this.renderBanner(bannerConfig);
-            this.updateContainerVisibility();
+
+        if (!this.initialized || !this.container || this.isBannerDismissed(id)) {
+            return;
         }
+
+        // Preempt the currently displayed banner only when the new one has a
+        // strictly higher priority (i.e. sorts earlier).
+        const activeBanners = this.getSortedActiveBanners();
+        const displayedId = this.container.querySelector('.banner-item')
+            ?.getAttribute('data-banner-id');
+        const newIndex = activeBanners.findIndex(banner => banner.id === id);
+        const displayedIndex = activeBanners.findIndex(banner => banner.id === displayedId);
+        if (displayedIndex === -1 || (newIndex !== -1 && newIndex < displayedIndex)) {
+            this.currentBannerIndex = Math.max(newIndex, 0);
+        }
+        this.renderCurrentBanner();
     }
 
     /**
@@ -161,11 +189,10 @@ class BannerService {
             if (banner && typeof banner.onRemove === 'function') {
                 banner.onRemove(bannerElement);
             }
-            
+
             bannerElement.style.animation = 'banner-slide-up 0.3s ease-in-out forwards';
             setTimeout(() => {
-                bannerElement.remove();
-                this.updateContainerVisibility();
+                this.renderCurrentBanner();
             }, 300);
         }
 
@@ -191,27 +218,86 @@ class BannerService {
     }
 
     /**
+     * Get active (non-dismissed) banners sorted by priority, highest first
+     * @returns {Object[]}
+     */
+    getSortedActiveBanners() {
+        return Array.from(this.banners.values())
+            .filter(banner => !this.isBannerDismissed(banner.id))
+            .sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    }
+
+    /**
      * Show all active (non-dismissed) banners
      */
     async showActiveBanners() {
         if (!this.container) return;
 
-        const activeBanners = Array.from(this.banners.values())
-            .filter(banner => !this.isBannerDismissed(banner.id))
-            .sort((a, b) => (b.priority || 0) - (a.priority || 0));
-
-        activeBanners.forEach(banner => {
-            this.renderBanner(banner);
-        });
-
-        this.updateContainerVisibility();
+        this.currentBannerIndex = 0;
+        this.renderCurrentBanner();
     }
 
     /**
-     * Render a banner to the DOM
-     * @param {Object} banner - Banner configuration
+     * Render the currently selected banner into the container. Only one
+     * banner is visible at a time; a pager lets the user cycle through the
+     * remaining active banners.
      */
-    renderBanner(banner) {
+    renderCurrentBanner() {
+        if (!this.container) return;
+
+        const activeBanners = this.getSortedActiveBanners();
+
+        this.container.innerHTML = '';
+
+        if (activeBanners.length === 0) {
+            this.currentBannerIndex = 0;
+            this.updateContainerVisibility();
+            return;
+        }
+
+        if (this.currentBannerIndex >= activeBanners.length) {
+            this.currentBannerIndex = activeBanners.length - 1;
+        }
+        if (this.currentBannerIndex < 0) {
+            this.currentBannerIndex = 0;
+        }
+
+        // Record every active banner once so dismissed/cycled-away banners
+        // remain reachable through the notification center history.
+        activeBanners.forEach(banner => this.recordBannerAppearance(banner));
+
+        const banner = activeBanners[this.currentBannerIndex];
+        const bannerElement = this.buildBannerElement(banner, activeBanners.length);
+        this.container.appendChild(bannerElement);
+
+        this.updateContainerVisibility();
+
+        // Call onRegister callback if provided
+        if (typeof banner.onRegister === 'function') {
+            banner.onRegister(bannerElement);
+        }
+    }
+
+    /**
+     * Advance the displayed banner by offset, wrapping around
+     * @param {number} offset - +1 for next, -1 for previous
+     */
+    showAdjacentBanner(offset) {
+        const activeBanners = this.getSortedActiveBanners();
+        if (activeBanners.length < 2) return;
+
+        this.currentBannerIndex =
+            (this.currentBannerIndex + offset + activeBanners.length) % activeBanners.length;
+        this.renderCurrentBanner();
+    }
+
+    /**
+     * Build a banner DOM element
+     * @param {Object} banner - Banner configuration
+     * @param {number} totalCount - Total number of active banners
+     * @returns {HTMLElement}
+     */
+    buildBannerElement(banner, totalCount) {
         const bannerElement = document.createElement('div');
         bannerElement.className = 'banner-item';
         bannerElement.setAttribute('data-banner-id', banner.id);
@@ -227,10 +313,33 @@ class BannerService {
             </a>`;
         }).join('') : '';
 
-        const dismissButtonHtml = banner.dismissible ? 
+        const dismissButtonHtml = banner.dismissible ?
             `<button class="banner-dismiss" onclick="bannerService.dismissBanner('${banner.id}').catch(console.error)" title="Dismiss">
                 <i class="fas fa-times"></i>
             </button>` : '';
+
+        let pagerHtml = '';
+        if (totalCount > 1) {
+            const previousLabel = translate('banners.pager.previous', {}, 'Previous message');
+            const nextLabel = translate('banners.pager.next', {}, 'Next message');
+            const positionLabel = translate('banners.pager.position', {
+                current: this.currentBannerIndex + 1,
+                total: totalCount
+            }, `Message ${this.currentBannerIndex + 1} of ${totalCount}`);
+
+            pagerHtml = `
+                <div class="banner-pager">
+                    <button type="button" class="banner-pager-btn" data-pager="prev"
+                            aria-label="${previousLabel}" title="${previousLabel}">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span class="banner-pager-indicator" aria-label="${positionLabel}">${this.currentBannerIndex + 1} / ${totalCount}</span>
+                    <button type="button" class="banner-pager-btn" data-pager="next"
+                            aria-label="${nextLabel}" title="${nextLabel}">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>`;
+        }
 
         bannerElement.innerHTML = `
             <div class="banner-content">
@@ -241,18 +350,19 @@ class BannerService {
                 <div class="banner-actions">
                     ${actionsHtml}
                 </div>
+                ${pagerHtml}
             </div>
             ${dismissButtonHtml}
         `;
 
-        this.container.appendChild(bannerElement);
+        bannerElement.querySelectorAll('.banner-pager-btn').forEach(button => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                this.showAdjacentBanner(button.getAttribute('data-pager') === 'next' ? 1 : -1);
+            });
+        });
 
-        this.recordBannerAppearance(banner);
-
-        // Call onRegister callback if provided
-        if (typeof banner.onRegister === 'function') {
-            banner.onRegister(bannerElement);
-        }
+        return bannerElement;
     }
 
     /**
@@ -424,12 +534,14 @@ class BannerService {
 
     /**
      * Get the current page type from the URL
-     * @returns {string} Page type (loras, checkpoints, embeddings, recipes)
+     * @returns {string} Page type (loras, checkpoints, embeddings, other, recipes)
      */
     getCurrentPageType() {
         const path = window.location.pathname;
         if (path.includes('/checkpoints')) return 'checkpoints';
         if (path.includes('/embeddings')) return 'embeddings';
+        if (path.includes('/other')) return 'other';
+        if (path.includes('/workflows')) return 'workflows';
         if (path.includes('/recipes')) return 'recipes';
         return 'loras';
     }
@@ -443,7 +555,9 @@ class BannerService {
         const endpoints = {
             'loras': '/api/lm/loras/reload?rebuild=true',
             'checkpoints': '/api/lm/checkpoints/reload?rebuild=true',
-            'embeddings': '/api/lm/embeddings/reload?rebuild=true'
+            'embeddings': '/api/lm/embeddings/reload?rebuild=true',
+            'other': '/api/lm/other/reload?rebuild=true',
+            'workflows': '/api/lm/workflows/reload?rebuild=true'
         };
         return endpoints[pageType] || endpoints['loras'];
     }
@@ -453,17 +567,18 @@ class BannerService {
      * @param {string} bannerId - Banner ID to remove
      */
     removeBannerElement(bannerId) {
+        // Also remove from banners map
+        this.banners.delete(bannerId);
+
         const bannerElement = document.querySelector(`[data-banner-id="${bannerId}"]`);
         if (bannerElement) {
             bannerElement.style.animation = 'banner-slide-up 0.3s ease-in-out forwards';
             setTimeout(() => {
-                bannerElement.remove();
-                this.updateContainerVisibility();
+                this.renderCurrentBanner();
             }, 300);
+        } else {
+            this.renderCurrentBanner();
         }
-
-        // Also remove from banners map
-        this.banners.delete(bannerId);
     }
 
     prepareCommunitySupportBanner() {
@@ -537,6 +652,220 @@ class BannerService {
         });
 
         this.updateContainerVisibility();
+    }
+
+    /**
+     * Announce the opt-in Other Models management to users who have not turned
+     * it on yet. Dismissal is persisted through the shared dismissed_banners
+     * setting, so users who are not interested are not nagged again.
+     */
+    prepareOtherModelsBanner() {
+        if (state.global.settings.enable_other_models) {
+            return;
+        }
+        // Only announce when the host can actually resolve other-model folders.
+        // Standalone installs only know the folder_paths keys present in
+        // settings.json, so announcing there would land the user on an empty
+        // page. `=== false` (not falsy) keeps older payloads working.
+        if (state.global.settings.other_models_paths_available === false) {
+            return;
+        }
+        if (this.isBannerDismissed(OTHER_MODELS_BANNER_ID)) {
+            return;
+        }
+
+        this.registerBanner(OTHER_MODELS_BANNER_ID, {
+            id: OTHER_MODELS_BANNER_ID,
+            title: translate(
+                'banners.otherModels.title',
+                {},
+                'Other Models Management is available'
+            ),
+            content: translate(
+                'banners.otherModels.content',
+                {},
+                'Scan and manage VAE, upscaler, text encoder and CLIP vision files — and download them from CivitAI — from one dedicated page.'
+            ),
+            actions: [
+                {
+                    text: translate(
+                        'banners.otherModels.enable',
+                        {},
+                        'Enable Other Models'
+                    ),
+                    icon: 'fas fa-shapes',
+                    type: 'primary',
+                    action: 'enable-other-models'
+                },
+                {
+                    text: translate(
+                        'banners.otherModels.openSettings',
+                        {},
+                        'Open Settings'
+                    ),
+                    icon: 'fas fa-cog',
+                    type: 'secondary',
+                    action: 'open-other-models-settings'
+                }
+            ],
+            dismissible: true,
+            priority: 0,
+            onRegister: (bannerElement) => {
+                const enableButton = bannerElement.querySelector(
+                    '.banner-action[data-action="enable-other-models"]'
+                );
+                if (enableButton) {
+                    enableButton.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        enableOtherModels().catch((error) => {
+                            console.error('Failed to enable Other Models:', error);
+                        });
+                    });
+                }
+
+                const settingsButton = bannerElement.querySelector(
+                    '.banner-action[data-action="open-other-models-settings"]'
+                );
+                if (settingsButton) {
+                    settingsButton.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        openOtherModelsSettings();
+                    });
+                }
+            }
+        });
+
+        this.updateContainerVisibility();
+    }
+
+    /**
+     * Drop the Other Models announcement once the feature is enabled.
+     * Dismissal is deliberately NOT persisted, so the announcement can come
+     * back if the user switches the feature off again.
+     */
+    removeOtherModelsAnnouncement() {
+        this.removeBannerElement(OTHER_MODELS_BANNER_ID);
+    }
+
+    /**
+     * One-shot prompt offered after the first library scan: fetch metadata
+     * for every scanned model so a fresh install goes from grey placeholder
+     * cards to an illustrated library in one click.
+     *
+     * Registered only from the showPromos branch, which already requires the
+     * onboarding tour to be finished/skipped and the first-run/init pages to
+     * be gone — so this banner never competes with the onboarding flow.
+     */
+    async prepareBulkFetchPromptBanner() {
+        if (!state.global.settings.bulk_fetch_prompt_pending) {
+            return;
+        }
+        if (this.isBannerDismissed(BULK_FETCH_PROMPT_BANNER_ID)) {
+            return;
+        }
+        const pageType = this.getCurrentPageType();
+        if (pageType === 'recipes') {
+            return; // no bulk metadata fetch on the recipes page
+        }
+
+        let count = 0;
+        try {
+            const response = await fetch('/api/lm/metadata-fetch-candidates');
+            const data = await response.json();
+            count = (data && data.success && data.counts && data.counts[pageType]) || 0;
+        } catch (e) {
+            console.debug('Failed to fetch metadata fetch candidates:', e);
+            return;
+        }
+        if (!count) {
+            // Keep the pending flag: another page type may still have
+            // candidates, so the prompt can appear there instead.
+            return;
+        }
+
+        this.registerBanner(BULK_FETCH_PROMPT_BANNER_ID, {
+            id: BULK_FETCH_PROMPT_BANNER_ID,
+            title: translate(
+                'banners.bulkFetchPrompt.title',
+                {},
+                'Bring Your Library to Life'
+            ),
+            content: translate(
+                'banners.bulkFetchPrompt.content',
+                { count },
+                `Your first scan found ${count} models without metadata. Fetch their info from CivitAI to get preview images, descriptions, and trigger words.`
+            ),
+            actions: [
+                {
+                    text: translate(
+                        'banners.bulkFetchPrompt.fetch',
+                        {},
+                        'Fetch Metadata'
+                    ),
+                    icon: 'fas fa-cloud-download-alt',
+                    action: 'bulk-fetch-metadata',
+                    type: 'primary'
+                },
+                {
+                    text: translate(
+                        'banners.bulkFetchPrompt.later',
+                        {},
+                        'Maybe Later'
+                    ),
+                    icon: 'fas fa-times',
+                    action: 'dismiss',
+                    type: 'secondary'
+                }
+            ],
+            dismissible: true,
+            // Above the promotional banners (extension/community/other-models),
+            // below alert-style banners like the cache health warning.
+            priority: 3,
+            onRegister: (bannerElement) => {
+                const fetchButton = bannerElement.querySelector(
+                    '[data-action="bulk-fetch-metadata"]'
+                );
+                if (fetchButton) {
+                    fetchButton.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        this.handleBulkFetchPrompt(pageType).catch((error) => {
+                            console.error('Bulk metadata fetch failed:', error);
+                        });
+                    });
+                }
+
+                const laterButton = bannerElement.querySelector('[data-action="dismiss"]');
+                if (laterButton) {
+                    laterButton.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        this.dismissBanner(BULK_FETCH_PROMPT_BANNER_ID);
+                    });
+                }
+            }
+        });
+
+        // One-shot: once displayed, clear the backend flag so the prompt does
+        // not reappear on the next page load regardless of how it is closed.
+        this.clearBulkFetchPromptFlag();
+    }
+
+    clearBulkFetchPromptFlag() {
+        if (state.global.settings) {
+            state.global.settings.bulk_fetch_prompt_pending = false;
+        }
+        fetch('/api/lm/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bulk_fetch_prompt_pending: false })
+        }).catch((e) => {
+            console.debug('Failed to clear the bulk fetch prompt flag:', e);
+        });
+    }
+
+    async handleBulkFetchPrompt(pageType) {
+        await this.dismissBanner(BULK_FETCH_PROMPT_BANNER_ID);
+        const apiClient = getModelApiClient(pageType);
+        await apiClient.fetchCivitaiMetadata();
     }
 
     initializeCommunitySupportState() {

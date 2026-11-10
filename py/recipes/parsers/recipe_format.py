@@ -91,7 +91,15 @@ class RecipeFormatParser(RecipeMetadataParser):
                         exists_locally = lora_scanner.has_hash(lora['hash'])
                         if exists_locally:
                             lora_cache = await lora_scanner.get_cached_data()
-                            lora_item = next((item for item in lora_cache.raw_data if item['sha256'].lower() == lora['hash'].lower()), None)
+                            # Cascade match: full sha256, stored autov3, or autov2 (sha256[:10]).
+                            h = (lora.get('hash') or '').lower()
+                            lora_item = next(
+                                (item for item in lora_cache.raw_data
+                                 if (item.get("sha256") or "").lower() == h
+                                 or (item.get("autov3") or "").lower() == h
+                                 or (item.get("sha256") or "")[:10].lower() == h),
+                                None
+                            )
                             if lora_item:
                                 lora_entry['existsLocally'] = True
                                 lora_entry['inLibrary'] = True
@@ -148,7 +156,7 @@ class RecipeFormatParser(RecipeMetadataParser):
             checkpoint_data = recipe_metadata.get('checkpoint') or {}
             if isinstance(checkpoint_data, dict) and checkpoint_data:
                 version_id = checkpoint_data.get('modelVersionId') or checkpoint_data.get('id')
-                checkpoint_entry = {
+                checkpoint_entry: Dict[str, Any] = {
                     'id': version_id or 0,
                     'modelId': checkpoint_data.get('modelId', 0),
                     'name': checkpoint_data.get('name', 'Unknown Checkpoint'),
@@ -165,7 +173,16 @@ class RecipeFormatParser(RecipeMetadataParser):
                     'isDeleted': False
                 }
 
-                if metadata_provider:
+                # Resolve the version id against the local library first: the
+                # recipe only needs the CivitAI metadata when the file is gone.
+                local_checkpoint = await self.resolve_local_checkpoint_by_version_id(
+                    recipe_scanner, version_id
+                )
+                if local_checkpoint:
+                    checkpoint_entry = self.populate_checkpoint_from_local(
+                        checkpoint_entry, local_checkpoint
+                    )
+                elif metadata_provider:
                     try:
                         civitai_info = None
                         if version_id:
@@ -188,7 +205,7 @@ class RecipeFormatParser(RecipeMetadataParser):
                         filtered_gen_params[key] = value
             
             return {
-                'base_model': checkpoint['baseModel'] if checkpoint and checkpoint.get('baseModel') else recipe_metadata.get('base_model', ''),
+                'base_model': checkpoint['baseModel'] if checkpoint and checkpoint.get('baseModel') else (recipe_metadata.get('base_model') or None),
                 'loras': loras,
                 'gen_params': filtered_gen_params,
                 'tags': recipe_metadata.get('tags', []),
@@ -200,3 +217,24 @@ class RecipeFormatParser(RecipeMetadataParser):
         except Exception as e:
             logger.error(f"Error parsing recipe format metadata: {e}", exc_info=True)
             return {"error": str(e), "loras": []}
+
+
+def strip_recipe_metadata(metadata_text: str) -> str:
+    """Strip the ``Recipe metadata: {...}`` block appended by LoRA Manager.
+
+    The saved recipe image carries the original generation metadata followed
+    by an appended recipe JSON block (see ``ExifUtils.append_recipe_metadata``).
+    Re-import wants to re-parse the original embedded metadata, so this returns
+    only the text before the appended marker. The input is returned unchanged
+    when no marker is present.
+    """
+    if not metadata_text:
+        return metadata_text
+    match = re.search(
+        RecipeFormatParser.METADATA_MARKER,
+        metadata_text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if not match:
+        return metadata_text
+    return metadata_text[: match.start()].strip()

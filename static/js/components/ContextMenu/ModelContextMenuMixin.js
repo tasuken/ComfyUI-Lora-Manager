@@ -3,15 +3,21 @@ import { modalManager } from '../../managers/ModalManager.js';
 import { state } from '../../state/index.js';
 import { getModelApiClient, resetAndReload } from '../../api/modelApiFactory.js';
 import { bulkManager } from '../../managers/BulkManager.js';
-import { MODEL_CONFIG } from '../../api/apiConfig.js';
+import { MODEL_CONFIG, MODEL_TYPES, isValidModelType } from '../../api/apiConfig.js';
 import { translate } from '../../utils/i18nHelpers.js';
 import { getNsfwLevelSelector } from '../shared/NsfwLevelSelector.js';
-import { extractCivitaiModelUrlParts } from '../../utils/civitaiUtils.js';
+import { classifyModelRelinkUrl } from '../../utils/civitaiUtils.js';
+import { parseModelSourceUrl, getModelSourceInfo } from '../../utils/modelSourceHelpers.js';
+import { escapeHtml } from '../shared/utils.js';
 
 // Mixin with shared functionality for LoraContextMenu and CheckpointContextMenu
 export const ModelContextMenuMixin = {
     isExcludedView() {
         return state?.pages?.[state.currentPageType]?.viewMode === 'excluded';
+    },
+
+    isWorkflowMenu() {
+        return this.modelType === MODEL_TYPES.WORKFLOW;
     },
 
     updateExcludeMenuItem() {
@@ -106,6 +112,24 @@ export const ModelContextMenuMixin = {
     },
 
     // Civitai re-linking methods
+    getModelTypePrefix() {
+        // Map the mixin model type to its API route prefix; the relink route
+        // exists for all model types via COMMON_ROUTE_DEFINITIONS.
+        const prefixMap = {
+            lora: 'loras',
+            checkpoint: 'checkpoints',
+            embedding: 'embeddings',
+            other: 'other',
+            workflow: 'workflows'
+        };
+        if (prefixMap[this.modelType]) {
+            return prefixMap[this.modelType];
+        }
+        // Some context menus store the plural page type (e.g. WorkflowContextMenu
+        // uses 'workflows'), which is also a valid route prefix.
+        return isValidModelType(this.modelType) ? this.modelType : 'loras';
+    },
+
     showRelinkCivitaiModal() {
         const filePath = this.currentCard.dataset.filepath;
         if (!filePath) return;
@@ -123,47 +147,59 @@ export const ModelContextMenuMixin = {
         // Create new bound handler
         this._boundRelinkHandler = async () => {
             const url = urlInput.value.trim();
-            const { modelId, modelVersionId } = this.extractModelVersionId(url);
-            
-            if (!modelId) {
-                errorDiv.textContent = 'Invalid URL format. Must include model ID.';
+            const { source, modelId, modelVersionId } = classifyModelRelinkUrl(url);
+
+            if (!source || !modelId) {
+                errorDiv.textContent = 'Invalid URL format. Expected: https://civitai.com/models/{modelId} or https://civarchive.com/models/{modelId}';
                 return;
             }
-            
+
             errorDiv.textContent = '';
             modalManager.closeModal('relinkCivitaiModal');
-            
+
             try {
-                state.loadingManager.showSimpleLoading('Re-linking to Civitai...');
-                
-                const endpoint = this.modelType === 'checkpoint' ? 
-                    '/api/lm/checkpoints/relink-civitai' : 
-                    '/api/lm/loras/relink-civitai';
-                
+                const isCivArchive = source === 'civarchive';
+                state.loadingManager.showSimpleLoading(
+                    isCivArchive ? 'Re-linking via CivitArchive...' : 'Re-linking to Civitai...'
+                );
+
+                const endpoint = `/api/lm/${this.getModelTypePrefix()}/relink-civitai`;
+
+                const payload = {
+                    file_path: filePath,
+                    model_id: modelId,
+                    model_version_id: modelVersionId
+                };
+                // Omitted source keeps backend default-provider behaviour; only
+                // civarchive pins the provider explicitly.
+                if (isCivArchive) {
+                    payload.source = source;
+                }
+
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        file_path: filePath,
-                        model_id: modelId,
-                        model_version_id: modelVersionId
-                    })
+                    body: JSON.stringify(payload)
                 });
-                
+
                 if (!response.ok) {
-                    throw new Error(`Failed to re-link model: ${response.statusText}`);
+                    throw new Error(`Failed to re-link: ${response.statusText}`);
                 }
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
-                    showToast('toast.contextMenu.relinkSuccess', {}, 'success');
+                    const isWorkflow = this.isWorkflowMenu();
+                    const successKey = isCivArchive
+                        ? (isWorkflow ? 'workflows.relink.civArchiveSuccess' : 'toast.contextMenu.linkCivArchSuccess')
+                        : (isWorkflow ? 'workflows.relink.success' : 'toast.contextMenu.relinkSuccess');
+                    showToast(successKey, {}, 'success');
                     // Reload the current view to show updated data
                     await this.resetAndReload();
                 } else {
-                    throw new Error(data.error || 'Failed to re-link model');
+                    throw new Error(data.error || 'Failed to re-link');
                 }
             } catch (error) {
                 console.error('Error re-linking model:', error);
@@ -187,8 +223,205 @@ export const ModelContextMenuMixin = {
         setTimeout(() => urlInput.focus(), 50);
     },
 
-    extractModelVersionId(url) {
-        return extractCivitaiModelUrlParts(url);
+    // External model source linking (Hugging Face / ModelScope / TensorArt)
+    showLinkHfModal() {
+        const filePath = this.currentCard.dataset.filepath;
+        if (!filePath) return;
+
+        const confirmBtn = document.getElementById('confirmLinkHfBtn');
+        const urlInput = document.getElementById('hfModelUrl');
+        const errorDiv = document.getElementById('hfModelUrlError');
+
+        if (this._boundLinkHfHandler) {
+            confirmBtn.removeEventListener('click', this._boundLinkHfHandler);
+        }
+
+        this._boundLinkHfHandler = async () => {
+            const rawUrl = urlInput.value.trim();
+            if (!rawUrl) {
+                errorDiv.textContent = translate(
+                    'modals.linkModelSource.urlRequired',
+                    {},
+                    'Please enter a model page URL.'
+                );
+                return;
+            }
+
+            const sourceInfo = parseModelSourceUrl(rawUrl);
+            if (!sourceInfo) {
+                errorDiv.textContent = translate(
+                    'modals.linkModelSource.invalidUrl',
+                    {},
+                    'Unsupported URL. Supported sites: Hugging Face, ModelScope, TensorArt.'
+                );
+                return;
+            }
+
+            errorDiv.textContent = '';
+            modalManager.closeModal('linkHfModal');
+
+            try {
+                state.loadingManager.showSimpleLoading(
+                    translate('modals.linkModelSource.linking', {}, 'Linking model source...')
+                );
+
+                const response = await fetch('/api/lm/set-hf-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file_path: filePath, source_url: sourceInfo.url }),
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error || `Request failed: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    showToast('toast.contextMenu.linkHfSuccess', {}, 'success');
+                    await this.resetAndReload();
+                } else {
+                    throw new Error(data.error || 'Failed to link model');
+                }
+            } catch (error) {
+                console.error('Error linking model source:', error);
+                showToast('toast.contextMenu.linkHfFailed', { message: error.message }, 'error');
+            } finally {
+                state.loadingManager.hide();
+            }
+        };
+
+        confirmBtn.addEventListener('click', this._boundLinkHfHandler);
+
+        urlInput.value = '';
+        errorDiv.textContent = '';
+
+        modalManager.showModal('linkHfModal');
+
+        this._renderSupportedSources();
+
+        setTimeout(() => urlInput.focus(), 50);
+    },
+
+    /**
+     * Refresh the supported-site hints from the server so the dialog reflects
+     * whatever sources this backend build actually knows about. Falls back to
+     * the static markup in the template when the request fails.
+     */
+    async _renderSupportedSources() {
+        const container = document.getElementById('hfSupportedSources');
+        if (!container) return;
+
+        try {
+            const response = await fetch('/api/lm/model-sources');
+            if (!response.ok) return;
+            const sources = await response.json();
+            if (!Array.isArray(sources) || sources.length === 0) return;
+
+            const examples = sources
+                .map((source) => source?.example_url)
+                .filter((url) => typeof url === 'string' && url);
+            if (examples.length === 0) return;
+
+            container.innerHTML = examples
+                .map((url) => `<strong>${escapeHtml(url)}</strong>`)
+                .join('<br>');
+        } catch (error) {
+            console.debug('Failed to load supported model sources:', error);
+        }
+    },
+
+    // Model metadata enrichment (AI agent) methods
+    updateEnrichMenuItem(card) {
+        const enrichItem = this.menu?.querySelector('[data-action="enrich-hf-llm"]');
+        if (!enrichItem) return;
+
+        const model = {
+            source_url: card.dataset.source_url || '',
+            source_platform: card.dataset.source_platform || '',
+            hf_url: card.dataset.hf_url || '',
+        };
+        const sourceInfo = getModelSourceInfo(model);
+        const canEnrich = Boolean(sourceInfo && sourceInfo.supportsEnrichment);
+
+        enrichItem.classList.toggle('disabled', !canEnrich);
+        if (canEnrich) {
+            enrichItem.title = '';
+        } else if (!sourceInfo) {
+            enrichItem.title = translate(
+                'toast.contextMenu.enrichNeedsSource',
+                {},
+                'Link this model to a model source first (Link Model → Link to Model Source)'
+            );
+        } else {
+            enrichItem.title = translate(
+                'toast.contextMenu.enrichUnsupportedSource',
+                { source: sourceInfo.label },
+                `AI enrichment is not available for ${sourceInfo.label} models`
+            );
+        }
+    },
+
+    async enrichWithAgent(filePath) {
+        const { agentManager } = await import('../../managers/AgentManager.js');
+
+        const configured = await agentManager.isLlmConfigured();
+        if (!configured) {
+            showToast('toast.agent.llmNotConfigured', {}, 'warning');
+            return;
+        }
+
+        agentManager.connect();
+
+        const progressUI = state.loadingManager.showEnhancedProgress(
+            'Enriching metadata with AI...'
+        );
+
+        function cleanupCallbacks() {
+            const pIdx = agentManager.progressCallbacks.indexOf(onProgress);
+            if (pIdx >= 0) agentManager.progressCallbacks.splice(pIdx, 1);
+            const cIdx = agentManager.completeCallbacks.indexOf(onComplete);
+            if (cIdx >= 0) agentManager.completeCallbacks.splice(cIdx, 1);
+            const eIdx = agentManager.errorCallbacks.indexOf(onError);
+            if (eIdx >= 0) agentManager.errorCallbacks.splice(eIdx, 1);
+        }
+
+        const onProgress = (data) => {
+            if (data.status === 'processing' && data.current_path && data.updated_data && Object.keys(data.updated_data).length > 0) {
+                if (state.virtualScroller?.updateSingleItem) {
+                    state.virtualScroller.updateSingleItem(data.current_path, data.updated_data);
+                }
+                const pct = data.total > 0 ? Math.floor((data.processed / data.total) * 100) : 0;
+                const name = data.current_path.split('/').pop();
+                progressUI.updateProgress(pct, name, `Processing ${name}`);
+            }
+        };
+        agentManager.onProgress(onProgress);
+
+        const onComplete = (data) => {
+            cleanupCallbacks();
+
+            if (data.status === 'completed') {
+                progressUI.complete(data.summary || 'Enrich complete');
+                showToast('toast.agent.enrichComplete', { summary: data.summary || 'Done' }, 'success');
+            }
+        };
+        agentManager.onComplete(onComplete);
+
+        const onError = (data) => {
+            cleanupCallbacks();
+            state.loadingManager.hide();
+            showToast('toast.agent.enrichFailed', { error: data.error || 'Unknown error' }, 'error');
+        };
+        agentManager.onError(onError);
+
+        try {
+            await agentManager.executeSkill('enrich_hf_metadata', [filePath]);
+        } catch (error) {
+            cleanupCallbacks();
+            state.loadingManager.hide();
+            showToast('toast.agent.enrichFailed', { error: error.message }, 'error');
+        }
     },
 
     parseModelId(value) {
@@ -279,10 +512,16 @@ export const ModelContextMenuMixin = {
                 openExampleImagesFolder(this.currentCard.dataset.sha256);
                 return true;
             case 'download-examples':
-                this.downloadExampleImages();
+                this.downloadExampleImages(false);
+                return true;
+            case 'download-examples-force':
+                this.downloadExampleImages(true);
                 return true;
             case 'civitai':
-                if (this.currentCard.dataset.from_civitai === 'true') {
+                // Gate on actual CivitAI data (not the `from_civitai` flag) so
+                // that linking HuggingFace does not make the model look like it
+                // has no CivitAI info (#1094).
+                if (this.currentCard.dataset.has_civitai === 'true') {
                     if (this.currentCard.querySelector('.fa-globe')) {
                         this.currentCard.querySelector('.fa-globe').click();
                     } else {
@@ -294,6 +533,12 @@ export const ModelContextMenuMixin = {
                 return true;
             case 'relink-civitai':
                 this.showRelinkCivitaiModal();
+                return true;
+            case 'link-hf':
+                this.showLinkHfModal();
+                return true;
+            case 'enrich-hf-llm':
+                this.enrichWithAgent(this.currentCard.dataset.filepath);
                 return true;
             case 'set-nsfw':
                 this.showNSFWLevelSelector(null, null, this.currentCard);
@@ -307,7 +552,7 @@ export const ModelContextMenuMixin = {
     },
 
     // Download example images method
-    async downloadExampleImages() {
+    async downloadExampleImages(force = false) {
         const modelHash = this.currentCard.dataset.sha256;
         if (!modelHash) {
             showToast('toast.contextMenu.missingHash', {}, 'error');
@@ -316,7 +561,7 @@ export const ModelContextMenuMixin = {
 
         try { 
             const apiClient = getModelApiClient();
-            await apiClient.downloadExampleImages([modelHash]);
+            await apiClient.downloadExampleImages([modelHash], null, { force });
         } catch (error) {
             console.error('Error downloading example images:', error);
         }

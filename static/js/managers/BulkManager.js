@@ -1,14 +1,18 @@
 import { state, getCurrentPageState } from '../state/index.js';
-import { showToast, copyToClipboard, sendLoraToWorkflow, sendEmbeddingToWorkflow, buildLoraSyntax, getNSFWLevelName } from '../utils/uiHelpers.js';
+import { showToast, showActionToast, copyToClipboard, sendLoraToWorkflow, sendEmbeddingToWorkflow, buildLoraSyntax, getNSFWLevelName } from '../utils/uiHelpers.js';
+import { handleUndoDelete } from '../utils/undoHelpers.js';
 import { updateCardsForBulkMode } from '../components/shared/ModelCard.js';
 import { modalManager } from './ModalManager.js';
+import { rematchModalManager } from './RematchModalManager.js';
+import { showRematchSummary } from '../components/RematchSummaryModal.js';
 import { getModelApiClient, resetAndReload } from '../api/modelApiFactory.js';
 import { RecipeSidebarApiClient, updateRecipeMetadata, extractRecipeId } from '../api/recipeApi.js';
 import { MODEL_TYPES, MODEL_CONFIG } from '../api/apiConfig.js';
-import { BASE_MODEL_CATEGORIES } from '../utils/constants.js';
+import { createBaseModelPicker, inferBaseModelsFromFilepaths } from '../components/shared/BaseModelPicker.js';
 import { getPriorityTagSuggestions } from '../utils/priorityTagHelpers.js';
 import { eventManager } from '../utils/EventManager.js';
 import { translate } from '../utils/i18nHelpers.js';
+import { probeExtension, delegateReimport, getCivitaiImageInfo } from '../utils/extensionReimportBridge.js';
 import { getNsfwLevelSelector } from '../components/shared/NsfwLevelSelector.js';
 
 export class BulkManager {
@@ -25,8 +29,18 @@ export class BulkManager {
         this.marqueeElement = null;
         this.initialSelectedModels = new Set();
 
+        // Shift+click range anchor: last plain-clicked filepath. Set in
+        // toggleCardSelection, cleared in clearSelection.
+        this.bulkAnchorFilepath = null;
+
+        // Bulk base model picker state
+        this.bulkBaseModelPicker = null;
+        this.bulkBaseModelValue = '';
+
         // Drag detection properties
         this.dragThreshold = 5; // Pixels to move before considering it a drag
+        this.dragDelayMs = 100; // Minimum hold time before a drag is treated as a marquee
+        this.minMarqueeSize = 10; // Minimum drag box (px) before a marquee counts as a selection
         this.mouseDownTime = 0;
         this.mouseDownPosition = { x: 0, y: 0 };
 
@@ -79,6 +93,20 @@ export class BulkManager {
                 setFavorite: true,
                 unfavorite: true
             },
+            [MODEL_TYPES.OTHER]: {
+                addTags: true,
+                sendToWorkflow: false,
+                copyAll: false,
+                refreshAll: true,
+                checkUpdates: true,
+                moveAll: true,
+                autoOrganize: true,
+                deleteAll: true,
+                setContentRating: true,
+                skipMetadataRefresh: true,
+                setFavorite: true,
+                unfavorite: true
+            },
             recipes: {
                 addTags: true,
                 sendToWorkflow: false,
@@ -88,12 +116,30 @@ export class BulkManager {
                 moveAll: true,
                 autoOrganize: false,
                 deleteAll: true,
-                setContentRating: false,
+                setContentRating: true,
                 skipMetadataRefresh: false,
                 setFavorite: true,
                 unfavorite: true,
-                repairMetadata: true,
-                reimportMetadata: true
+                reimportMetadata: true,
+                rematchMetadata: true
+            },
+            [MODEL_TYPES.WORKFLOW]: {
+                addTags: true,
+                sendToWorkflow: false,
+                copyAll: false,
+                refreshAll: true,
+                checkUpdates: true,
+                moveAll: true,
+                // Workflows have no base-model/tag folder routing.
+                autoOrganize: false,
+                deleteAll: true,
+                setContentRating: true,
+                skipMetadataRefresh: true,
+                setFavorite: true,
+                unfavorite: true,
+                // Metadata re-import/rematch are model-source concepts.
+                reimportMetadata: false,
+                rematchMetadata: false
             }
         };
 
@@ -145,6 +191,16 @@ export class BulkManager {
         return MODEL_CONFIG[state.currentPageType] || { displayName: 'Model' };
     }
 
+    /**
+     * Toast key for "nothing selected" guards, named for the current page's
+     * items (models / recipes / workflows).
+     */
+    _noSelectionKey() {
+        if (state.currentPageType === MODEL_TYPES.WORKFLOW) return 'workflows.bulk.noSelection';
+        if (state.currentPageType === 'recipes') return 'recipes.bulk.noSelection';
+        return 'toast.models.noModelsSelected';
+    }
+
     setBulkContextMenu(bulkContextMenu) {
         this.bulkContextMenu = bulkContextMenu;
     }
@@ -173,6 +229,19 @@ export class BulkManager {
         });
 
         eventManager.addHandler('mousemove', 'bulkManager-marquee-move', (e) => {
+            // Only track marquee/drag while the left button is physically held.
+            // mouseup can be missed (release outside the window, focus loss, driver quirks),
+            // so mousemove must verify the button state itself instead of relying on it.
+            if (!(e.buttons & 1)) {
+                if (this.isMarqueeActive) {
+                    this.endMarqueeSelection(e);
+                } else {
+                    this.mouseDownTime = 0;
+                    this.isDragging = false;
+                }
+                return false;
+            }
+
             if (this.isMarqueeActive) {
                 this.lastClientX = e.clientX;
                 this.lastClientY = e.clientY;
@@ -184,7 +253,10 @@ export class BulkManager {
                 const dy = e.clientY - this.mouseDownPosition.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
-                if (distance >= this.dragThreshold) {
+                // Require both enough movement AND enough hold time so quick
+                // click jitter from micro-movement input devices is not a marquee.
+                const heldTime = Date.now() - this.mouseDownTime;
+                if (heldTime >= this.dragDelayMs && distance >= this.dragThreshold) {
                     this.isDragging = true;
                     this.startMarqueeSelection(e, true);
                 }
@@ -331,6 +403,7 @@ export class BulkManager {
             card.classList.remove('selected');
         });
         state.selectedModels.clear();
+        this.bulkAnchorFilepath = null;
 
         // Update context menu header if visible
         if (this.bulkContextMenu) {
@@ -338,8 +411,12 @@ export class BulkManager {
         }
     }
 
-    toggleCardSelection(card) {
+    toggleCardSelection(card, extendSelection = false) {
         const filepath = card.dataset.filepath;
+
+        if (extendSelection && this.selectRangeFromAnchor(filepath)) {
+            return;
+        }
 
         if (card.classList.contains('selected')) {
             card.classList.remove('selected');
@@ -352,10 +429,76 @@ export class BulkManager {
             this.updateMetadataCacheFromCard(filepath, card);
         }
 
+        this.bulkAnchorFilepath = filepath;
+
         // Update context menu header if visible
         if (this.bulkContextMenu) {
             this.bulkContextMenu.updateSelectedCountHeader();
         }
+    }
+
+    /**
+     * Select exactly the items between the shift anchor and the target
+     * (inclusive), following list order. Explorer-style range semantics:
+     * selections outside the new range are dropped, and consecutive shifts
+     * re-derive the range from the same anchor. Returns false when there is
+     * no usable anchor so the caller can fall back to a single-card toggle.
+     */
+    selectRangeFromAnchor(targetFilepath) {
+        const scroller = state.virtualScroller;
+        if (!scroller || !scroller.items || !this.bulkAnchorFilepath) {
+            return false;
+        }
+
+        const anchorIndex = scroller.findIndexByFilePath(this.bulkAnchorFilepath);
+        const targetIndex = scroller.findIndexByFilePath(targetFilepath);
+        if (anchorIndex === -1 || targetIndex === -1) {
+            return false;
+        }
+
+        const startIndex = Math.min(anchorIndex, targetIndex);
+        const endIndex = Math.max(anchorIndex, targetIndex);
+        const metadataCache = this.getMetadataCache();
+        const rangePaths = new Set();
+
+        for (let i = startIndex; i <= endIndex; i++) {
+            const item = scroller.items[i];
+            if (!item || !item.file_path) {
+                continue;
+            }
+
+            rangePaths.add(item.file_path);
+
+            if (!metadataCache.has(item.file_path)) {
+                const modelId = this.parseModelId(item?.civitai?.modelId);
+                metadataCache.set(item.file_path, {
+                    fileName: item.file_name,
+                    folder: item.folder || '',
+                    usageTips: item.usage_tips || '{}',
+                    modelName: item.name || item.file_name,
+                    ...(modelId !== null ? { modelId } : {})
+                });
+            }
+
+            state.selectedModels.add(item.file_path);
+        }
+
+        for (const filepath of [...state.selectedModels]) {
+            if (!rangePaths.has(filepath)) {
+                state.selectedModels.delete(filepath);
+            }
+        }
+        this.applySelectionState();
+
+        if (this.bulkContextMenu) {
+            this.bulkContextMenu.updateSelectedCountHeader();
+        }
+
+        if (this.isStripVisible) {
+            this.updateThumbnailStrip();
+        }
+
+        return true;
     }
 
     getMetadataCache() {
@@ -397,6 +540,7 @@ export class BulkManager {
         const updated = {
             ...existing,
             fileName: card.dataset.file_name ?? existing.fileName,
+            folder: card.dataset.folder ?? existing.folder,
             usageTips: card.dataset.usage_tips ?? existing.usageTips,
             modelName: card.dataset.name ?? existing.modelName,
         };
@@ -494,7 +638,8 @@ export class BulkManager {
 
             if (metadata) {
                 const usageTips = JSON.parse(metadata.usageTips || '{}');
-                loraSyntaxes.push(buildLoraSyntax(metadata.fileName, usageTips));
+                const loraName = metadata.folder ? `${metadata.folder}/${metadata.fileName}` : metadata.fileName;
+                loraSyntaxes.push(buildLoraSyntax(loraName, usageTips));
             } else {
                 missingLoras.push(filepath);
             }
@@ -515,7 +660,7 @@ export class BulkManager {
 
     async sendAllModelsToWorkflow(replaceMode = false) {
         if (state.selectedModels.size === 0) {
-            showToast('toast.models.noModelsSelected', {}, 'warning');
+            showToast(this._noSelectionKey(), {}, 'warning');
             return;
         }
 
@@ -537,7 +682,8 @@ export class BulkManager {
 
             if (metadata) {
                 const usageTips = JSON.parse(metadata.usageTips || '{}');
-                loraSyntaxes.push(buildLoraSyntax(metadata.fileName, usageTips));
+                const loraName = metadata.folder ? `${metadata.folder}/${metadata.fileName}` : metadata.fileName;
+                loraSyntaxes.push(buildLoraSyntax(loraName, usageTips));
             } else {
                 missingLoras.push(filepath);
             }
@@ -553,7 +699,8 @@ export class BulkManager {
             return;
         }
 
-        await sendLoraToWorkflow(loraSyntaxes.join(', '), replaceMode, 'lora');
+        const exitBulkMode = () => { if (state.bulkMode) this.toggleBulkMode(); };
+        await sendLoraToWorkflow(loraSyntaxes.join(', '), replaceMode, 'lora', exitBulkMode);
     }
 
     async _sendAllEmbeddingsToWorkflow() {
@@ -575,18 +722,22 @@ export class BulkManager {
         }
 
         const joinedCode = embeddingCodes.join(', ');
-        await sendEmbeddingToWorkflow(joinedCode);
+        const exitBulkMode = () => { if (state.bulkMode) this.toggleBulkMode(); };
+        await sendEmbeddingToWorkflow(joinedCode, exitBulkMode);
     }
 
     showBulkDeleteModal() {
         if (state.selectedModels.size === 0) {
-            showToast('toast.models.noModelsSelected', {}, 'warning');
+            showToast(this._noSelectionKey(), {}, 'warning');
             return;
         }
 
         const count = state.selectedModels.size;
         const isRecipes = state.currentPageType === 'recipes';
-        const keyPrefix = isRecipes ? 'modals.bulkDeleteRecipes' : 'modals.bulkDelete';
+        const isWorkflows = state.currentPageType === MODEL_TYPES.WORKFLOW;
+        const keyPrefix = isRecipes
+            ? 'modals.bulkDeleteRecipes'
+            : (isWorkflows ? 'workflows.modals.bulkDelete' : 'modals.bulkDelete');
 
         const titleEl = document.querySelector('#bulkDeleteModal h2');
         if (titleEl) {
@@ -608,7 +759,7 @@ export class BulkManager {
 
     async confirmBulkDelete() {
         if (state.selectedModels.size === 0) {
-            showToast('toast.models.noModelsSelected', {}, 'warning');
+            showToast(this._noSelectionKey(), {}, 'warning');
             modalManager.closeModal('bulkDeleteModal');
             return;
         }
@@ -625,15 +776,43 @@ export class BulkManager {
                 showToast('toast.api.operationCancelled', {}, 'info');
             } else if (result.success) {
                 const currentConfig = this.getCurrentDisplayConfig();
-                showToast('toast.models.deletedSuccessfully', {
-                    count: result.deleted_count,
-                    type: currentConfig.displayName.toLowerCase()
-                }, 'success');
+                const isRecipes = state.currentPageType === 'recipes';
+                const refreshFn = isRecipes
+                    ? () => window.recipeManager.loadRecipes(true)
+                    : () => resetAndReload(true);
+
+                if (result.batch_id || (result.batch_ids && result.batch_ids.length)) {
+                    // One undo action for the whole bulk action — the backend
+                    // merges staged per-file batches into a single batch, with
+                    // a batch_ids fallback array when the merge failed
+                    const onAction = result.batch_id
+                        ? () => handleUndoDelete(result.batch_id, refreshFn)
+                        : async () => {
+                            for (const id of result.batch_ids) {
+                                const succeeded = await handleUndoDelete(id, null, { showToast: false, refresh: false });
+                                if (!succeeded) {
+                                    showToast('toast.undo.failed', { error: '' }, 'error');
+                                    return;
+                                }
+                            }
+                            refreshFn();
+                            showToast('toast.undo.restored', {}, 'success');
+                        };
+                    showActionToast('toast.undo.deletedBulk', { count: result.deleted_count }, 'success', {
+                        actionText: translate('toast.undo.action'),
+                        onAction,
+                    });
+                } else {
+                    showToast('toast.models.deletedSuccessfully', {
+                        count: result.deleted_count,
+                        type: currentConfig.displayName.toLowerCase()
+                    }, 'success');
+                }
 
                 filePaths.forEach(path => {
                     state.virtualScroller.removeItemByFilePath(path);
                 });
-                this.clearSelection();
+                if (state.bulkMode) this.toggleBulkMode();
 
                 if (window.modelDuplicatesManager) {
                     window.modelDuplicatesManager.updateDuplicatesBadgeAfterRefresh();
@@ -674,6 +853,7 @@ export class BulkManager {
                     const modelId = this.parseModelId(item?.civitai?.modelId);
                     metadataCache.set(item.file_path, {
                         fileName: item.file_name,
+                        folder: item.folder || '',
                         usageTips: item.usage_tips || '{}',
                         modelName: item.name || item.file_name,
                         ...(modelId !== null ? { modelId } : {})
@@ -725,17 +905,74 @@ export class BulkManager {
             `Re-importing recipe 1/${total}...`
         );
 
+        // Partition the selection: recipes sourced from a CivitAI image page
+        // can be delegated to the companion browser extension (which scrapes
+        // the full page metadata); everything else uses the native endpoint.
+        const delegatable = [];
+        const nativeFilePaths = [];
+        for (const filePath of filePaths) {
+            const recipeItem = recipeMap.get(filePath);
+            const civitaiImage = getCivitaiImageInfo(recipeItem?.source_path);
+            if (civitaiImage && recipeItem?.id) {
+                delegatable.push({
+                    filePath,
+                    recipeId: recipeItem.id,
+                    imageId: civitaiImage.imageId,
+                    imageUrl: civitaiImage.imageUrl,
+                    title: recipeItem.title || '',
+                });
+            } else {
+                nativeFilePaths.push(filePath);
+            }
+        }
+
+        // Probe once; on any probe/delegate failure the delegatable recipes
+        // fall back to the native sequential loop below.
+        if (delegatable.length > 0) {
+            try {
+                const probe = await probeExtension();
+                if (probe?.supported && probe?.licenseValid) {
+                    const batchResult = await delegateReimport(
+                        delegatable.map(({ recipeId, imageId, imageUrl, title }) => ({
+                            recipeId, imageId, imageUrl, title,
+                        })),
+                        {
+                            onProgress: (progress) => {
+                                progressUI.updateProgress(
+                                    Math.floor(((progress.current || 0) / total) * 100),
+                                    progress.title || '',
+                                    translate('toast.recipes.reimportingViaExtension', {
+                                        current: progress.current || 0,
+                                        total,
+                                    })
+                                );
+                            },
+                        }
+                    );
+                    completed += batchResult.completed;
+                    failed += batchResult.failed;
+                } else {
+                    nativeFilePaths.push(...delegatable.map(entry => entry.filePath));
+                }
+            } catch (error) {
+                console.warn('[reimportSelectedRecipes] extension delegation failed, using native path:', error);
+                nativeFilePaths.push(...delegatable.map(entry => entry.filePath));
+            }
+        }
+
         try {
-            for (let i = 0; i < filePaths.length; i++) {
-                const filePath = filePaths[i];
+            const processedBeforeNative = completed + failed;
+            for (let i = 0; i < nativeFilePaths.length; i++) {
+                const filePath = nativeFilePaths[i];
                 const recipeItem = recipeMap.get(filePath);
                 const recipeId = recipeItem?.id;
                 const recipeName = recipeItem?.title || recipeId || 'Unknown';
+                const processed = processedBeforeNative + i;
 
                 progressUI.updateProgress(
-                    Math.floor((i / total) * 100),
+                    Math.floor((processed / total) * 100),
                     recipeName,
-                    `Re-importing recipe ${Math.min(i + 1, total)}/${total}...`
+                    `Re-importing recipe ${Math.min(processed + 1, total)}/${total}...`
                 );
 
                 if (!recipeId) {
@@ -763,8 +1000,9 @@ export class BulkManager {
                     `Re-import complete: ${completed} re-imported, ${failed} failed`
                 );
                 const { resetAndReload: recipeResetAndReload } = await import('../api/recipeApi.js');
-                recipeResetAndReload(false, { preserveScroll: false });
                 this.clearSelection();
+                if (state.bulkMode) this.toggleBulkMode();
+                recipeResetAndReload(false, { preserveScroll: false });
             } else {
                 state.loadingManager.hide();
                 showToast('toast.recipes.reimportBulkFailed', {}, 'error');
@@ -776,7 +1014,7 @@ export class BulkManager {
         }
     }
 
-    async repairSelectedRecipes() {
+    async rematchSelectedRecipes() {
         if (state.selectedModels.size === 0) {
             showToast('toast.recipes.noRecipesSelected', {}, 'warning');
             return;
@@ -787,23 +1025,41 @@ export class BulkManager {
             return;
         }
 
+        // Collect options (relaxed matching) before starting anything; the
+        // run only begins when the user confirms the dialog.
+        rematchModalManager.showOptionsModal({
+            recipeCount: state.selectedModels.size,
+            onConfirm: ({ relaxed }) => this._startRematchSelectedRecipes(relaxed),
+        });
+    }
+
+    async _startRematchSelectedRecipes(relaxed = false) {
         try {
             const apiClient = this.getActiveApiClient();
             const filePaths = Array.from(state.selectedModels);
 
-            if (typeof apiClient.repairBulkModels !== 'function') {
-                showToast('Bulk repair is not supported for this model type', {}, 'error');
+            if (typeof apiClient.rematchBulkModels !== 'function') {
+                showToast('Bulk rematch is not supported for this model type', {}, 'error');
                 return;
             }
 
-            state.loadingManager.showSimpleLoading('Repairing recipe metadata...');
+            state.loadingManager.showSimpleLoading('Rematching recipes to local models...');
 
-            const result = await apiClient.repairBulkModels(filePaths);
+            const result = await apiClient.rematchBulkModels(filePaths, { relaxed: !!relaxed });
 
             if (result.success) {
                 const total = result.total || filePaths.length;
-                const repaired = result.repaired || 0;
+                // Unified counters from the backend; legacy fields fall back
+                // for older backends: `rematched` (entry count) for
+                // matched_entries, `total` (selection size) for
+                // matched_recipes.
+                const rematched = result.rematched || 0;
                 const skipped = result.skipped || 0;
+                const matchedRecipes = result.matched_recipes || result.total || 0;
+                const matchedEntries = result.matched_entries || rematched;
+                const failures = result.errors || 0;
+                const unresolvedEntries = result.unresolved_entries || 0;
+                const unresolvedRecipes = result.unresolved_recipes || 0;
 
                 const recipes = result.recipes || [];
                 for (const recipe of recipes) {
@@ -815,27 +1071,38 @@ export class BulkManager {
                     }
                 }
 
-                if (repaired > 0) {
+                // Complete no-op (nothing matched, nothing unresolved, no
+                // errors) keeps the lightweight toast; anything else opens
+                // the post-run summary modal.
+                const l4Matches = Array.isArray(result.l4_matches) ? result.l4_matches : [];
+                const isNoop = matchedEntries === 0 && unresolvedEntries === 0 && failures === 0;
+                if (isNoop) {
                     showToast(
-                        'toast.recipes.repairBulkComplete',
-                        { repaired, skipped, total },
-                        'success'
-                    );
-                } else {
-                    showToast(
-                        'toast.recipes.repairBulkSkipped',
+                        'toast.recipes.rematchSkipped',
                         { total },
                         'info'
                     );
+                } else {
+                    showRematchSummary({
+                        scope: 'bulk',
+                        total,
+                        matchedRecipes,
+                        matchedEntries,
+                        unresolvedRecipes,
+                        unresolvedEntries,
+                        skipped,
+                        errors: failures,
+                        l4Matches,
+                    });
                 }
 
-                this.clearSelection();
+                if (state.bulkMode) this.toggleBulkMode();
             } else {
-                throw new Error(result.error || 'Bulk repair failed');
+                throw new Error(result.error || 'Bulk rematch failed');
             }
         } catch (error) {
-            console.error('Error during bulk recipe repair:', error);
-            showToast('toast.recipes.repairBulkFailed', { message: error.message }, 'error');
+            console.error('Error during bulk recipe rematch:', error);
+            showToast('toast.recipes.rematchFailed', { message: error.message }, 'error');
         } finally {
             if (state.loadingManager?.hide) {
                 state.loadingManager.hide();
@@ -848,7 +1115,7 @@ export class BulkManager {
 
     async refreshAllMetadata() {
         if (state.selectedModels.size === 0) {
-            showToast('toast.models.noModelsSelected', {}, 'warning');
+            showToast(this._noSelectionKey(), {}, 'warning');
             return;
         }
 
@@ -874,6 +1141,8 @@ export class BulkManager {
                 if (this.isStripVisible) {
                     this.updateThumbnailStrip();
                 }
+
+                if (state.bulkMode) this.toggleBulkMode();
             }
 
         } catch (error) {
@@ -884,7 +1153,7 @@ export class BulkManager {
 
     async checkUpdatesForSelectedModels() {
         if (state.selectedModels.size === 0) {
-            showToast('toast.models.noModelsSelected', {}, 'warning');
+            showToast(this._noSelectionKey(), {}, 'warning');
             return;
         }
 
@@ -927,6 +1196,7 @@ export class BulkManager {
                 showToast('toast.models.bulkUpdatesNone', { type: typeLabel }, 'info');
             }
 
+            if (state.bulkMode) this.toggleBulkMode();
             await resetAndReload(false);
         } catch (error) {
             console.error('Error checking updates for selected models:', error);
@@ -947,7 +1217,7 @@ export class BulkManager {
 
     showBulkAddTagsModal() {
         if (state.selectedModels.size === 0) {
-            showToast('toast.models.noModelsSelected', {}, 'warning');
+            showToast(this._noSelectionKey(), {}, 'warning');
             return;
         }
 
@@ -1217,7 +1487,7 @@ export class BulkManager {
         }
 
         if (state.selectedModels.size === 0) {
-            showToast('toast.models.noModelsSelected', {}, 'warning');
+            showToast(this._noSelectionKey(), {}, 'warning');
             return;
         }
 
@@ -1272,6 +1542,8 @@ export class BulkManager {
                 const toastKey = mode === 'replace' ? 'toast.models.tagsReplaceFailed' : 'toast.models.tagsAddFailed';
                 showToast(toastKey, { count: failCount }, 'warning');
             }
+
+            if (state.bulkMode) this.toggleBulkMode();
 
         } catch (error) {
             console.error('Error during bulk tag operation:', error);
@@ -1348,7 +1620,7 @@ export class BulkManager {
 
     async setBulkFavorites(value) {
         if (state.selectedModels.size === 0) {
-            showToast('toast.models.noModelsSelected', {}, 'warning');
+            showToast(this._noSelectionKey(), {}, 'warning');
             return;
         }
 
@@ -1398,6 +1670,8 @@ export class BulkManager {
         } else {
             showToast('toast.models.bulkFavoriteFailed', {}, 'error');
         }
+
+        if (state.bulkMode) this.toggleBulkMode();
     }
 
     /**
@@ -1405,7 +1679,7 @@ export class BulkManager {
      */
     showBulkBaseModelModal() {
         if (state.selectedModels.size === 0) {
-            showToast('toast.models.noModelsSelected', {}, 'warning');
+            showToast(this._noSelectionKey(), {}, 'warning');
             return;
         }
 
@@ -1424,7 +1698,7 @@ export class BulkManager {
 
     showBulkContentRatingSelector() {
         if (state.selectedModels.size === 0) {
-            showToast('toast.models.noModelsSelected', {}, 'warning');
+            showToast(this._noSelectionKey(), {}, 'warning');
             return;
         }
 
@@ -1479,7 +1753,7 @@ export class BulkManager {
         const targets = Array.isArray(filePaths) ? filePaths : Array.from(state.selectedModels);
 
         if (!targets || targets.length === 0) {
-            showToast('toast.models.noModelsSelected', {}, 'warning');
+            showToast(this._noSelectionKey(), {}, 'warning');
             return false;
         }
 
@@ -1496,14 +1770,18 @@ export class BulkManager {
         let failureCount = 0;
 
         try {
-            const apiClient = getModelApiClient();
+            const isRecipesPage = state.currentPageType === 'recipes';
             for (const filePath of targets) {
                 if (cancelled) {
                     showToast('toast.api.operationCancelled', {}, 'info');
                     break;
                 }
                 try {
-                    await apiClient.saveModelMetadata(filePath, { preview_nsfw_level: level });
+                    if (isRecipesPage) {
+                        await updateRecipeMetadata(filePath, { preview_nsfw_level: level });
+                    } else {
+                        await getModelApiClient().saveModelMetadata(filePath, { preview_nsfw_level: level });
+                    }
                     successCount++;
                 } catch (error) {
                     failureCount++;
@@ -1526,12 +1804,14 @@ export class BulkManager {
             showToast('toast.models.bulkContentRatingFailed', {}, 'error');
         }
 
+        if (state.bulkMode) this.toggleBulkMode();
+
         return successCount > 0;
     }
 
     async setSkipMetadataRefresh(value) {
         if (state.selectedModels.size === 0) {
-            showToast('toast.models.noModelsSelected', {}, 'warning');
+            showToast(this._noSelectionKey(), {}, 'warning');
             return;
         }
 
@@ -1580,57 +1860,47 @@ export class BulkManager {
         } else {
             showToast('toast.models.skipMetadataRefreshFailed', {}, 'error');
         }
+
+        if (state.bulkMode) this.toggleBulkMode();
     }
 
     /**
      * Initialize bulk base model interface
      */
     initializeBulkBaseModelInterface() {
-        const select = document.getElementById('bulkBaseModelSelect');
-        if (!select) return;
+        const container = document.getElementById('bulkBaseModelPicker');
+        if (!container) return;
 
-        // Clear existing options
-        select.innerHTML = '';
+        // Reset any previous picker instance
+        this.cleanupBulkBaseModelModal();
+        container.innerHTML = '';
 
-        // Add placeholder option
-        const placeholderOption = document.createElement('option');
-        placeholderOption.value = '';
-        placeholderOption.textContent = 'Select a base model...';
-        placeholderOption.disabled = true;
-        placeholderOption.selected = true;
-        select.appendChild(placeholderOption);
-
-        // Create option groups for better organization
-        Object.entries(BASE_MODEL_CATEGORIES).forEach(([category, models]) => {
-            const optgroup = document.createElement('optgroup');
-            optgroup.label = category;
-
-            models.forEach(model => {
-                const option = document.createElement('option');
-                option.value = model;
-                option.textContent = model;
-                optgroup.appendChild(option);
-            });
-
-            select.appendChild(optgroup);
+        const suggestions = inferBaseModelsFromFilepaths(Array.from(state.selectedModels));
+        this.bulkBaseModelValue = '';
+        this.bulkBaseModelPicker = createBaseModelPicker({
+            suggestions,
+            mode: 'change',
+            onChange: (value) => {
+                this.bulkBaseModelValue = value;
+            },
         });
+        container.appendChild(this.bulkBaseModelPicker.element);
+        this.bulkBaseModelPicker.element.querySelector('.base-model-search-input')?.focus();
     }
 
     /**
      * Save bulk base model changes
      */
     async saveBulkBaseModel() {
-        const select = document.getElementById('bulkBaseModelSelect');
-        if (!select || !select.value) {
+        const newBaseModel = (this.bulkBaseModelValue || this.bulkBaseModelPicker?.getValue() || '').trim();
+        if (!newBaseModel) {
             showToast('toast.models.baseModelNotSelected', {}, 'warning');
             return;
         }
-
-        const newBaseModel = select.value;
         const selectedCount = state.selectedModels.size;
 
         if (selectedCount === 0) {
-            showToast('toast.models.noModelsSelected', {}, 'warning');
+            showToast(this._noSelectionKey(), {}, 'warning');
             return;
         }
 
@@ -1647,13 +1917,19 @@ export class BulkManager {
                 cancelled = true;
             });
 
+            const isRecipesPage = state.currentPageType === 'recipes';
+
             for (const filepath of state.selectedModels) {
                 if (cancelled) {
                     showToast('toast.api.operationCancelled', {}, 'info');
                     break;
                 }
                 try {
-                    await getModelApiClient().saveModelMetadata(filepath, { base_model: newBaseModel });
+                    if (isRecipesPage) {
+                        await updateRecipeMetadata(filepath, { base_model: newBaseModel });
+                    } else {
+                        await getModelApiClient().saveModelMetadata(filepath, { base_model: newBaseModel });
+                    }
                     successCount++;
                 } catch (error) {
                     errorCount++;
@@ -1674,6 +1950,8 @@ export class BulkManager {
                 showToast('toast.models.bulkBaseModelUpdateFailed', {}, 'error');
             }
 
+            if (state.bulkMode) this.toggleBulkMode();
+
         } catch (error) {
             console.error('Error during bulk base model operation:', error);
             showToast('toast.models.bulkBaseModelUpdateFailed', {}, 'error');
@@ -1686,9 +1964,14 @@ export class BulkManager {
      * Cleanup bulk base model modal
      */
     cleanupBulkBaseModelModal() {
-        const select = document.getElementById('bulkBaseModelSelect');
-        if (select) {
-            select.innerHTML = '';
+        if (this.bulkBaseModelPicker) {
+            this.bulkBaseModelPicker.destroy();
+            this.bulkBaseModelPicker = null;
+        }
+        this.bulkBaseModelValue = '';
+        const container = document.getElementById('bulkBaseModelPicker');
+        if (container) {
+            container.innerHTML = '';
         }
     }
 
@@ -1711,6 +1994,7 @@ export class BulkManager {
             // Call the auto-organize method with selected file paths
             await apiClient.autoOrganizeModels(filePaths);
 
+            if (state.bulkMode) this.toggleBulkMode();
             resetAndReload(true);
         } catch (error) {
             console.error('Error during bulk auto-organize:', error);
@@ -1931,8 +2215,30 @@ export class BulkManager {
         // Remove visual feedback class
         document.body.classList.remove('marquee-selecting');
 
+        // Compute the actual drag box size in document coordinates, matching how
+        // updateMarqueeSelectionFromPosition tracks the rectangle. Client-space
+        // size would wrongly flag auto-scroll marquees (tiny pointer movement,
+        // large document-space box) as accidental clicks.
+        const container = document.querySelector('.page-content');
+        const scrollX = container?.scrollLeft || 0;
+        const scrollY = container?.scrollTop || 0;
+        const dragWidth = Math.abs((e.clientX + scrollX) - this.marqueeStartDoc.x);
+        const dragHeight = Math.abs((e.clientY + scrollY) - this.marqueeStartDoc.y);
+        const isTinyMarquee = dragWidth < this.minMarqueeSize && dragHeight < this.minMarqueeSize;
+
         // Get selection count
         const selectionCount = state.selectedModels.size;
+
+        // A tiny box (e.g. click jitter that happened to graze a card) is treated
+        // as an accidental click: undo any selection and leave bulk mode.
+        if (isTinyMarquee) {
+            this.clearSelection();
+            if (state.bulkMode) {
+                this.toggleBulkMode();
+            }
+            this.initialSelectedModels.clear();
+            return;
+        }
 
         // If no models were selected, exit bulk mode
         if (selectionCount === 0) {

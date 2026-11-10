@@ -146,7 +146,13 @@ export class ModalManager {
             });
         }
 
-        // Add batchImportModal registration
+        // Add batchImportModal registration.
+        // Deliberately no closeOnOutsideClick: batch import is a stateful,
+        // multi-step workflow (input -> progress -> results) that runs a
+        // long-lived background operation. A stray backdrop click would
+        // dismiss the modal while the import keeps running, leaving users
+        // unable to tell what is still happening (issue #1084). Close is
+        // available via the explicit X button / Cancel instead.
         const batchImportModal = document.getElementById('batchImportModal');
         if (batchImportModal) {
             this.registerModal('batchImportModal', {
@@ -154,8 +160,7 @@ export class ModalManager {
                 onClose: () => {
                     this.getModal('batchImportModal').element.style.display = 'none';
                     document.body.classList.remove('modal-open');
-                },
-                closeOnOutsideClick: true
+                }
             });
         }
 
@@ -238,6 +243,30 @@ export class ModalManager {
             });
         }
 
+        // Add confirmationModal registration (generic JS-driven confirmation)
+        const confirmationModal = document.getElementById('confirmationModal');
+        if (confirmationModal) {
+            this.registerModal('confirmationModal', {
+                element: confirmationModal,
+                onClose: () => {
+                    this.getModal('confirmationModal').element.classList.remove('show');
+                    document.body.classList.remove('modal-open');
+                }
+            });
+        }
+
+        // Add deleteFolderModal registration
+        const deleteFolderModal = document.getElementById('deleteFolderModal');
+        if (deleteFolderModal) {
+            this.registerModal('deleteFolderModal', {
+                element: deleteFolderModal,
+                onClose: () => {
+                    this.getModal('deleteFolderModal').element.classList.remove('show');
+                    document.body.classList.remove('modal-open');
+                }
+            });
+        }
+
         // Add helpModal registration
         const helpModal = document.getElementById('helpModal');
         if (helpModal) {
@@ -258,6 +287,19 @@ export class ModalManager {
                 element: relinkCivitaiModal,
                 onClose: () => {
                     this.getModal('relinkCivitaiModal').element.style.display = 'none';
+                    document.body.classList.remove('modal-open');
+                },
+                closeOnOutsideClick: true
+            });
+        }
+
+        // Add linkHfModal registration
+        const linkHfModal = document.getElementById('linkHfModal');
+        if (linkHfModal) {
+            this.registerModal('linkHfModal', {
+                element: linkHfModal,
+                onClose: () => {
+                    this.getModal('linkHfModal').element.style.display = 'none';
                     document.body.classList.remove('modal-open');
                 },
                 closeOnOutsideClick: true
@@ -323,6 +365,19 @@ export class ModalManager {
                 element: resolveFilenameConflictsModal,
                 onClose: () => {
                     this.getModal('resolveFilenameConflictsModal').element.classList.remove('show');
+                    document.body.classList.remove('modal-open');
+                },
+                closeOnOutsideClick: true
+            });
+        }
+
+        // Register rematchOptionsModal
+        const rematchOptionsModal = document.getElementById('rematchOptionsModal');
+        if (rematchOptionsModal) {
+            this.registerModal('rematchOptionsModal', {
+                element: rematchOptionsModal,
+                onClose: () => {
+                    this.getModal('rematchOptionsModal').element.style.display = 'none';
                     document.body.classList.remove('modal-open');
                 },
                 closeOnOutsideClick: true
@@ -410,6 +465,8 @@ export class ModalManager {
           id === "clearCacheModal" ||
           id === "bulkDeleteModal" ||
           id === "checkUpdatesConfirmModal" ||
+          id === "confirmationModal" ||
+          id === "deleteFolderModal" ||
           id === "resolveFilenameConflictsModal"
         ) {
           modal.element.classList.add("show");
@@ -421,6 +478,22 @@ export class ModalManager {
         this.currentOpenModal = id; // Update currently open modal
         document.body.style.top = `-${this.scrollPosition}px`;
         document.body.classList.add('modal-open');
+
+        modal.restoreFocusTo = null;
+        if (this._isDeleteConfirmModal(modal.element)) {
+            const activeElement = document.activeElement;
+            modal.restoreFocusTo = activeElement && activeElement !== document.body
+                ? activeElement
+                : null;
+            modal.element.querySelector('.cancel-btn')?.focus();
+        }
+    }
+
+    // Several non-delete modals share the delete-modal styling class, so an
+    // actual .delete-btn is required before focus is moved to Cancel.
+    _isDeleteConfirmModal(element) {
+        return element.classList.contains('delete-modal') &&
+            Boolean(element.querySelector('.delete-btn'));
     }
 
     closeModal(id) {
@@ -449,6 +522,13 @@ export class ModalManager {
         if (modal.cleanupCallback) {
             modal.cleanupCallback();
             modal.cleanupCallback = null;
+        }
+
+        if (modal.restoreFocusTo) {
+            if (modal.restoreFocusTo.isConnected) {
+                modal.restoreFocusTo.focus();
+            }
+            modal.restoreFocusTo = null;
         }
     }
 

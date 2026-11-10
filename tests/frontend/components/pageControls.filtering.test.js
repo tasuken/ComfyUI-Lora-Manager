@@ -45,6 +45,12 @@ vi.mock('../../../static/js/utils/uiHelpers.js', () => ({
   showToast: showToastMock,
   openCivitaiByMetadata: openCivitaiByMetadataMock,
   updatePanelPositions: updatePanelPositionsMock,
+  // Faithful stand-in for the real helper in uiHelpers.js
+  isTypingContext: (target) => {
+    if (!(target instanceof Element)) return false;
+    const tagName = target.tagName?.toLowerCase();
+    return target.isContentEditable || tagName === 'input' || tagName === 'textarea' || tagName === 'select';
+  },
 }));
 
 vi.mock('../../../static/js/managers/DownloadManager.js', () => ({
@@ -87,7 +93,7 @@ beforeEach(() => {
 
   global.fetch = vi.fn().mockResolvedValue({
     ok: true,
-    json: async () => ({ success: true, base_models: [] }),
+    json: async () => ({ success: true, base_models: [], model_types: [] }),
   });
 });
 
@@ -122,6 +128,8 @@ function renderControlsDom(pageKey) {
       <div id="baseModelEmptyState" hidden></div>
       <div id="filterPresets" class="filter-presets"></div>
       <div id="modelTagsFilter" class="filter-tags"></div>
+      <input id="modelTagsSearchInput" />
+      <div id="modelTagsEmptyState" hidden></div>
       <button class="clear-filter"></button>
     </div>
     <div class="controls">
@@ -144,6 +152,13 @@ function renderControlsDom(pageKey) {
             <div class="dropdown-menu">
               <div class="dropdown-item" data-action="full-rebuild"></div>
             </div>
+          </div>
+          <div class="control-group model-type-dropdown-group dropdown-group hidden" id="modelTypeDropdown">
+            <button type="button" class="model-type-trigger" aria-haspopup="listbox" aria-expanded="false">
+              <span class="model-type-trigger__label"></span>
+              <i class="fas fa-caret-down model-type-trigger__caret" aria-hidden="true"></i>
+            </button>
+            <div class="dropdown-menu model-type-dropdown-menu" role="listbox"></div>
           </div>
           <div class="control-group">
             <button data-action="fetch"></button>
@@ -355,6 +370,49 @@ describe('FilterManager tag and base model filters', () => {
 
     expect(getCurrentPageState().filters.baseModel).toEqual([]);
     expect(baseModelChip.classList.contains('active')).toBe(false);
+  });
+
+  it('filters recipes by the unknown base model bucket via its marker value', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        base_models: [
+          { name: 'Unknown', value: '__unknown__', count: 3 },
+          { name: 'SDXL', count: 2 },
+        ],
+      }),
+    });
+
+    renderControlsDom('recipes');
+    const stateModule = await import('../../../static/js/state/index.js');
+    stateModule.initPageState('recipes');
+    const { getCurrentPageState } = stateModule;
+    const { FilterManager } = await import('../../../static/js/managers/FilterManager.js');
+
+    const loadRecipesMock = vi.fn().mockResolvedValue(undefined);
+    window.recipeManager = { loadRecipes: loadRecipesMock };
+
+    new FilterManager({ page: 'recipes' });
+
+    await vi.waitFor(() => {
+      const chip = document.querySelector('[data-base-model="__unknown__"]');
+      expect(chip).not.toBeNull();
+    });
+
+    const unknownChip = document.querySelector('[data-base-model="__unknown__"]');
+    // Display label is "Unknown" even though the filter value is the marker
+    expect(unknownChip.textContent).toContain('Unknown');
+
+    unknownChip.dispatchEvent(new Event('click', { bubbles: true }));
+    await vi.waitFor(() => expect(loadRecipesMock).toHaveBeenCalledTimes(1));
+
+    expect(getCurrentPageState().filters.baseModel).toEqual(['__unknown__']);
+    expect(unknownChip.classList.contains('active')).toBe(true);
+
+    const storageKey = 'lora_manager_recipes_filters';
+    const storedFilters = JSON.parse(localStorage.getItem(storageKey));
+    expect(storedFilters.baseModel).toEqual(['__unknown__']);
   });
 
   it('filters base model chips locally without changing selected state', async () => {
@@ -1002,5 +1060,347 @@ describe('PageControls favorites, sorting, and duplicates scenarios', () => {
     expect(enterDuplicateMode).toHaveBeenCalledTimes(1);
     expect(stateModule.state.bulkMode).toBe(true);
     expect(pageState.duplicatesMode).toBe(true);
+  });
+
+  describe('tag search', () => {
+    it('fetches /search-tags when typing in the tag search input (debounced)', async () => {
+      vi.useFakeTimers();
+      const searchTagsUrls = [];
+      global.fetch = vi.fn((url) => {
+        if (url.includes('/search-tags')) {
+          searchTagsUrls.push(url);
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ success: true, tags: [{ tag: 'anime', count: 3 }] }),
+          });
+        }
+        if (url.includes('/top-tags')) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, tags: [] }) });
+        }
+        if (url.includes('/base-models')) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, base_models: [] }) });
+        }
+        if (url.includes('/model-types')) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, model_types: [] }) });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({ success: true }) });
+      });
+
+      renderControlsDom('loras');
+      const stateModule = await import('../../../static/js/state/index.js');
+      stateModule.initPageState('loras');
+      const { FilterManager } = await import('../../../static/js/managers/FilterManager.js');
+      const manager = new FilterManager({ page: 'loras' });
+
+      // Open the panel so tags load
+      manager.toggleFilterPanel();
+      await vi.runAllTimersAsync();
+
+      const input = document.getElementById('modelTagsSearchInput');
+      input.value = 'ani';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+
+      // Before debounce fires, no search-tags call yet
+      expect(searchTagsUrls.length).toBe(0);
+
+      // Advance past the 150ms debounce
+      vi.advanceTimersByTime(160);
+      await vi.runAllTimersAsync();
+
+      expect(searchTagsUrls.length).toBe(1);
+      expect(searchTagsUrls[0]).toContain('/search-tags');
+      expect(searchTagsUrls[0]).toContain('q=ani');
+
+      vi.useRealTimers();
+    });
+
+    it('renders selected-but-missing tags in a dedicated group at the top', async () => {
+      vi.useFakeTimers();
+      global.fetch = vi.fn((url) => {
+        if (url.includes('/search-tags')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ success: true, tags: [{ tag: 'anime', count: 3 }] }),
+          });
+        }
+        if (url.includes('/top-tags')) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, tags: [] }) });
+        }
+        if (url.includes('/base-models')) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, base_models: [] }) });
+        }
+        if (url.includes('/model-types')) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, model_types: [] }) });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({ success: true }) });
+      });
+
+      renderControlsDom('loras');
+      const stateModule = await import('../../../static/js/state/index.js');
+      stateModule.initPageState('loras');
+      const { FilterManager } = await import('../../../static/js/managers/FilterManager.js');
+      const manager = new FilterManager({ page: 'loras' });
+
+      // Pre-seed an active tag filter that won't appear in search results
+      manager.filters.tags = { 'my-custom-tag': 'include' };
+
+      // Open panel and let top-tags load (empty)
+      manager.toggleFilterPanel();
+      await vi.runAllTimersAsync();
+
+      // Type a search query
+      const input = document.getElementById('modelTagsSearchInput');
+      input.value = 'ani';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      vi.advanceTimersByTime(160);
+      await vi.runAllTimersAsync();
+
+      const container = document.getElementById('modelTagsFilter');
+      const extraTag = container.querySelector('.filter-tag.extra-tag');
+      expect(extraTag).not.toBeNull();
+      expect(extraTag.dataset.tag).toBe('my-custom-tag');
+
+      // The search result tag should also be present
+      const resultTag = container.querySelector('.filter-tag.tag-filter[data-tag="anime"]');
+      expect(resultTag).not.toBeNull();
+
+      vi.useRealTimers();
+    });
+
+    it('shows empty state when search returns no matches and no selected tags', async () => {
+      vi.useFakeTimers();
+      global.fetch = vi.fn((url) => {
+        if (url.includes('/search-tags')) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, tags: [] }) });
+        }
+        if (url.includes('/top-tags')) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, tags: [] }) });
+        }
+        if (url.includes('/base-models')) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, base_models: [] }) });
+        }
+        if (url.includes('/model-types')) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, model_types: [] }) });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({ success: true }) });
+      });
+
+      renderControlsDom('loras');
+      const stateModule = await import('../../../static/js/state/index.js');
+      stateModule.initPageState('loras');
+      const { FilterManager } = await import('../../../static/js/managers/FilterManager.js');
+      const manager = new FilterManager({ page: 'loras' });
+
+      manager.toggleFilterPanel();
+      await vi.runAllTimersAsync();
+
+      const input = document.getElementById('modelTagsSearchInput');
+      input.value = 'zzz';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      vi.advanceTimersByTime(160);
+      await vi.runAllTimersAsync();
+
+      const emptyState = document.getElementById('modelTagsEmptyState');
+      expect(emptyState.hidden).toBe(false);
+
+      vi.useRealTimers();
+    });
+
+    it('reloads top tags when search input is cleared', async () => {
+      vi.useFakeTimers();
+      let topTagsCallCount = 0;
+      global.fetch = vi.fn((url) => {
+        if (url.includes('/search-tags')) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, tags: [{ tag: 'anime', count: 3 }] }) });
+        }
+        if (url.includes('/top-tags')) {
+          topTagsCallCount++;
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, tags: [] }) });
+        }
+        if (url.includes('/base-models')) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, base_models: [] }) });
+        }
+        if (url.includes('/model-types')) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, model_types: [] }) });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({ success: true }) });
+      });
+
+      renderControlsDom('loras');
+      const stateModule = await import('../../../static/js/state/index.js');
+      stateModule.initPageState('loras');
+      const { FilterManager } = await import('../../../static/js/managers/FilterManager.js');
+      const manager = new FilterManager({ page: 'loras' });
+
+      manager.toggleFilterPanel();
+      await vi.runAllTimersAsync();
+      const callsAfterOpen = topTagsCallCount;
+      expect(callsAfterOpen).toBeGreaterThanOrEqual(1);
+
+      // Type, then clear
+      const input = document.getElementById('modelTagsSearchInput');
+      input.value = 'ani';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      vi.advanceTimersByTime(160);
+      await vi.runAllTimersAsync();
+
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      vi.advanceTimersByTime(160);
+      await vi.runAllTimersAsync();
+
+      // An additional top-tags call should have happened after clearing
+      expect(topTagsCallCount).toBeGreaterThan(callsAfterOpen);
+
+      vi.useRealTimers();
+    });
+  });
+});
+
+describe('Model type dropdown visibility on model pages', () => {
+  function mockModelTypes(types) {
+    global.fetch = vi.fn((url) => {
+      if (url.includes('/model-types')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true, model_types: types }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ success: true }) });
+    });
+  }
+
+  async function setupCheckpointsControls() {
+    renderControlsDom('checkpoints');
+    const stateModule = await import('../../../static/js/state/index.js');
+    stateModule.initPageState('checkpoints');
+    const { CheckpointsControls } = await import('../../../static/js/components/controls/CheckpointsControls.js');
+    const controls = new CheckpointsControls();
+    // Let the (mocked) model-types fetch settle.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return controls;
+  }
+
+  it('keeps the dropdown hidden on a single sub-type page', async () => {
+    mockModelTypes([{ type: 'checkpoint', count: 20 }]);
+
+    await setupCheckpointsControls();
+
+    const group = document.getElementById('modelTypeDropdown');
+    expect(group.classList.contains('hidden')).toBe(true);
+    expect(group.querySelector('.model-type-trigger__label').textContent).toBe('');
+  });
+
+  it('shows the dropdown when several sub-types exist', async () => {
+    mockModelTypes([
+      { type: 'checkpoint', count: 20 },
+      { type: 'diffusion_model', count: 2 },
+    ]);
+
+    await setupCheckpointsControls();
+
+    const group = document.getElementById('modelTypeDropdown');
+    expect(group.classList.contains('hidden')).toBe(false);
+    expect(group.querySelector('.model-type-trigger__label').textContent).toBe('All Types');
+  });
+
+  it('hides the dropdown in excluded view and restores it on exit', async () => {
+    mockModelTypes([
+      { type: 'checkpoint', count: 20 },
+      { type: 'diffusion_model', count: 2 },
+    ]);
+
+    const controls = await setupCheckpointsControls();
+    const group = document.getElementById('modelTypeDropdown');
+    expect(group.classList.contains('hidden')).toBe(false);
+
+    await controls.enterExcludedView();
+    expect(group.classList.contains('hidden')).toBe(true);
+
+    await controls.exitExcludedView();
+    expect(group.classList.contains('hidden')).toBe(false);
+  });
+});
+
+describe('PageControls action keyboard shortcuts', () => {
+  async function setupLorasControls() {
+    renderControlsDom('loras');
+    const stateModule = await import('../../../static/js/state/index.js');
+    stateModule.initPageState('loras');
+    const { LorasControls } = await import('../../../static/js/components/controls/LorasControls.js');
+    return new LorasControls();
+  }
+
+  function keydownEvent(key, { target = document.body, ...init } = {}) {
+    const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
+    Object.defineProperty(event, 'target', { value: target });
+    return event;
+  }
+
+  it('registers a pageControls-actions keydown handler with the event manager', async () => {
+    await setupLorasControls();
+
+    const { eventManager } = await import('../../../static/js/utils/EventManager.js');
+    const keydownHandlers = eventManager.handlers.get('keydown') || [];
+    expect(keydownHandlers.some((h) => h.source === 'pageControls-actions')).toBe(true);
+  });
+
+  it('triggers refresh, fetch, and download via the R / F / D keys', async () => {
+    const controls = await setupLorasControls();
+
+    expect(controls.handleActionShortcut(keydownEvent('r'))).toBe(true);
+    expect(refreshModelsMock).toHaveBeenCalledWith(false);
+
+    expect(controls.handleActionShortcut(keydownEvent('f'))).toBe(true);
+    expect(fetchCivitaiMetadataMock).toHaveBeenCalledTimes(1);
+
+    expect(controls.handleActionShortcut(keydownEvent('d'))).toBe(true);
+    expect(downloadManagerMock.showDownloadModal).toHaveBeenCalledTimes(1);
+  });
+
+  it('handles a real keydown dispatched on the document', async () => {
+    await setupLorasControls();
+
+    const event = new KeyboardEvent('keydown', { key: 'r', bubbles: true, cancelable: true });
+    document.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(refreshModelsMock).toHaveBeenCalledWith(false);
+  });
+
+  it('ignores R / F / D while typing in an input', async () => {
+    const controls = await setupLorasControls();
+
+    const input = document.getElementById('searchInput');
+    for (const key of ['r', 'f', 'd']) {
+      const event = keydownEvent(key, { target: input });
+      expect(controls.handleActionShortcut(event)).toBe(false);
+      expect(event.defaultPrevented).toBe(false);
+    }
+
+    expect(refreshModelsMock).not.toHaveBeenCalled();
+    expect(fetchCivitaiMetadataMock).not.toHaveBeenCalled();
+    expect(downloadManagerMock.showDownloadModal).not.toHaveBeenCalled();
+  });
+
+  it('ignores R / F / D when combined with modifier keys', async () => {
+    const controls = await setupLorasControls();
+
+    const event = keydownEvent('r', { ctrlKey: true });
+    expect(controls.handleActionShortcut(event)).toBe(false);
+    expect(event.defaultPrevented).toBe(false);
+    expect(refreshModelsMock).not.toHaveBeenCalled();
+  });
+
+  it('passes the event through when the action button does not exist', async () => {
+    const controls = await setupLorasControls();
+
+    // Recipes page has no fetch/download buttons
+    document.querySelector('[data-action="fetch"]').closest('.control-group').remove();
+
+    const event = keydownEvent('f');
+    expect(controls.handleActionShortcut(event)).toBe(false);
+    expect(event.defaultPrevented).toBe(false);
+    expect(fetchCivitaiMetadataMock).not.toHaveBeenCalled();
   });
 });

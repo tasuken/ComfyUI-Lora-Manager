@@ -12,6 +12,7 @@ from typing import (
     Tuple,
     Protocol,
     Callable,
+    cast,
 )
 
 from ..utils.constants import NSFW_LEVELS
@@ -85,6 +86,7 @@ class SortParams:
 
     key: str
     order: str
+    seed: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -116,7 +118,7 @@ class ModelCacheRepository:
     async def fetch_sorted(self, params: SortParams) -> List[Dict[str, Any]]:
         """Fetch cached data pre-sorted according to ``params``."""
         cache = await self.get_cache()
-        return await cache.get_sorted_data(params.key, params.order)
+        return await cache.get_sorted_data(params.key, params.order, params.seed)
 
     @staticmethod
     def parse_sort(sort_by: str) -> SortParams:
@@ -132,10 +134,17 @@ class ModelCacheRepository:
             sort_key = sort_by.strip().lower() or "name"
             order = "asc"
 
-        if order not in ("asc", "desc"):
+        seed = None
+        if sort_key == "random":
+            # Random sort: the portion after ':' is the shuffle seed.
+            # A stable seed keeps paginated requests consistent; order is
+            # meaningless for a random shuffle.
+            seed = order if order and order not in ("asc", "desc") else None
+            order = "asc"
+        elif order not in ("asc", "desc"):
             order = "asc"
 
-        return SortParams(key=sort_key, order=order)
+        return SortParams(key=sort_key, order=order, seed=seed)
 
 
 class ModelFilterSet:
@@ -301,7 +310,7 @@ class ModelFilterSet:
                     else:
                         include_tags.add(normalized)
             else:
-                include_tags = {tag.strip().lower() for tag in tag_filters if tag}
+                include_tags = {tag.strip().lower() for tag in cast(Iterable[Any], tag_filters) if tag}
 
             if include_tags:
                 tag_logic = criteria.tag_logic.lower() if criteria.tag_logic else "any"
@@ -485,7 +494,40 @@ class SearchStrategy:
                     results.append(item)
                     continue
 
+            # Hash/id search is always exact (never fuzzy) and always on: it
+            # matches the full sha256, its autov2 prefix (first 10 chars),
+            # the autov3 hash, or the Civitai model/version ids. Exact-match
+            # semantics mean it adds no noise to ordinary keyword searches.
+            hash_query = search_lower.strip()
+            if hash_query and self._matches_hash(item, hash_query):
+                results.append(item)
+                continue
+
         return results
+
+    def _matches_hash(self, item: Dict[str, Any], hash_query: str) -> bool:
+        """Exact-match the normalized query against the item's known hashes."""
+        sha256 = item.get("sha256")
+        sha256_lower = sha256.lower() if isinstance(sha256, str) else ""
+        if sha256_lower and hash_query in (sha256_lower, sha256_lower[:10]):
+            return True
+        # autov3 is None when unchecked and "" when checked but unavailable
+        autov3 = item.get("autov3")
+        if isinstance(autov3, str) and autov3 and hash_query == autov3.lower():
+            return True
+        civitai = item.get("civitai")
+        if isinstance(civitai, dict):
+            # A model card corresponds to one Civitai version: `modelId` is
+            # the model id (may match several cards when the library holds
+            # multiple versions), `id` is the version id (unique per card).
+            for key in ("modelId", "model_id", "id"):
+                value = civitai.get(key)
+                if value is None:
+                    continue
+                value_str = str(value).strip()
+                if value_str and value_str != "0" and hash_query == value_str:
+                    return True
+        return False
 
     def _matches(
         self, candidate: str, search_term: str, search_lower: str, fuzzy: bool

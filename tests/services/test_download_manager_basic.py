@@ -11,8 +11,10 @@ import pytest
 from py.services.download_manager import DownloadManager
 from py.services import download_manager
 from py.services import aria2_transfer_state
+from py.services import settings_manager as settings_manager_module
 from py.services.service_registry import ServiceRegistry
 from py.services.settings_manager import SettingsManager, get_settings_manager
+from py.utils.constants import SUPPORTED_DOWNLOAD_SKIP_BASE_MODELS
 
 
 @pytest.fixture(autouse=True)
@@ -82,13 +84,17 @@ def stub_metadata(monkeypatch):
 
 
 class DummyScanner:
-    def __init__(self, exists: bool = False):
+    def __init__(self, exists: bool = False, raw_data=None):
         self.exists = exists
         self.calls = []
+        self._cache = SimpleNamespace(raw_data=list(raw_data or []))
 
     async def check_model_version_exists(self, version_id):
         self.calls.append(version_id)
         return self.exists
+
+    async def get_cached_data(self):
+        return self._cache
 
 
 @pytest.fixture
@@ -123,10 +129,7 @@ def metadata_provider(monkeypatch):
     class DummyProvider:
         def __init__(self):
             self.calls = []
-
-        async def get_model_version(self, model_id, model_version_id):
-            self.calls.append((model_id, model_version_id))
-            return {
+            self.payload = {
                 "id": 42,
                 "model": {"type": "LoRA", "tags": ["fantasy"]},
                 "baseModel": "BaseModel",
@@ -140,6 +143,10 @@ def metadata_provider(monkeypatch):
                     }
                 ],
             }
+
+        async def get_model_version(self, model_id, model_version_id):
+            self.calls.append((model_id, model_version_id))
+            return self.payload
 
     provider = DummyProvider()
     monkeypatch.setattr(
@@ -231,6 +238,262 @@ async def test_successful_download_uses_defaults(
     assert captured["save_dir"] == expected_dir
     assert captured["model_type"] == "lora"
     assert captured["download_urls"] == ["https://example.invalid/file.safetensors"]
+
+
+def test_calculate_relative_path_ignores_keyword_dump_tag():
+    """The #1119 download flow: the real tag list must not become a folder.
+
+    The model's only two tags are the keyword dump and Civitai's "base model"
+    label, so nothing usable is left and the template falls back to "no tags".
+    """
+    keyword_dump = (
+        "lora, character, rosie, irish, redhead, auburn, freckles, green eyes, "
+        "curly hair, woman, female, photorealistic, realistic, krea2, dark beast, "
+        "kreativity, nsfw, nude, portrait, face"
+    )
+    manager = DownloadManager()
+
+    relative_path = manager._calculate_relative_path(
+        {
+            "baseModel": "BaseModel",
+            "creator": {"username": "mad_macs"},
+            "name": "v1.2",
+            "model": {"name": "Rosie", "tags": [keyword_dump, "base model"]},
+        },
+        "lora",
+    )
+
+    assert relative_path == "MappedModel/no tags"
+    assert keyword_dump not in relative_path
+    assert len(relative_path) < 50
+
+
+def test_calculate_relative_path_sanitizes_tag_segment():
+    """A tag with path separators must not create nested folders."""
+    manager = DownloadManager()
+
+    relative_path = manager._calculate_relative_path(
+        {
+            "baseModel": "BaseModel",
+            "creator": {"username": "author"},
+            "name": "v1.2",
+            "model": {"name": "Rosie", "tags": ["a/b:c"]},
+        },
+        "lora",
+    )
+
+    assert relative_path == "MappedModel/a_b_c"
+
+
+@pytest.mark.asyncio
+async def test_download_accepts_enhancement_lora_primary_file(
+    monkeypatch, scanners, metadata_provider, tmp_path
+):
+    """A version whose only file has type 'Enhancement LoRA' (Anima/AIR
+    image-editing LoRAs) must download — previously failed with
+    "No suitable file found in metadata" because the type was missing from
+    the primary-file weights allowlist."""
+    manager = DownloadManager()
+    metadata_provider.payload = {
+        "id": 3219121,
+        "model": {"type": "LORA", "tags": ["style"]},
+        "baseModel": "Anima",
+        "creator": {"username": "Deskup"},
+        "files": [
+            {
+                "id": 3100968,
+                "type": "Enhancement LoRA",
+                "primary": True,
+                "name": "deskup-anima-edit-general.safetensors",
+                "sizeKB": 358501.13,
+                "downloadUrl": "https://example.invalid/deskup-anima-edit-general.safetensors",
+            }
+        ],
+    }
+
+    captured = {}
+
+    async def fake_execute_download(self, **kwargs):
+        captured.update(
+            {
+                "download_urls": kwargs["download_urls"],
+                "model_type": kwargs["model_type"],
+            }
+        )
+        return {"success": True}
+
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", fake_execute_download, raising=False
+    )
+
+    result = await manager.download_from_civitai(
+        model_id=2850692,
+        model_version_id=3219121,
+        save_dir=str(tmp_path),
+        use_default_paths=True,
+        progress_callback=None,
+        source=None,
+    )
+
+    assert result["success"] is True
+    assert captured["model_type"] == "lora"
+    assert captured["download_urls"] == [
+        "https://example.invalid/deskup-anima-edit-general.safetensors"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_download_falls_back_to_civitai_primary_flag_regardless_of_type(
+    monkeypatch, scanners, metadata_provider, tmp_path
+):
+    """If no weights-type file exists, trust CivitAI's `primary` flag on any
+    file — mirrors CivitAI's getPrimaryFile() which never excludes a file by
+    type."""
+    manager = DownloadManager()
+    metadata_provider.payload = {
+        "id": 77,
+        "model": {"type": "LORA", "tags": ["concept"]},
+        "baseModel": "Anima",
+        "creator": {"username": "Author"},
+        "files": [
+            {
+                "id": 100,
+                "type": "Other",
+                "primary": True,
+                "name": "custom-type-lora.safetensors",
+                "downloadUrl": "https://example.invalid/custom-type-lora.safetensors",
+            }
+        ],
+    }
+
+    captured = {}
+
+    async def fake_execute_download(self, **kwargs):
+        captured["download_urls"] = kwargs["download_urls"]
+        return {"success": True}
+
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", fake_execute_download, raising=False
+    )
+
+    result = await manager.download_from_civitai(
+        model_version_id=77,
+        save_dir=str(tmp_path),
+        use_default_paths=True,
+        progress_callback=None,
+        source=None,
+    )
+
+    assert result["success"] is True
+    assert captured["download_urls"] == [
+        "https://example.invalid/custom-type-lora.safetensors"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_download_prefers_weights_file_over_non_weights_primary(
+    monkeypatch, scanners, metadata_provider, tmp_path
+):
+    """A Config/Archive-type primary must never replace an existing weights
+    file — the weights file wins even without the primary flag."""
+    manager = DownloadManager()
+    metadata_provider.payload = {
+        "id": 78,
+        "model": {"type": "LORA", "tags": ["concept"]},
+        "baseModel": "BaseModel",
+        "creator": {"username": "Author"},
+        "files": [
+            {
+                "id": 201,
+                "type": "Config",
+                "primary": True,
+                "name": "config.json",
+                "downloadUrl": "https://example.invalid/config.json",
+            },
+            {
+                "id": 202,
+                "type": "Model",
+                "primary": False,
+                "name": "weights.safetensors",
+                "downloadUrl": "https://example.invalid/weights.safetensors",
+            },
+        ],
+    }
+
+    captured = {}
+
+    async def fake_execute_download(self, **kwargs):
+        captured["download_urls"] = kwargs["download_urls"]
+        return {"success": True}
+
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", fake_execute_download, raising=False
+    )
+
+    result = await manager.download_from_civitai(
+        model_version_id=78,
+        save_dir=str(tmp_path),
+        use_default_paths=True,
+        progress_callback=None,
+        source=None,
+    )
+
+    assert result["success"] is True
+    assert captured["download_urls"] == [
+        "https://example.invalid/weights.safetensors"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_download_keeps_save_dir_when_use_save_dir_as_root(
+    monkeypatch, scanners, metadata_provider, tmp_path
+):
+    """use_default_paths with use_save_dir_as_root resolves the template under
+    the provided save_dir instead of switching to the default root."""
+    manager = DownloadManager()
+
+    captured = {}
+
+    async def fake_execute_download(
+        self,
+        *,
+        download_urls,
+        save_dir,
+        metadata,
+        version_info,
+        relative_path,
+        progress_callback,
+        model_type,
+        download_id,
+        transfer_backend=None,
+    ):
+        captured.update(
+            {
+                "save_dir": Path(save_dir),
+                "relative_path": relative_path,
+                "model_type": model_type,
+            }
+        )
+        return {"success": True}
+
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", fake_execute_download, raising=False
+    )
+
+    custom_root = tmp_path / "custom_root"
+    result = await manager.download_from_civitai(
+        model_version_id=99,
+        save_dir=str(custom_root),
+        use_default_paths=True,
+        use_save_dir_as_root=True,
+        progress_callback=None,
+        source=None,
+    )
+
+    assert result["success"] is True
+    assert captured["relative_path"] == "MappedModel/fantasy"
+    assert captured["save_dir"] == custom_root / "MappedModel" / "fantasy"
+    assert captured["model_type"] == "lora"
 
 
 @pytest.mark.asyncio
@@ -618,6 +881,7 @@ async def test_resume_download_restores_persisted_aria2_task(monkeypatch, tmp_pa
         use_default_paths=False,
         source=None,
         file_params=None,
+        use_save_dir_as_root=False,
     ):
         created.update(
             {
@@ -758,6 +1022,7 @@ async def test_get_active_downloads_restores_orphaned_aria2_partial_as_paused(
 
     downloads = await manager.get_active_downloads()
     persisted = await manager._aria2_state_store.get("download-1")
+    assert persisted is not None
 
     assert downloads["downloads"] == [
         {
@@ -922,6 +1187,7 @@ async def test_get_active_downloads_restores_persisted_aria2_without_initial_sav
 
     downloads = await manager.get_active_downloads()
     persisted = await manager._aria2_state_store.get("download-1")
+    assert persisted is not None
 
     assert downloads["downloads"] == [
         {
@@ -1035,6 +1301,7 @@ async def test_download_uses_captured_backend_when_settings_change(
         transfer_backend="python",
         source=None,
         file_params=None,
+        use_save_dir_as_root=False,
     ):
         captured["transfer_backend"] = transfer_backend
         return {"success": True}
@@ -1189,6 +1456,109 @@ def test_relative_path_sanitizes_model_and_version_placeholders():
     assert relative_path == "Fancy_Model/Version_One"
 
 
+def test_relative_path_empty_first_tag_fallback():
+    """Test that empty first_tag falls back to 'no tags'."""
+    manager = DownloadManager()
+    settings_manager = get_settings_manager()
+    settings_manager.settings["download_path_templates"]["lora"] = (
+        "{base_model}/{first_tag}"
+    )
+
+    version_info = {
+        "baseModel": "SDXL",
+        "model": {"name": "Test Model", "tags": []},
+        "creator": {"username": "Author"},
+    }
+
+    relative_path = manager._calculate_relative_path(version_info, "lora")
+
+    assert relative_path == "SDXL/no tags"
+
+
+def test_relative_path_empty_base_model_and_first_tag():
+    """Test that empty base_model + empty first_tag does NOT produce a leading slash."""
+    manager = DownloadManager()
+    settings_manager = get_settings_manager()
+    settings_manager.settings["download_path_templates"]["lora"] = (
+        "{base_model}/{first_tag}"
+    )
+
+    version_info = {
+        "baseModel": "",
+        "model": {"name": "Test Model", "tags": []},
+        "creator": {"username": "Author"},
+    }
+
+    relative_path = manager._calculate_relative_path(version_info, "lora")
+
+    assert not relative_path.startswith("/")
+    assert relative_path == "no tags"
+
+
+def test_relative_path_sanitizes_double_slashes():
+    """Test that empty placeholder substitutions don't produce double slashes."""
+    manager = DownloadManager()
+    settings_manager = get_settings_manager()
+    settings_manager.settings["download_path_templates"]["lora"] = (
+        "{base_model}/{first_tag}/{author}"
+    )
+
+    version_info = {
+        "baseModel": "SDXL",
+        "model": {"name": "Test Model", "tags": []},
+        "creator": {"username": "Author"},
+    }
+
+    relative_path = manager._calculate_relative_path(version_info, "lora")
+
+    assert "//" not in relative_path
+    assert relative_path == "SDXL/no tags/Author"
+
+
+def test_download_containment_accepts_symlink_save_dir(tmp_path):
+    """Verify the download path containment check (download_manager.py:1395-1397)
+    accepts save directories reached through user-created symlinks inside the
+    library root — reproducing the symlink scenario from issue #1028."""
+    # Library root with a symlink subdirectory pointing to an external drive
+    lora_root = tmp_path / "loras"
+    lora_root.mkdir()
+
+    external_drive = tmp_path / "external" / "models"
+    external_drive.mkdir(parents=True)
+
+    symlink = lora_root / "Krea 2"
+    symlink.symlink_to(str(external_drive))
+
+    # Simulate a download: base_save_dir = library root,
+    # relative_path = "Krea 2/concept/NewModel"
+    base_save_dir = str(lora_root)
+    save_dir = os.path.join(base_save_dir, "Krea 2", "concept", "NewModel")
+
+    # Replicate the exact containment check from download_manager.py
+    resolved_dir = os.path.abspath(os.path.normpath(save_dir))
+    base_dir = os.path.abspath(os.path.normpath(base_save_dir))
+
+    # Must NOT be rejected — symlinks are legitimate business paths
+    assert resolved_dir.startswith(base_dir + os.sep)
+
+
+def test_download_containment_rejects_dot_dot_traversal(tmp_path):
+    """Verify the download path containment check still blocks ``..`` traversal
+    after the realpath → abspath change."""
+    lora_root = tmp_path / "loras"
+    lora_root.mkdir()
+
+    base_save_dir = str(lora_root)
+    save_dir = os.path.join(base_save_dir, "..", "..", "etc", "passwd")
+
+    resolved_dir = os.path.abspath(os.path.normpath(save_dir))
+    base_dir = os.path.abspath(os.path.normpath(base_save_dir))
+
+    # Must be rejected — dot-dot escapes the library root
+    assert not resolved_dir.startswith(base_dir + os.sep)
+    assert resolved_dir != base_dir
+
+
 def test_distribute_preview_to_entries_moves_and_copies(tmp_path):
     """Test that preview distribution moves file to first entry and copies to others."""
     manager = DownloadManager()
@@ -1272,6 +1642,56 @@ async def test_download_skips_excluded_base_model(monkeypatch, scanners, metadat
     assert "file.safetensors" in result["message"]
     execute_download.assert_not_called()
     assert manager._active_downloads[result["download_id"]]["status"] == "skipped"
+
+
+@pytest.mark.asyncio
+async def test_download_skips_excluded_remote_only_base_model(
+    monkeypatch, scanners, metadata_provider
+):
+    """Exclusions for base models missing from the hardcoded list (e.g. new
+    CivitAI families known only via the remote snapshot) must still apply."""
+    monkeypatch.setattr(
+        settings_manager_module,
+        "_get_supported_base_models",
+        lambda: set(SUPPORTED_DOWNLOAD_SKIP_BASE_MODELS) | {"Qwen 3"},
+    )
+    manager = DownloadManager()
+    get_settings_manager().settings["download_skip_base_models"] = ["Qwen 3"]
+
+    metadata_provider.get_model_version = AsyncMock(
+        return_value={
+            "id": 99,
+            "model": {"type": "LoRA", "tags": ["fantasy"]},
+            "baseModel": "Qwen 3",
+            "creator": {"username": "Author"},
+            "files": [
+                {
+                    "type": "Model",
+                    "primary": True,
+                    "downloadUrl": "https://example.invalid/file.safetensors",
+                    "name": "file.safetensors",
+                }
+            ],
+        }
+    )
+
+    execute_download = AsyncMock()
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", execute_download, raising=False
+    )
+
+    result = await manager.download_from_civitai(
+        model_version_id=99,
+        use_default_paths=True,
+        progress_callback=None,
+        source=None,
+    )
+
+    assert result["success"] is True
+    assert result["skipped"] is True
+    assert result["reason"] == "base_model_excluded"
+    assert result["base_model"] == "Qwen 3"
+    execute_download.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -1373,3 +1793,961 @@ async def test_download_proceeds_when_history_skip_disabled(monkeypatch, scanner
     assert result.get("skipped") is not True
     history_service.has_been_downloaded.assert_not_called()
     execute_download.assert_awaited_once()
+
+
+# ---------------------------------------------------------------------------
+# Multi-file downloads within a single model version (#1058)
+# ---------------------------------------------------------------------------
+
+
+def _multi_file_payload(include_hashes: bool = True):
+    """Version payload with two weight files under the same version."""
+    files = [
+        {
+            "id": 1001,
+            "type": "Model",
+            "primary": True,
+            "downloadUrl": "https://example.invalid/file-a.safetensors",
+            "name": "file-a.safetensors",
+        },
+        {
+            "id": 1002,
+            "type": "Model",
+            "primary": False,
+            "downloadUrl": "https://example.invalid/file-b.safetensors",
+            "name": "file-b.safetensors",
+        },
+    ]
+    if include_hashes:
+        files[0]["hashes"] = {"SHA256": "AAA111"}
+        files[1]["hashes"] = {"SHA256": "BBB222"}
+    return {
+        "id": 42,
+        "modelId": 7,
+        "model": {"type": "LoRA", "tags": ["fantasy"]},
+        "baseModel": "BaseModel",
+        "creator": {"username": "Author"},
+        "files": files,
+    }
+
+
+def _local_entry(file_name: str, sha256: str, version_id: int = 42):
+    """A library cache entry for one already-downloaded file of a version."""
+    return {
+        "file_name": file_name,
+        "file_path": f"/tmp/{file_name}.safetensors",
+        "sha256": sha256,
+        "civitai": {"id": version_id, "modelId": 7},
+    }
+
+
+def _stub_history_service(monkeypatch, has_been_downloaded: bool = False):
+    history_service = AsyncMock()
+    history_service.has_been_downloaded = AsyncMock(
+        return_value=has_been_downloaded
+    )
+    history_service.mark_downloaded = AsyncMock()
+    monkeypatch.setattr(
+        ServiceRegistry,
+        "get_downloaded_version_history_service",
+        AsyncMock(return_value=history_service),
+    )
+    return history_service
+
+
+@pytest.mark.asyncio
+async def test_download_allows_other_file_of_in_library_version(
+    monkeypatch, scanners, metadata_provider
+):
+    """A different file of an in-library version must still download (#1058)."""
+    scanners.lora._cache.raw_data.append(_local_entry("file-a", "aaa111"))
+    metadata_provider.get_model_version = AsyncMock(
+        return_value=_multi_file_payload()
+    )
+    _stub_history_service(monkeypatch)
+
+    execute_download = AsyncMock(return_value={"success": True, "download_id": "done"})
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", execute_download, raising=False
+    )
+
+    manager = DownloadManager()
+    result = await manager.download_from_civitai(
+        model_version_id=42,
+        save_dir="/tmp",
+        file_params={"id": 1002, "type": "Model", "name": "file-b.safetensors"},
+    )
+
+    assert result["success"] is True
+    execute_download.assert_awaited_once()
+    # Version-level gates must not run for an explicit file selection
+    assert scanners.lora.calls == []
+
+
+@pytest.mark.asyncio
+async def test_download_blocks_same_file_of_in_library_version(
+    monkeypatch, scanners, metadata_provider
+):
+    """Re-downloading the SAME file of an in-library version stays blocked."""
+    scanners.lora._cache.raw_data.append(_local_entry("file-a", "aaa111"))
+    metadata_provider.get_model_version = AsyncMock(
+        return_value=_multi_file_payload()
+    )
+    _stub_history_service(monkeypatch)
+
+    execute_download = AsyncMock(return_value={"success": True})
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", execute_download, raising=False
+    )
+
+    manager = DownloadManager()
+    result = await manager.download_from_civitai(
+        model_version_id=42,
+        save_dir="/tmp",
+        file_params={"id": 1001, "type": "Model", "name": "file-a.safetensors"},
+    )
+
+    assert result["success"] is False
+    assert "file-a.safetensors" in result["error"]
+    assert "already exists in lora library" in result["error"]
+    execute_download.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_download_unresolvable_file_params_falls_back_to_version_gate(
+    monkeypatch, scanners, metadata_provider
+):
+    """file_params that match no file must not bypass version-level gates."""
+    scanners.lora.exists = True
+    metadata_provider.get_model_version = AsyncMock(
+        return_value=_multi_file_payload()
+    )
+    _stub_history_service(monkeypatch)
+
+    execute_download = AsyncMock(return_value={"success": True})
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", execute_download, raising=False
+    )
+
+    manager = DownloadManager()
+    result = await manager.download_from_civitai(
+        model_version_id=42,
+        save_dir="/tmp",
+        file_params={"id": 9999, "type": "Model"},
+    )
+
+    assert result["success"] is False
+    assert result["error"] == "Model version already exists in lora library"
+    execute_download.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_download_empty_file_params_treated_as_no_selection(
+    monkeypatch, scanners, metadata_provider
+):
+    """An empty file_params dict is normalized to None (version-level gates)."""
+    scanners.lora.exists = True
+
+    execute_download = AsyncMock(return_value={"success": True})
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", execute_download, raising=False
+    )
+
+    manager = DownloadManager()
+    result = await manager.download_from_civitai(
+        model_version_id=42,
+        save_dir="/tmp",
+        file_params={},
+    )
+
+    assert result["success"] is False
+    assert result["error"] == "Model version already exists in lora library"
+    # Early version-level gate fired (file_params normalized to None)
+    assert scanners.lora.calls == [42]
+    execute_download.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_download_explicit_file_bypasses_history_skip(
+    monkeypatch, scanners, metadata_provider
+):
+    """Explicit file selection bypasses the previously-downloaded skip."""
+    get_settings_manager().settings[
+        "skip_previously_downloaded_model_versions"
+    ] = True
+    scanners.lora._cache.raw_data.append(_local_entry("file-a", "aaa111"))
+    metadata_provider.get_model_version = AsyncMock(
+        return_value=_multi_file_payload()
+    )
+    history_service = _stub_history_service(monkeypatch, has_been_downloaded=True)
+
+    execute_download = AsyncMock(return_value={"success": True, "download_id": "done"})
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", execute_download, raising=False
+    )
+
+    manager = DownloadManager()
+    result = await manager.download_from_civitai(
+        model_version_id=42,
+        save_dir="/tmp",
+        file_params={"id": 1002, "type": "Model", "name": "file-b.safetensors"},
+    )
+
+    assert result["success"] is True
+    execute_download.assert_awaited_once()
+    # History gate is bypassed before it even queries the service
+    history_service.has_been_downloaded.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_download_file_match_by_name_when_local_hash_missing(
+    monkeypatch, scanners, metadata_provider
+):
+    """Legacy local metadata without sha256 falls back to name matching."""
+    scanners.lora._cache.raw_data.append(_local_entry("file-a", ""))
+    metadata_provider.get_model_version = AsyncMock(
+        return_value=_multi_file_payload()
+    )
+    _stub_history_service(monkeypatch)
+
+    execute_download = AsyncMock(return_value={"success": True})
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", execute_download, raising=False
+    )
+
+    manager = DownloadManager()
+    result = await manager.download_from_civitai(
+        model_version_id=42,
+        save_dir="/tmp",
+        file_params={"id": 1001, "type": "Model"},
+    )
+
+    assert result["success"] is False
+    assert "already exists in lora library" in result["error"]
+    execute_download.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_download_no_false_positive_when_both_hashes_empty(
+    monkeypatch, scanners, metadata_provider
+):
+    """Two empty hashes must never compare equal; name decides instead."""
+    # Local entry for a DIFFERENT file of the same version, no hash stored
+    scanners.lora._cache.raw_data.append(_local_entry("file-b", ""))
+    metadata_provider.get_model_version = AsyncMock(
+        return_value=_multi_file_payload(include_hashes=False)
+    )
+    _stub_history_service(monkeypatch)
+
+    execute_download = AsyncMock(return_value={"success": True, "download_id": "done"})
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", execute_download, raising=False
+    )
+
+    manager = DownloadManager()
+    result = await manager.download_from_civitai(
+        model_version_id=42,
+        save_dir="/tmp",
+        file_params={"id": 1001, "type": "Model"},
+    )
+
+    assert result["success"] is True
+    execute_download.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_download_model_id_only_with_file_params_resolves_file(
+    monkeypatch, scanners, metadata_provider
+):
+    """model_id-only requests with file_params resolve the file post-fetch."""
+    scanners.lora.exists = True  # version-level index says "in library"
+    scanners.lora._cache.raw_data.append(_local_entry("file-a", "aaa111"))
+    metadata_provider.get_model_version = AsyncMock(
+        return_value=_multi_file_payload()
+    )
+    _stub_history_service(monkeypatch)
+
+    execute_download = AsyncMock(return_value={"success": True, "download_id": "done"})
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", execute_download, raising=False
+    )
+
+    manager = DownloadManager()
+    result = await manager.download_from_civitai(
+        model_id=7,
+        save_dir="/tmp",
+        file_params={"id": 1002, "type": "Model"},
+    )
+
+    assert result["success"] is True
+    execute_download.assert_awaited_once()
+
+
+def test_resolve_target_file_by_id():
+    files = _multi_file_payload()["files"]
+    resolved = DownloadManager._resolve_target_file(files, {"id": 1002})
+    assert resolved is files[1]
+
+
+def test_resolve_target_file_by_primary_flag():
+    files = _multi_file_payload()["files"]
+    resolved = DownloadManager._resolve_target_file(files, {"isPrimary": True})
+    assert resolved is files[0]
+
+
+def test_resolve_target_file_returns_none_for_no_match():
+    files = _multi_file_payload()["files"]
+    assert DownloadManager._resolve_target_file(files, {"id": 9999}) is None
+    assert DownloadManager._resolve_target_file(files, None) is None
+    assert DownloadManager._resolve_target_file(files, {}) is None
+
+
+@pytest.mark.asyncio
+async def test_restore_drops_unrestorable_persisted_records(monkeypatch, tmp_path):
+    """Records without any resolvable target path can never be restored;
+    the restore sweep must delete them instead of skipping them forever."""
+    manager = DownloadManager()
+
+    await manager._aria2_state_store.upsert(
+        "download-orphan",
+        {
+            "download_id": "download-orphan",
+            "transfer_backend": "aria2",
+            "status": "failed",
+            # no save_path / file_path / resume_context
+        },
+    )
+
+    class DummyAria2Downloader:
+        async def get_status_by_gid(self, gid):
+            return None
+
+    monkeypatch.setattr(
+        download_manager,
+        "get_aria2_downloader",
+        AsyncMock(return_value=DummyAria2Downloader()),
+    )
+
+    downloads = await manager.get_active_downloads()
+
+    assert downloads["downloads"] == []
+    assert await manager._aria2_state_store.get("download-orphan") is None
+
+
+@pytest.mark.asyncio
+async def test_discard_cleared_downloads_stops_tracking_and_preserves_files(
+    monkeypatch, tmp_path
+):
+    manager = DownloadManager()
+
+    save_path = tmp_path / "file.safetensors"
+    save_path.write_text("partial")
+    control_path = tmp_path / "file.safetensors.aria2"
+    control_path.write_text("control")
+
+    async def _pending():
+        await asyncio.sleep(3600)
+
+    task = asyncio.create_task(_pending())
+    manager._download_tasks["download-1"] = task
+    manager._pause_events["download-1"] = download_manager.DownloadStreamControl()
+    manager._active_downloads["download-1"] = {
+        "status": "downloading",
+        "transfer_backend": "aria2",
+        "file_path": str(save_path),
+    }
+    await manager._aria2_state_store.upsert(
+        "download-1",
+        {
+            "download_id": "download-1",
+            "transfer_backend": "aria2",
+            "status": "downloading",
+            "save_path": str(save_path),
+            "gid": "gid-1",
+        },
+    )
+
+    cancelled = []
+
+    class DummyAria2Downloader:
+        async def has_transfer(self, download_id):
+            return True
+
+        async def cancel_download(self, download_id):
+            cancelled.append(download_id)
+            return {"success": True}
+
+    monkeypatch.setattr(
+        download_manager,
+        "get_aria2_downloader",
+        AsyncMock(return_value=DummyAria2Downloader()),
+    )
+
+    discarded = await manager.discard_cleared_downloads(["download-1", "unknown-id"])
+
+    assert discarded == 1
+    assert cancelled == ["download-1"]
+    assert task.cancelled()
+    assert "download-1" not in manager._download_tasks
+    assert "download-1" not in manager._active_downloads
+    assert "download-1" not in manager._pause_events
+    assert await manager._aria2_state_store.get("download-1") is None
+    # Partial files are preserved for a future resume from disk.
+    assert save_path.exists()
+    assert control_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_download_uses_raw_file_name_from_mini_endpoint(
+    monkeypatch, scanners, metadata_provider, tmp_path
+):
+    """#1100: when the REST name is rewritten ("{model}_{version}"), the raw
+    stored filename from the mini endpoint wins for the on-disk name."""
+    manager = DownloadManager()
+    get_settings_manager().settings["default_unet_root"] = str(tmp_path / "unet")
+    metadata_provider.payload = {
+        "id": 3284136,
+        "model": {"type": "Checkpoint", "tags": ["realistic"]},
+        "baseModel": "ZImageTurbo",
+        "creator": {"username": "Author"},
+        "files": [
+            {
+                "id": 3168412,
+                "type": "Model",
+                "primary": True,
+                "name": "cyberrealisticZImage_v80.safetensors",
+                "downloadUrl": "https://civitai.com/api/download/models/3284136?fileId=3168412",
+            }
+        ],
+    }
+    metadata_provider.get_version_file_mini = AsyncMock(
+        return_value={"fileName": "CyberRealistic_zit_v8.0_bf16.safetensors"}
+    )
+
+    captured = {}
+
+    async def fake_execute_download(self, **kwargs):
+        captured["download_urls"] = kwargs["download_urls"]
+        captured["file_path"] = kwargs["metadata"].file_path
+        return {"success": True}
+
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", fake_execute_download, raising=False
+    )
+
+    result = await manager.download_from_civitai(
+        model_version_id=3284136,
+        save_dir=str(tmp_path),
+        use_default_paths=True,
+        progress_callback=None,
+        source=None,
+    )
+
+    assert result["success"] is True, result
+    metadata_provider.get_version_file_mini.assert_awaited_once_with(3284136, 3168412)
+    assert captured["file_path"].endswith("CyberRealistic_zit_v8.0_bf16.safetensors")
+    # The file's own pinned downloadUrl is untouched.
+    assert captured["download_urls"] == [
+        "https://civitai.com/api/download/models/3284136?fileId=3168412"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_unet_model_type_download_lands_in_unet_roots(
+    monkeypatch, scanners, metadata_provider, tmp_path
+):
+    """CivitAI ModelType.UNet goes through the checkpoint branch: its
+    UNet-typed files route to the unet roots like any diffusion model."""
+    manager = DownloadManager()
+    unet_root = tmp_path / "unet"
+    get_settings_manager().settings["default_unet_root"] = str(unet_root)
+    metadata_provider.payload = {
+        "id": 42,
+        "model": {"type": "UNet", "tags": ["fantasy"]},
+        "baseModel": "MiniMax H3",
+        "creator": {"username": "Author"},
+        "files": [
+            {
+                "id": 1001,
+                "type": "UNet",
+                "primary": True,
+                "name": "minimax_h3.safetensors",
+                "downloadUrl": "https://example.invalid/file.safetensors",
+            }
+        ],
+    }
+
+    captured = {}
+
+    async def fake_execute_download(self, **kwargs):
+        captured["file_path"] = kwargs["metadata"].file_path
+        return {"success": True}
+
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", fake_execute_download, raising=False
+    )
+
+    result = await manager.download_from_civitai(
+        model_version_id=42,
+        save_dir=str(tmp_path),
+        use_default_paths=True,
+        progress_callback=None,
+        source=None,
+    )
+
+    assert result["success"] is True, result
+    assert captured["file_path"].startswith(str(unet_root))
+    assert captured["file_path"].endswith("minimax_h3.safetensors")
+
+
+@pytest.mark.asyncio
+async def test_download_falls_back_to_rest_name_when_mini_fails(
+    monkeypatch, scanners, metadata_provider, tmp_path
+):
+    """A failed/absent mini lookup must keep the previous behavior."""
+    manager = DownloadManager()
+    metadata_provider.payload = {
+        "id": 42,
+        "model": {"type": "Checkpoint", "tags": ["fantasy"]},
+        "baseModel": "SDXL 1.0",
+        "creator": {"username": "Author"},
+        "files": [
+            {
+                "id": 1001,
+                "type": "Model",
+                "primary": True,
+                "name": "rewritten_v10.safetensors",
+                "downloadUrl": "https://example.invalid/file.safetensors",
+            }
+        ],
+    }
+    metadata_provider.get_version_file_mini = AsyncMock(return_value=None)
+
+    captured = {}
+
+    async def fake_execute_download(self, **kwargs):
+        captured["file_path"] = kwargs["metadata"].file_path
+        return {"success": True}
+
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", fake_execute_download, raising=False
+    )
+
+    result = await manager.download_from_civitai(
+        model_version_id=42,
+        save_dir=str(tmp_path),
+        use_default_paths=True,
+        progress_callback=None,
+        source=None,
+    )
+
+    assert result["success"] is True
+    assert captured["file_path"].endswith("rewritten_v10.safetensors")
+
+
+@pytest.mark.asyncio
+async def test_download_decodes_percent_encoded_raw_file_name(
+    monkeypatch, scanners, metadata_provider, tmp_path
+):
+    """CivitAI stores non-ASCII file names percent-encoded; the mini
+    endpoint's raw fileName must be decoded before it lands on disk."""
+    manager = DownloadManager()
+    encoded_name = (
+        "%E7%8A%AC%E5%A4%9C%E5%8F%89%E6%97%A5%E6%9A%AE2000s_anime_analog_painting_Style.safetensors"
+    )
+    metadata_provider.payload = {
+        "id": 42,
+        "model": {"type": "LORA", "tags": ["fantasy"]},
+        "baseModel": "Illustrious",
+        "creator": {"username": "Author"},
+        "files": [
+            {
+                "id": 1001,
+                "type": "Model",
+                "primary": True,
+                "name": "犬夜叉日暮2000s_anime_analog_painting_Style.safetensors",
+                "downloadUrl": "https://example.invalid/file.safetensors",
+            }
+        ],
+    }
+    metadata_provider.get_version_file_mini = AsyncMock(
+        return_value={"fileName": encoded_name}
+    )
+
+    captured = {}
+
+    async def fake_execute_download(self, **kwargs):
+        captured["file_path"] = kwargs["metadata"].file_path
+        return {"success": True}
+
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", fake_execute_download, raising=False
+    )
+
+    result = await manager.download_from_civitai(
+        model_version_id=42,
+        save_dir=str(tmp_path),
+        use_default_paths=True,
+        progress_callback=None,
+        source=None,
+    )
+
+    assert result["success"] is True
+    assert captured["file_path"].endswith(
+        "犬夜叉日暮2000s_anime_analog_painting_Style.safetensors"
+    )
+
+
+@pytest.mark.asyncio
+async def test_download_decodes_percent_encoded_name_for_civarchive_source(
+    monkeypatch, scanners, metadata_provider, tmp_path
+):
+    """CivArchive serves raw stored names too — the decode applies even
+    though the mini lookup is skipped."""
+    manager = DownloadManager()
+    encoded_name = (
+        "%E7%8A%AC%E5%A4%9C%E5%8F%89%E6%97%A5%E6%9A%AE2000s_anime_analog_painting_Style.safetensors"
+    )
+    metadata_provider.payload = {
+        "id": 99,
+        "model": {"type": "LORA", "tags": ["fantasy"]},
+        "baseModel": "Illustrious",
+        "creator": {"username": "Author"},
+        "files": [
+            {
+                "id": 1001,
+                "type": "Model",
+                "primary": True,
+                "name": encoded_name,
+                "downloadUrl": "https://example.invalid/file.safetensors",
+            }
+        ],
+    }
+    metadata_provider.get_version_file_mini = AsyncMock()
+
+    monkeypatch.setattr(
+        download_manager,
+        "get_metadata_provider",
+        AsyncMock(return_value=metadata_provider),
+    )
+
+    captured = {}
+
+    async def fake_execute_download(self, **kwargs):
+        captured["file_path"] = kwargs["metadata"].file_path
+        return {"success": True}
+
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", fake_execute_download, raising=False
+    )
+
+    result = await manager.download_from_civitai(
+        model_version_id=99,
+        save_dir=str(tmp_path),
+        use_default_paths=True,
+        progress_callback=None,
+        source="civarchive",
+    )
+
+    assert result["success"] is True
+    assert captured["file_path"].endswith(
+        "犬夜叉日暮2000s_anime_analog_painting_Style.safetensors"
+    )
+
+
+@pytest.mark.asyncio
+async def test_download_skips_mini_lookup_for_civarchive_source(
+    monkeypatch, scanners, metadata_provider, tmp_path
+):
+    """CivArchive already serves raw stored names — no mini call."""
+    manager = DownloadManager()
+    mini_mock = AsyncMock(return_value={"fileName": "should_not_be_used.safetensors"})
+    metadata_provider.get_version_file_mini = mini_mock
+
+    monkeypatch.setattr(
+        download_manager,
+        "get_metadata_provider",
+        AsyncMock(return_value=metadata_provider),
+    )
+
+    captured = {}
+
+    async def fake_execute_download(self, **kwargs):
+        captured["file_path"] = kwargs["metadata"].file_path
+        return {"success": True}
+
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", fake_execute_download, raising=False
+    )
+
+    result = await manager.download_from_civitai(
+        model_version_id=99,
+        save_dir=str(tmp_path),
+        use_default_paths=True,
+        progress_callback=None,
+        source="civarchive",
+    )
+
+    assert result["success"] is True
+    mini_mock.assert_not_called()
+    assert captured["file_path"].endswith("file.safetensors")
+
+
+@pytest.mark.asyncio
+async def test_fetch_raw_file_name_edge_cases():
+    """_fetch_raw_file_name never raises and strips path components."""
+    manager = DownloadManager()
+
+    provider = SimpleNamespace()
+
+    # Missing version id / file id short-circuit before any provider call.
+    provider.get_version_file_mini = AsyncMock()
+    assert await manager._fetch_raw_file_name(provider, None, 1) is None
+    assert await manager._fetch_raw_file_name(provider, 1, None) is None
+    provider.get_version_file_mini.assert_not_called()
+
+    # Provider without the method (older mocks / non-CivitAI providers).
+    assert await manager._fetch_raw_file_name(object(), 1, 2) is None
+
+    # Non-dict payload, empty fileName.
+    provider.get_version_file_mini = AsyncMock(return_value="oops")
+    assert await manager._fetch_raw_file_name(provider, 1, 2) is None
+    provider.get_version_file_mini = AsyncMock(return_value={"fileName": "  "})
+    assert await manager._fetch_raw_file_name(provider, 1, 2) is None
+
+    # Path components are stripped defensively.
+    provider.get_version_file_mini = AsyncMock(
+        return_value={"fileName": "../evil/model.safetensors"}
+    )
+    assert await manager._fetch_raw_file_name(provider, 1, 2) == "model.safetensors"
+
+    # Provider exceptions degrade to None.
+    provider.get_version_file_mini = AsyncMock(side_effect=RuntimeError("boom"))
+    assert await manager._fetch_raw_file_name(provider, 1, 2) is None
+
+
+def _capture_execute_download(monkeypatch, captured):
+    async def fake_execute_download(self, **kwargs):
+        captured.update(
+            {
+                # Path, like the other fakes in this file: the relative part is
+                # forward-slashed on every platform, so a Windows host spells
+                # the joined value "root\Flux.1 D/fantasy" -- comparing strings
+                # would assert the host separator instead of the routed root.
+                "save_dir": Path(kwargs["save_dir"]),
+                "relative_path": kwargs["relative_path"],
+                "model_type": kwargs["model_type"],
+            }
+        )
+        return {"success": True}
+
+    monkeypatch.setattr(
+        DownloadManager, "_execute_download", fake_execute_download, raising=False
+    )
+
+
+def _lora_payload(base_model):
+    return {
+        "id": 1234,
+        "model": {"type": "LORA", "tags": ["fantasy"]},
+        "baseModel": base_model,
+        "creator": {"username": "Author"},
+        "files": [
+            {
+                "type": "Model",
+                "primary": True,
+                "downloadUrl": "https://example.invalid/file.safetensors",
+                "name": "file.safetensors",
+            }
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_download_root_rule_routes_lora_to_rule_root(
+    monkeypatch, scanners, metadata_provider, tmp_path
+):
+    """A matching download_root_rules rule replaces the default lora root."""
+    manager = DownloadManager()
+
+    default_root = tmp_path / "loras-main"
+    archive_root = tmp_path / "lora-archive"
+    settings = get_settings_manager()
+    settings.settings["folder_paths"] = {
+        "loras": [str(default_root), str(archive_root)]
+    }
+    settings.settings["default_lora_root"] = str(default_root)
+    settings.settings["download_root_rules"] = {
+        "loras": [
+            {
+                "match_type": "base_model",
+                "match": ["Flux.1 D"],
+                "root": str(archive_root),
+            }
+        ]
+    }
+    metadata_provider.payload = _lora_payload("Flux.1 D")
+
+    captured = {}
+    _capture_execute_download(monkeypatch, captured)
+
+    result = await manager.download_from_civitai(
+        model_version_id=99,
+        save_dir=str(tmp_path),
+        use_default_paths=True,
+        progress_callback=None,
+        source=None,
+    )
+
+    assert result["success"] is True
+    assert captured["model_type"] == "lora"
+    assert captured["save_dir"] == archive_root / "Flux.1 D" / "fantasy"
+
+
+@pytest.mark.asyncio
+async def test_download_root_rule_falls_back_to_default_root(
+    monkeypatch, scanners, metadata_provider, tmp_path
+):
+    """A non-matching base model keeps the default root."""
+    manager = DownloadManager()
+
+    default_root = tmp_path / "loras-main"
+    archive_root = tmp_path / "lora-archive"
+    settings = get_settings_manager()
+    settings.settings["folder_paths"] = {
+        "loras": [str(default_root), str(archive_root)]
+    }
+    settings.settings["default_lora_root"] = str(default_root)
+    settings.settings["download_root_rules"] = {
+        "loras": [
+            {
+                "match_type": "base_model",
+                "match": ["Flux.1 D"],
+                "root": str(archive_root),
+            }
+        ]
+    }
+    metadata_provider.payload = _lora_payload("Pony")
+
+    captured = {}
+    _capture_execute_download(monkeypatch, captured)
+
+    result = await manager.download_from_civitai(
+        model_version_id=99,
+        save_dir=str(tmp_path),
+        use_default_paths=True,
+        progress_callback=None,
+        source=None,
+    )
+
+    assert result["success"] is True
+    assert str(captured["save_dir"]).startswith(str(default_root))
+
+
+@pytest.mark.asyncio
+async def test_download_root_rule_applies_to_final_unet_type(
+    monkeypatch, scanners, metadata_provider, tmp_path
+):
+    """A checkpoint download routed to unet consults the unet rules, not
+    the checkpoints rules."""
+    manager = DownloadManager()
+
+    unet_default = tmp_path / "unet-main"
+    unet_archive = tmp_path / "unet-archive"
+    checkpoint_root = tmp_path / "checkpoints"
+    settings = get_settings_manager()
+    settings.settings["folder_paths"] = {
+        "checkpoints": [str(checkpoint_root)],
+        "unet": [str(unet_default), str(unet_archive)],
+    }
+    settings.settings["default_checkpoint_root"] = str(checkpoint_root)
+    settings.settings["default_unet_root"] = str(unet_default)
+    settings.settings["download_root_rules"] = {
+        "checkpoints": [
+            {
+                "match_type": "base_model",
+                "match": ["Flux.1 D"],
+                "root": str(checkpoint_root),
+            }
+        ],
+        "unet": [
+            {
+                "match_type": "base_model",
+                "match": ["Flux.1 D"],
+                "root": str(unet_archive),
+            }
+        ],
+    }
+    metadata_provider.payload = {
+        "id": 1234,
+        "model": {"type": "Checkpoint", "tags": ["fantasy"]},
+        "baseModel": "Flux.1 D",
+        "creator": {"username": "Author"},
+        "files": [
+            {
+                "type": "Model",
+                "primary": True,
+                "downloadUrl": "https://example.invalid/file.safetensors",
+                "name": "file.safetensors",
+            }
+        ],
+    }
+
+    captured = {}
+    _capture_execute_download(monkeypatch, captured)
+
+    result = await manager.download_from_civitai(
+        model_version_id=99,
+        save_dir=str(tmp_path),
+        use_default_paths=True,
+        progress_callback=None,
+        source=None,
+    )
+
+    assert result["success"] is True
+    assert captured["model_type"] == "checkpoint"
+    assert captured["save_dir"] == unet_archive / "Flux.1 D" / "fantasy"
+
+
+@pytest.mark.asyncio
+async def test_download_root_rule_tag_match_routes_to_rule_root(
+    monkeypatch, scanners, metadata_provider, tmp_path
+):
+    """A tag rule hits on the model's CivitAI tags (case-insensitive) even
+    when no base_model rule applies."""
+    manager = DownloadManager()
+
+    default_root = tmp_path / "loras-main"
+    archive_root = tmp_path / "lora-archive"
+    settings = get_settings_manager()
+    settings.settings["folder_paths"] = {
+        "loras": [str(default_root), str(archive_root)]
+    }
+    settings.settings["default_lora_root"] = str(default_root)
+    settings.settings["download_root_rules"] = {
+        "loras": [
+            {
+                "match_type": "tag",
+                "match": ["Character"],
+                "root": str(archive_root),
+            }
+        ]
+    }
+    payload = _lora_payload("Pony")
+    payload["model"]["tags"] = ["style", "character"]
+    metadata_provider.payload = payload
+
+    captured = {}
+    _capture_execute_download(monkeypatch, captured)
+
+    result = await manager.download_from_civitai(
+        model_version_id=99,
+        save_dir=str(tmp_path),
+        use_default_paths=True,
+        progress_callback=None,
+        source=None,
+    )
+
+    assert result["success"] is True
+    assert captured["model_type"] == "lora"
+    assert str(captured["save_dir"]).startswith(str(archive_root))

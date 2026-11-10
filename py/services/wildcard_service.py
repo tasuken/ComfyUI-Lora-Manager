@@ -18,8 +18,11 @@ logger = logging.getLogger(__name__)
 
 _WILDCARD_PATTERN = re.compile(r"__([\w\s.\-+/*\\]+?)__")
 _OPTION_PATTERN = re.compile(r"{([^{}]*?)}")
-_TRIGGER_WORD_PATTERN = re.compile(r"^trigger_words\d+$")
-_WEIGHTED_OPTION_PATTERN = re.compile(r"^\s*([0-9.]+)::")
+# Dynamic trigger slots are named ``trigger_words1..n``. The bare
+# ``trigger_words`` name is the original (pre-``trigger_words1``) slot name and
+# still shows up in workflows saved by older versions, so accept it as well.
+_TRIGGER_WORD_PATTERN = re.compile(r"^trigger_words\d*$")
+_WEIGHTED_OPTION_PATTERN = re.compile(r"^\s*-?\d+(\.\d+)?::")
 _NUMERIC_PATTERN = re.compile(r"^-?\d+(\.\d+)?$")
 
 
@@ -37,6 +40,51 @@ def contains_dynamic_syntax(text: str) -> bool:
     return isinstance(text, str) and bool(
         _WILDCARD_PATTERN.search(text) or _OPTION_PATTERN.search(text)
     )
+
+
+def _is_prompt_link(value: Any) -> bool:
+    """Return True for ComfyUI prompt-graph links ([node_id, output_index])."""
+
+    return (
+        isinstance(value, list)
+        and len(value) == 2
+        and isinstance(value[0], str)
+        and isinstance(value[1], (int, float))
+    )
+
+
+def linked_text_requires_rerun(prompt: Any, node_id: Any, input_name: str) -> bool:
+    """Decide if a linked text input forces re-execution for dynamic expansion.
+
+    IS_CHANGED only receives constant inputs, so a linked text arrives as None.
+    This walks the prompt graph to the upstream node and returns False only
+    when that node is fully constant and free of dynamic syntax. Dynamic
+    syntax — or anything that cannot be statically resolved — returns True.
+    """
+
+    if not isinstance(prompt, dict) or node_id is None:
+        return True
+    node = prompt.get(str(node_id))
+    if not isinstance(node, dict):
+        return True
+    inputs = node.get("inputs")
+    if not isinstance(inputs, dict):
+        return True
+    value = inputs.get(input_name)
+    if not _is_prompt_link(value):
+        return contains_dynamic_syntax(value)
+    upstream = prompt.get(value[0])
+    if not isinstance(upstream, dict):
+        return True
+    upstream_inputs = upstream.get("inputs")
+    if not isinstance(upstream_inputs, dict):
+        return True
+    for upstream_value in upstream_inputs.values():
+        if _is_prompt_link(upstream_value):
+            return True
+        if contains_dynamic_syntax(upstream_value):
+            return True
+    return False
 
 
 def get_wildcards_dir(create: bool = False) -> str:
@@ -390,7 +438,7 @@ class WildcardService:
     ) -> str | None:
         keyword = _normalize_wildcard_key(raw_key)
         if keyword in wildcard_dict:
-            return rng.choice(wildcard_dict[keyword])
+            return self._pick_weighted_or_plain(wildcard_dict[keyword], rng)
 
         if "*" in keyword:
             regex_pattern = keyword.replace("*", ".*").replace("+", r"\+")
@@ -400,7 +448,7 @@ class WildcardService:
                 if compiled.match(key):
                     aggregated.extend(values)
             if aggregated:
-                return rng.choice(aggregated)
+                return self._pick_weighted_or_plain(aggregated, rng)
 
         if "/" not in keyword:
             fallback_keyword = _normalize_wildcard_key(f"*/{keyword}")
@@ -408,6 +456,39 @@ class WildcardService:
                 return self._resolve_wildcard_match(fallback_keyword, rng, wildcard_dict)
 
         return None
+
+    def _pick_weighted_or_plain(
+        self, values: list[str], rng: random.Random
+    ) -> str:
+        """Pick a value from the list, respecting N::weight prefix if present.
+
+        When any value in the list uses the ``N::value`` weighted syntax with a
+        weight different from 1, the pick uses weighted random selection.  When
+        no such weighting is present, a plain ``rng.choice`` is used (preserving
+        backward compatibility for unweighted wildcard files).
+
+        In either case the ``N::`` prefix is always stripped from the returned
+        value, matching the behaviour of ``{...}`` option groups.
+        """
+        # Fast path: skip weighting logic entirely when no :: syntax exists
+        if not any("::" in v for v in values):
+            return rng.choice(values)
+
+        weighted_options: list[tuple[float, str]] = []
+        for value in values:
+            weight = 1.0
+            parts = value.split("::", 1)
+            if len(parts) == 2 and _is_numeric_string(parts[0].strip()):
+                weight = float(parts[0].strip())
+            weighted_options.append((weight, value))
+
+        any_weighted = any(w != 1.0 for w, _ in weighted_options)
+        if any_weighted:
+            picked = self._weighted_choice(weighted_options, rng)
+        else:
+            picked = rng.choice(values)
+
+        return self._strip_weight_prefix(picked)
 
 
 def is_trigger_words_input(name: str) -> bool:

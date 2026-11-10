@@ -2,19 +2,20 @@
 <html>
 
 <head>
+    {% include 'components/base_path_bootstrap.html' %}
     <title>{% block title %}{{ t('header.appTitle') }}{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="/loras_static/css/style.css?v={{ version }}">
-    <link rel="stylesheet" href="/loras_static/css/onboarding.css?v={{ version }}">
-    <link rel="stylesheet" href="/loras_static/vendor/flag-icons/flag-icons.min.css">
+    <link rel="stylesheet" href="{{ rel_prefix }}loras_static/css/style.css?v={{ version }}">
+    <link rel="stylesheet" href="{{ rel_prefix }}loras_static/css/onboarding.css?v={{ version }}">
+    <link rel="stylesheet" href="{{ rel_prefix }}loras_static/vendor/flag-icons/flag-icons.min.css">
     {% block page_css %}{% endblock %}
-    <link rel="stylesheet" href="/loras_static/vendor/font-awesome/css/all.min.css"
+    <link rel="stylesheet" href="{{ rel_prefix }}loras_static/vendor/font-awesome/css/all.min.css"
         crossorigin="anonymous" referrerpolicy="no-referrer">
-    <link rel="icon" type="image/png" sizes="32x32" href="/loras_static/images/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/loras_static/images/favicon-16x16.png">
-    <link rel="manifest" href="/loras_static/images/site.webmanifest">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ rel_prefix }}loras_static/images/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ rel_prefix }}loras_static/images/favicon-16x16.png">
+    <link rel="manifest" href="{{ rel_prefix }}loras_static/images/site.webmanifest">
 
-    <link rel="preload" as="font" type="font/woff2" href="/loras_static/vendor/font-awesome/webfonts/fa-solid-900.woff2" crossorigin>
+    <link rel="preload" as="font" type="font/woff2" href="{{ rel_prefix }}loras_static/vendor/font-awesome/webfonts/fa-solid-900.woff2" crossorigin>
 
     <!-- 添加性能监控 -->
     <script>
@@ -88,7 +89,10 @@
                 <!-- Banners will be dynamically inserted here -->
             </div>
 
-            {% if is_initializing %}
+            {% if awaiting_first_scan %}
+                <!-- Show first-run welcome component before the initial scan -->
+                {% include 'components/first_run.html' %}
+            {% elif is_initializing %}
                 <!-- Show initialization component when initializing -->
                 {% include 'components/initialization.html' %}
             {% else %}
@@ -100,9 +104,12 @@
         {% block overlay %}{% endblock %}
     </div>
 
-    {% if is_initializing %}
+    {% if awaiting_first_scan %}
+        <!-- Load first-run welcome JavaScript -->
+        <script type="module" src="{{ rel_prefix }}loras_static/js/components/first_run.js?v={{ version }}"></script>
+    {% elif is_initializing %}
         <!-- Load initialization JavaScript -->
-        <script type="module" src="/loras_static/js/components/initialization.js?v={{ version }}"></script>
+        <script type="module" src="{{ rel_prefix }}loras_static/js/components/initialization.js?v={{ version }}"></script>
     {% else %}
         {% block main_script %}{% endblock %}
     {% endif %}

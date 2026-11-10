@@ -8,10 +8,16 @@ import {
     isValidModelType,
     DOWNLOAD_ENDPOINTS,
     HF_ENDPOINTS,
+    MODEL_SOURCE_ENDPOINTS,
     WS_ENDPOINTS
 } from './apiConfig.js';
 import { resetAndReload } from './modelApiFactory.js';
 import { sidebarManager } from '../components/SidebarManager.js';
+// Shared scan ETA helpers live in a dependency-light module so pages that do
+// not use BaseModelApiClient (e.g. recipes) can reuse them without pulling
+// this module's import cycle (modelApiFactory -> loraApi -> baseModelApi).
+import { createScanEtaTracker, formatScanRemainingTime } from '../utils/scanEtaUtils.js';
+export { createScanEtaTracker, formatScanRemainingTime };
 
 /**
  * Abstract base class for all model API clients
@@ -112,6 +118,18 @@ export class BaseModelApiClient {
         }
     }
 
+    async cancelDownload(downloadId) {
+        try {
+            const response = await fetch(
+                `${DOWNLOAD_ENDPOINTS.cancelGet}?download_id=${encodeURIComponent(downloadId)}`
+            );
+            return await response.json();
+        } catch (error) {
+            console.error('Error cancelling download:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
     async loadMoreWithVirtualScroll(resetPage = false, updateFolders = false) {
         const pageState = this.getPageState();
 
@@ -189,8 +207,13 @@ export class BaseModelApiClient {
                 if (state.virtualScroller) {
                     state.virtualScroller.removeItemByFilePath(filePath);
                 }
-                showToast('toast.api.deleteSuccess', { type: this.apiConfig.config.displayName }, 'success');
-                return true;
+                const batchId = data.batch_id || null;
+                if (!batchId) {
+                    // Not staged (staging failed): keep the legacy toast.
+                    // When staged, the caller shows the undo action toast instead.
+                    showToast('toast.api.deleteSuccess', { type: this.apiConfig.config.displayName }, 'success');
+                }
+                return { success: true, batch_id: batchId };
             } else {
                 throw new Error(data.error || `Failed to delete ${this.apiConfig.config.singularName}`);
             }
@@ -488,25 +511,108 @@ export class BaseModelApiClient {
         }
     }
 
-    async refreshModels(fullRebuild = false) {
+    async refreshModels(fullRebuild = false, { roots = null, folder = null } = {}) {
         const abortController = new AbortController();
-        try {
-            state.loadingManager.show(
-                `${fullRebuild ? 'Full rebuild' : 'Refreshing'} ${this.apiConfig.config.displayName}s...`,
-                0
+        const scopeRoots = Array.isArray(roots) ? roots.filter(Boolean) : [];
+        const scopeFolder = typeof folder === 'string' && folder ? folder : null;
+        const displayName = this.apiConfig.config.displayName;
+        const singularName = this.apiConfig.config.singularName;
+        const actionText = translate(
+            fullRebuild ? 'common.scanProgress.actionFullRebuild' : 'common.scanProgress.actionRefresh',
+            {},
+            fullRebuild ? 'Full rebuild' : 'Refresh'
+        );
+        const actionLowerText = translate(
+            fullRebuild ? 'common.scanProgress.actionRebuildLower' : 'common.scanProgress.actionRefreshLower',
+            {},
+            fullRebuild ? 'rebuild' : 'refresh'
+        );
+        const initialMessage = translate(
+            fullRebuild ? 'common.scanProgress.fullRebuilding' : 'common.scanProgress.refreshing',
+            { type: displayName },
+            `${fullRebuild ? 'Full rebuild' : 'Refreshing'} ${displayName}s...`
+        );
+        const etaTracker = createScanEtaTracker();
+        let ws = null;
+        let lastProgressStage = null;
+
+        const handleScanProgress = (data) => {
+            if (typeof data.progress === 'number') {
+                state.loadingManager.setProgress(data.progress);
+            }
+            // The per-file rate of one stage says nothing about the next one:
+            // the walk phase counts files while the new-file pass processes
+            // them, so a carried-over average would produce a nonsense ETA.
+            if (data.stage && data.stage !== lastProgressStage) {
+                lastProgressStage = data.stage;
+                etaTracker.reset();
+            }
+            let statusText = translate(
+                `common.scanProgress.stages.${data.stage}`,
+                { total: data.total },
+                data.stage || ''
             );
+            if (data.status === 'processing' && data.stage === 'reconcile_scan') {
+                // Walk phase: the real file count is only known once the walk
+                // finishes, so report the files checked so far and the roots
+                // being walked instead of a processed/total ratio.
+                const filesSeen = Number(data.files_seen) || 0;
+                if (filesSeen > 0) {
+                    const roots = Array.isArray(data.active_roots)
+                        ? data.active_roots.filter(Boolean)
+                        : [];
+                    const formattedFiles = filesSeen.toLocaleString();
+                    const filesText = translate(
+                        'common.scanProgress.walkFiles',
+                        { count: formattedFiles },
+                        `${formattedFiles} files`
+                    );
+                    statusText += roots.length
+                        ? ` ${roots.join(', ')} (${filesText})`
+                        : ` (${filesText})`;
+                    const etaText = etaTracker.update(data.processed, data.total);
+                    if (etaText) {
+                        statusText += ` | ${etaText}`;
+                    }
+                }
+            } else if (data.status === 'processing' && data.total > 0) {
+                statusText += ` (${data.processed}/${data.total})`;
+                if (data.current_name) {
+                    statusText += ` ${data.current_name}`;
+                }
+                const etaText = etaTracker.update(data.processed, data.total);
+                if (etaText) {
+                    statusText += ` | ${etaText}`;
+                }
+            }
+            state.loadingManager.setStatus(statusText);
+        };
+
+        try {
+            state.loadingManager.show(initialMessage, 0);
             state.loadingManager.showCancelButton(() => {
                 this.cancelTask();
                 abortController.abort();
             });
 
+            // Connect to the shared progress channel for live scan updates.
+            // Failure to connect must not block the refresh itself — fall back
+            // to the plain loading indicator.
+            ws = await this._connectScanProgressSocket(handleScanProgress, singularName);
+
             const url = new URL(this.apiConfig.endpoints.scan, window.location.origin);
             url.searchParams.append('full_rebuild', fullRebuild);
+            for (const root of scopeRoots) {
+                url.searchParams.append('roots', root);
+            }
+            if (scopeFolder) {
+                url.searchParams.append('folder', scopeFolder);
+            }
 
             const response = await fetch(url, { signal: abortController.signal });
 
             if (!response.ok) {
-                throw new Error(`Failed to refresh ${this.apiConfig.config.displayName}s: ${response.status} ${response.statusText}`);
+                throw new Error(`Failed to refresh ${displayName}s: ${response.status} ${response.statusText}`);
             }
 
             const data = await response.json();
@@ -517,17 +623,122 @@ export class BaseModelApiClient {
 
             resetAndReload(true);
 
-            showToast('toast.api.refreshComplete', { action: fullRebuild ? 'Full rebuild' : 'Refresh' }, 'success');
+            this._showRefreshSummary(data, actionText, scopeRoots, scopeFolder);
         } catch (error) {
             if (error.name === 'AbortError') {
                 showToast('toast.api.operationCancelled', {}, 'info');
                 return;
             }
             console.error('Refresh failed:', error);
-            showToast('toast.api.refreshFailed', { action: fullRebuild ? 'rebuild' : 'refresh', type: this.apiConfig.config.displayName }, 'error');
+            showToast('toast.api.refreshFailed', { action: actionLowerText, type: displayName }, 'error');
         } finally {
+            if (ws) {
+                ws.close();
+            }
             state.loadingManager.hide();
             state.loadingManager.restoreProgressBar();
+        }
+    }
+
+    /**
+     * Report what a finished scan did.
+     *
+     * A scoped scan names the folder it scanned and how many models changed; a
+     * scan that could not read part of its scope says so instead of silently
+     * looking like "nothing found" (the entries are kept, not deleted).
+     * @param {Object} summary - Scan response payload
+     * @param {string} actionText - Localized "Refresh" / "Full rebuild"
+     * @param {Array<string>} scopeRoots - Roots the scan was restricted to
+     */
+    _showRefreshSummary(summary, actionText, scopeRoots = [], scopeFolder = null) {
+        const payload = summary || {};
+        const scannedRoots = Array.isArray(payload.scanned_roots) ? payload.scanned_roots : [];
+        // A folder scan is named by the folder the user clicked; a root scan by
+        // the roots it walked.
+        const scopeLabel = payload.scope_label
+            || (scannedRoots.length ? scannedRoots.join(', ') : '');
+
+        if ((scopeRoots.length || scopeFolder) && scopeLabel) {
+            showToast(
+                'toast.api.refreshCompleteScoped',
+                {
+                    scope: scopeLabel,
+                    added: Number(payload.added || 0),
+                    removed: Number(payload.removed || 0),
+                },
+                'success'
+            );
+        } else {
+            showToast('toast.api.refreshComplete', { action: actionText }, 'success');
+        }
+
+        const keptCount = Number(payload.kept_unreachable || 0);
+        if (keptCount > 0) {
+            const unavailable = Array.isArray(payload.unavailable_paths)
+                ? payload.unavailable_paths
+                : [];
+            const skipped = Array.isArray(payload.skipped_roots) ? payload.skipped_roots : [];
+            // Skipped roots already carry a short label; the remaining
+            // unreadable folders only have a path.
+            const names = (
+                skipped.length
+                    ? skipped.map(entry => entry?.label || entry?.path)
+                    : unavailable.map(entry => entry?.path)
+            ).filter(Boolean);
+            showToast(
+                'toast.api.refreshKeptUnreachable',
+                {
+                    count: keptCount.toLocaleString(),
+                    paths: names.slice(0, 3).join(', ') || '—',
+                },
+                'info'
+            );
+        }
+    }
+
+    /**
+     * Connect to the shared fetch-progress WebSocket for scan progress updates.
+     * Returns null when the connection cannot be established (silent fallback).
+     * @param {Function} onScanProgress - Handler for scan_progress messages
+     * @param {string} singularName - Model type filter (e.g. 'lora')
+     * @returns {Promise<WebSocket|null>}
+     */
+    async _connectScanProgressSocket(onScanProgress, singularName) {
+        let socket = null;
+        try {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            socket = new WebSocket(`${wsProtocol}${window.location.host}${WS_ENDPOINTS.fetchProgress}`);
+
+            await new Promise((resolve, reject) => {
+                socket.onopen = resolve;
+                socket.onerror = reject;
+            });
+
+            socket.onmessage = (event) => {
+                let data;
+                try {
+                    data = JSON.parse(event.data);
+                } catch (parseError) {
+                    return;
+                }
+                // Only handle scan progress for this client's model type;
+                // other operations share this channel and must be ignored.
+                if (data.type !== 'scan_progress' || data.model_type !== singularName) {
+                    return;
+                }
+                onScanProgress(data);
+            };
+
+            return socket;
+        } catch (error) {
+            if (socket) {
+                try {
+                    socket.close();
+                } catch (closeError) {
+                    // Ignore close errors during fallback
+                }
+            }
+            return null;
         }
     }
 
@@ -588,6 +799,9 @@ export class BaseModelApiClient {
                     ws.onmessage = (event) => {
                         const data = JSON.parse(event.data);
 
+                        // Scan progress shares this channel; it is handled by refreshModels
+                        if (data.type === 'scan_progress') return;
+
                         switch (data.status) {
                             case 'started':
                                 loading.setStatus('Starting metadata fetch...');
@@ -611,6 +825,22 @@ export class BaseModelApiClient {
                             case 'completed': {
                                 loading.setProgress(100);
                                 let summaryText = `Completed: Updated ${data.success} of ${data.processed} ${this.apiConfig.config.displayName}s`;
+                                if (data.failure_count > 0) {
+                                    summaryText += ` | ❌ ${data.failure_count} failed`;
+                                }
+                                if (data.skipped_count > 0) {
+                                    summaryText += ` | ⏭️ ${data.skipped_count} skipped`;
+                                }
+                                summaryText += ` (⏱ ${data.elapsed_seconds || '?'}s)`;
+                                loading.setStatus(summaryText);
+                                resolve(data);
+                                break;
+                            }
+
+                            case 'rate_limited': {
+                                // Backend aborted the batch after repeated rate limits;
+                                // settle the promise so the loading overlay closes.
+                                let summaryText = `Aborted (rate limited): updated ${data.success} of ${data.processed} ${this.apiConfig.config.displayName}s`;
                                 if (data.failure_count > 0) {
                                     summaryText += ` | ❌ ${data.failure_count} failed`;
                                 }
@@ -680,11 +910,24 @@ export class BaseModelApiClient {
             return;
         }
 
+        if (data.status === 'rate_limited') {
+            showToast('toast.api.metadataFetchRateLimited', {
+                success,
+                total,
+                failed: data.failure_count || 0,
+                skipped: data.skipped_count || 0,
+            }, 'warning');
+            this._showFailureDetailsModal(data);
+            return;
+        }
+
         this._showFailureDetailsModal(data);
     }
 
     _showFailureDetailsModal(data) {
-        const { failures = [], success, processed, total, failure_count, skipped_count, elapsed_seconds } = data;
+        const { failures = [], success, processed, total, failure_count, skipped_count, elapsed_seconds, offline_skipped = 0, offline_roots = [] } = data;
+
+        const offlineRootNames = offline_roots.map((root) => root.label || root.path || String(root)).join(', ');
 
         // Build failure list HTML
         const failureRows = failures.map((f, i) =>
@@ -701,6 +944,11 @@ export class BaseModelApiClient {
                     <button class="close" data-action="close-modal">&times;</button>
 
                     <h2>${translate('modals.metadataFetchSummary.title', {}, 'Metadata Fetch Summary')}</h2>
+
+                    ${data.status === 'rate_limited' ? `
+                    <div class="refresh-rate-limited-notice">
+                        <i class="fas fa-exclamation-triangle"></i> ${translate('modals.metadataFetchSummary.rateLimitedNotice', {}, 'Fetch aborted: the metadata provider rate limit was reached. Re-run "Fetch from Civitai" later to retry the remaining models.')}
+                    </div>` : ''}
 
                     <div class="refresh-summary-stats">
                         <div class="stat-card stat-card-success">
@@ -721,6 +969,13 @@ export class BaseModelApiClient {
                                 <span class="stat-card-value">${skipped_count}</span>
                             </div>
                         </div>
+                        ${offline_skipped > 0 ? `
+                        <div class="stat-card stat-card-offline" title="${this._escapeHtml(offlineRootNames)}">
+                            <div class="stat-card-body">
+                                <span class="stat-card-label">${translate('modals.metadataFetchSummary.statOffline', {}, 'Drive Offline')}</span>
+                                <span class="stat-card-value">${offline_skipped}</span>
+                            </div>
+                        </div>` : ''}
                         <div class="stat-card stat-card-total">
                             <div class="stat-card-body">
                                 <span class="stat-card-label">${translate('modals.metadataFetchSummary.statTotal', {}, 'Total Scanned')}</span>
@@ -1073,6 +1328,15 @@ export class BaseModelApiClient {
         }
     }
 
+    async fetchCivitaiModelByVersion(versionId) {
+        const response = await fetch(`${this.apiConfig.endpoints.civitaiModelByVersion}/${versionId}`);
+        if (!response.ok) {
+            const result = await response.json().catch(() => ({}));
+            throw new Error(result.error || 'Failed to fetch model version');
+        }
+        return await response.json();
+    }
+
     async fetchCivitaiVersions(modelId, source = null) {
         try {
             let requestUrl = `${this.apiConfig.endpoints.civitaiVersions}/${modelId}`;
@@ -1087,7 +1351,7 @@ export class BaseModelApiClient {
                 if (errorData && errorData.error && errorData.error.includes('Model type mismatch')) {
                     throw new Error(`This model is not a ${this.apiConfig.config.displayName}. Please switch to the appropriate page to download this model type.`);
                 }
-                throw new Error('Failed to fetch model versions');
+                throw new Error((errorData && errorData.error) || 'Failed to fetch model versions');
             }
             return await response.json();
         } catch (error) {
@@ -1176,9 +1440,13 @@ export class BaseModelApiClient {
         }
     }
 
-    async fetchModelFolders() {
+    async fetchModelFolders(options = {}) {
         try {
-            const response = await fetch(this.apiConfig.endpoints.folders);
+            const { includeEmpty = false } = options || {};
+            const url = includeEmpty
+                ? `${this.apiConfig.endpoints.folders}?include_empty=1`
+                : this.apiConfig.endpoints.folders;
+            const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(`Failed to fetch ${this.apiConfig.config.displayName} folders`);
             }
@@ -1189,9 +1457,158 @@ export class BaseModelApiClient {
         }
     }
 
-    async fetchUnifiedFolderTree() {
+    async createFolder(folderPath) {
+        const response = await fetch(this.apiConfig.endpoints.createFolder, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ folder_path: folderPath })
+        });
+
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok || result.success === false) {
+            throw new Error(result.error || `Failed to create folder`);
+        }
+
+        return result;
+    }
+
+    /**
+     * Delete a model-free folder inside the library roots.
+     *
+     * Only model-free folders can be removed; the backend answers with a 409
+     * `not_empty`/`busy` conflict otherwise. Those codes are attached to the
+     * thrown Error (`code`, `manifest`) so callers can explain the refusal
+     * instead of showing a bare message. A folder that is already gone from disk
+     * is forgotten instead (`code: 'missing'`, success), which is what lets the
+     * sidebar clear a node whose directory was moved outside LoRA Manager.
+     *
+     * @param {string} folderPath Absolute business path of the folder
+     * @param {{dryRun?: boolean}} [options]
+     */
+    async deleteFolder(folderPath, options = {}) {
+        const { dryRun = false } = options || {};
+
+        const response = await fetch(this.apiConfig.endpoints.deleteFolder, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ folder_path: folderPath, dry_run: dryRun })
+        });
+
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok || result.success === false) {
+            const error = new Error(result.error || `Failed to delete folder`);
+            error.code = result.code || null;
+            error.manifest = result.manifest || null;
+            throw error;
+        }
+
+        return result;
+    }
+
+    /**
+     * Drop the records of a folder that no longer exists on disk.
+     *
+     * Deleting such a folder cannot work -- there is nothing left to remove --
+     * so a node whose directory was moved or deleted outside LoRA Manager is
+     * cleared with this instead. The backend refuses while any root still holds
+     * the directory (`code: 'exists'`), because then it is a delete.
+     *
+     * @param {string} folder - Library-relative folder path (e.g. "Krea2/Women")
+     * @returns {Promise<Object>} `{success: true, folder}` on success
+     */
+    async forgetFolder(folder) {
+        const response = await fetch(this.apiConfig.endpoints.forgetFolder, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ folder })
+        });
+
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok || result.success === false) {
+            const error = new Error(result.error || 'Failed to remove folder from the sidebar');
+            error.code = result.code || null;
+            throw error;
+        }
+
+        return result;
+    }
+
+
+    /**
+     * Rename a folder inside the library roots.
+     *
+     * Works on folders that hold models too — the backend re-keys the affected
+     * cache records instead of cascading. A name collision or a staged delete
+     * inside the subtree surfaces as a 409 conflict, attached to the thrown
+     * Error as `code`.
+     *
+     * @param {string} folderPath Absolute business path of the folder
+     * @param {string} newName New leaf name (a single path segment)
+     */
+    async renameFolder(folderPath, newName) {
+        const response = await fetch(this.apiConfig.endpoints.renameFolder, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ folder_path: folderPath, new_name: newName })
+        });
+
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok || result.success === false) {
+            const error = new Error(result.error || `Failed to rename folder`);
+            error.code = result.code || null;
+            throw error;
+        }
+
+        return result;
+    }
+
+    /**
+     * Resolve a library-relative folder onto the directories it stands for.
+     *
+     * The unified folder tree merges every model root into one relative-path
+     * namespace, so a tree node cannot be turned into a business path by
+     * prefixing a root: the same relative folder may live under several roots,
+     * or only under one that is not the default root. Callers that hold a node
+     * ask here first; the answer is what the folder APIs must be given.
+     *
+     * @param {string} folderPath Library-relative folder path (e.g. `a/b`)
+     * @returns {Promise<{folder: string, candidates: Array<{folder_path: string, root: string, is_symlink: boolean}>}>}
+     *   `candidates` is empty when no root holds the directory on disk.
+     */
+    async resolveFolder(folderPath) {
+        const params = new URLSearchParams({ folder: folderPath });
+        const response = await fetch(`${this.apiConfig.endpoints.resolveFolder}?${params}`);
+
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok || result.success === false) {
+            const error = new Error(result.error || `Failed to resolve folder`);
+            error.code = result.code || null;
+            throw error;
+        }
+
+        return result;
+    }
+
+    async fetchUnifiedFolderTree(options = {}) {
         try {
-            const response = await fetch(this.apiConfig.endpoints.unifiedFolderTree);
+            const { includeEmpty = false } = options;
+            const url = includeEmpty
+                ? `${this.apiConfig.endpoints.unifiedFolderTree}?include_empty=1`
+                : this.apiConfig.endpoints.unifiedFolderTree;
+            const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(`Failed to fetch unified folder tree`);
             }
@@ -1216,7 +1633,7 @@ export class BaseModelApiClient {
         }
     }
 
-    async downloadModel(modelId, versionId, modelRoot, relativePath, useDefaultPaths = false, downloadId, source = null, fileParams = null) {
+    async downloadModel(modelId, versionId, modelRoot, relativePath, useDefaultPaths = false, downloadId, source = null, fileParams = null, useSaveDirAsRoot = false) {
         try {
             const response = await fetch(DOWNLOAD_ENDPOINTS.download, {
                 method: 'POST',
@@ -1227,6 +1644,7 @@ export class BaseModelApiClient {
                     model_root: modelRoot,
                     relative_path: relativePath,
                     use_default_paths: useDefaultPaths,
+                    use_save_dir_as_root: useSaveDirAsRoot,
                     download_id: downloadId,
                     ...(source ? { source } : {}),
                     ...(fileParams ? { file_params: fileParams } : {})
@@ -1244,30 +1662,52 @@ export class BaseModelApiClient {
         }
     }
 
-    async fetchHfRepoFiles(repo, revision = 'main') {
+    /**
+     * List the downloadable weight files of an external repository.
+     * @param {string} repo - `owner/name`
+     * @param {string} [platform] - `huggingface` (default) or `modelscope`
+     * @param {string} [revision] - branch; each site has its own default
+     */
+    async fetchModelSourceFiles(repo, platform = 'huggingface', revision = '') {
         try {
-            const params = new URLSearchParams({ repo, revision });
-            const response = await fetch(`${HF_ENDPOINTS.repoFiles}?${params}`);
+            const params = new URLSearchParams({ repo, platform });
+            if (revision) params.set('revision', revision);
+            const response = await fetch(`${MODEL_SOURCE_ENDPOINTS.repoFiles}?${params}`);
             if (!response.ok) {
                 const err = await response.json().catch(() => ({}));
-                throw new Error(err.error || 'Failed to fetch HF repo files');
+                throw new Error(err.error || 'Failed to fetch repository files');
             }
             return await response.json();
         } catch (error) {
-            console.error('Error fetching HF repo files:', error);
+            console.error('Error fetching repository files:', error);
             throw error;
         }
     }
 
-    async downloadHfModel({ repo, filename, revision, modelRoot, relativePath, useDefaultPaths, download_id }) {
+    /** Backwards-compatible Hugging Face wrapper. */
+    async fetchHfRepoFiles(repo, revision = 'main') {
+        return this.fetchModelSourceFiles(repo, 'huggingface', revision);
+    }
+
+    async downloadModelSource({
+        platform = 'huggingface',
+        repo,
+        filename,
+        revision,
+        modelRoot,
+        relativePath,
+        useDefaultPaths,
+        download_id,
+    }) {
         try {
-            const response = await fetch(HF_ENDPOINTS.download, {
+            const response = await fetch(MODEL_SOURCE_ENDPOINTS.download, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    platform,
                     repo,
                     filename,
-                    revision: revision || 'main',
+                    revision: revision || '',
                     model_root: modelRoot,
                     relative_path: relativePath || '',
                     use_default_paths: useDefaultPaths || false,
@@ -1281,9 +1721,23 @@ export class BaseModelApiClient {
 
             return await response.json();
         } catch (error) {
-            console.error('Error downloading HF model:', error);
+            console.error('Error downloading model:', error);
             throw error;
         }
+    }
+
+    /** Backwards-compatible Hugging Face wrapper. */
+    async downloadHfModel({ repo, filename, revision, modelRoot, relativePath, useDefaultPaths, download_id }) {
+        return this.downloadModelSource({
+            platform: 'huggingface',
+            repo,
+            filename,
+            revision: revision || 'main',
+            modelRoot,
+            relativePath,
+            useDefaultPaths,
+            download_id,
+        });
     }
 
     _buildQueryParams(baseParams, pageState) {
@@ -1610,9 +2064,14 @@ export class BaseModelApiClient {
             if (result.success) {
                 return {
                     success: true,
-                    deleted_count: result.deleted_count,
+                    deleted_count: result.deleted_count ?? result.total_deleted,
                     failed_count: result.failed_count || 0,
-                    errors: result.errors || []
+                    errors: result.errors || [],
+                    // Undo batch fields — batch_id on merge success, batch_ids
+                    // array on merge failure (same success dict for the
+                    // status='cancelled' staged-subset path)
+                    batch_id: result.batch_id || null,
+                    batch_ids: result.batch_ids || null
                 };
             } else {
                 throw new Error(result.error || `Failed to delete ${this.apiConfig.config.displayName.toLowerCase()}s`);
@@ -1629,7 +2088,7 @@ export class BaseModelApiClient {
         }
     }
 
-    async downloadExampleImages(modelHashes, modelTypes = null) {
+    async downloadExampleImages(modelHashes, modelTypes = null, { force = true } = {}) {
         let ws = null;
 
         await state.loadingManager.showWithProgress(async (loading) => {
@@ -1688,8 +2147,13 @@ export class BaseModelApiClient {
                 // Determine optimize setting
                 const optimize = state.global?.settings?.optimize_example_images ?? true;
 
+                // force=false routes to the regular endpoint, which skips already-processed models
+                const endpoint = force
+                    ? DOWNLOAD_ENDPOINTS.exampleImages
+                    : DOWNLOAD_ENDPOINTS.exampleImagesMissing;
+
                 // Make the API request to start the download process
-                const response = await fetch(DOWNLOAD_ENDPOINTS.exampleImages, {
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1698,6 +2162,7 @@ export class BaseModelApiClient {
                         model_hashes: modelHashes,
                         output_dir: outputDir,
                         optimize: optimize,
+                        force: force,
                         model_types: modelTypes || [this.apiConfig.config.singularName]
                     })
                 });
@@ -1911,6 +2376,135 @@ export class BaseModelApiClient {
         }, {
             initialMessage: translate('loras.bulkOperations.autoOrganizeProgress.initializing', {}, 'Initializing auto-organize...'),
             completionMessage: translate('loras.bulkOperations.autoOrganizeProgress.complete', {}, 'Auto-organize complete')
+        });
+    }
+
+    /**
+     * Apply the configured download filename template to models, renaming their files
+     * @param {Array} filePaths - Optional array of file paths to rename. If not provided, applies to all models.
+     * @returns {Promise} - Promise that resolves when the operation is complete
+     */
+    async applyFilenameTemplate(filePaths = null) {
+        let ws = null;
+
+        await state.loadingManager.showWithProgress(async (loading) => {
+            loading.showCancelButton(() => this.cancelTask());
+            try {
+                // Connect to WebSocket for progress updates
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+                ws = new WebSocket(`${wsProtocol}${window.location.host}${WS_ENDPOINTS.fetchProgress}`);
+
+                const operationComplete = new Promise((resolve, reject) => {
+                    ws.onmessage = (event) => {
+                        const data = JSON.parse(event.data);
+
+                        if (data.type !== 'filename_template_progress') return;
+
+                        switch (data.status) {
+                            case 'started':
+                                loading.setProgress(0);
+                                const operationType = data.operation_type === 'bulk' ? 'selected models' : 'all models';
+                                loading.setStatus(translate('loras.bulkOperations.filenameTemplateProgress.starting', { type: operationType }, `Applying filename template to ${operationType}...`));
+                                break;
+
+                            case 'processing':
+                                const percent = data.total > 0 ? ((data.processed / data.total) * 90).toFixed(1) : 0;
+                                loading.setProgress(percent);
+                                loading.setStatus(
+                                    translate('loras.bulkOperations.filenameTemplateProgress.processing', {
+                                        processed: data.processed,
+                                        total: data.total,
+                                        success: data.success,
+                                        failures: data.failures,
+                                        skipped: data.skipped
+                                    }, `Processing (${data.processed}/${data.total}) - ${data.success} renamed, ${data.skipped} skipped, ${data.failures} failed`)
+                                );
+                                break;
+
+                            case 'completed':
+                                loading.setProgress(100);
+                                loading.setStatus(
+                                    translate('loras.bulkOperations.filenameTemplateProgress.completed', {
+                                        success: data.success,
+                                        skipped: data.skipped,
+                                        failures: data.failures,
+                                        total: data.total
+                                    }, `Completed: ${data.success} renamed, ${data.skipped} skipped, ${data.failures} failed`)
+                                );
+
+                                setTimeout(() => {
+                                    resolve(data);
+                                }, 1500);
+                                break;
+
+                            case 'cancelled':
+                                loading.setStatus(translate('toast.api.operationCancelled', {}, 'Operation cancelled by user'));
+                                resolve(data);
+                                break;
+
+                            case 'error':
+                                loading.setStatus(translate('loras.bulkOperations.filenameTemplateProgress.error', { error: data.error }, `Error: ${data.error}`));
+                                reject(new Error(data.error));
+                                break;
+                        }
+                    };
+
+                    ws.onerror = (error) => {
+                        console.error('WebSocket error during filename template apply:', error);
+                        reject(new Error('Connection error'));
+                    };
+                });
+
+                // Start the filename template operation
+                const endpoint = this.apiConfig.endpoints.applyFilenameTemplate;
+
+                const requestBody = {};
+                if (filePaths) {
+                    requestBody.file_paths = filePaths;
+                }
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Failed to start filename template operation');
+                }
+
+                // Wait for the operation to complete via WebSocket
+                const result = await operationComplete;
+
+                // Show appropriate success message based on results
+                if (result.status === 'cancelled') {
+                    showToast('toast.api.operationCancelledPartial', { success: result.success, total: result.total }, 'info');
+                } else if (result.failures === 0) {
+                    showToast('toast.loras.filenameTemplateSuccess', {
+                        count: result.success,
+                        type: result.operation_type === 'bulk' ? 'selected models' : 'all models'
+                    }, 'success');
+                } else {
+                    showToast('toast.loras.filenameTemplatePartialSuccess', {
+                        success: result.success,
+                        failures: result.failures,
+                        total: result.total
+                    }, 'warning');
+                }
+
+            } catch (error) {
+                console.error('Error applying filename template:', error);
+                showToast('toast.loras.filenameTemplateFailed', { error: error.message }, 'error');
+                throw error;
+            } finally {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.close();
+                }
+            }
+        }, {
+            initialMessage: translate('loras.bulkOperations.filenameTemplateProgress.initializing', {}, 'Initializing filename template apply...'),
+            completionMessage: translate('loras.bulkOperations.filenameTemplateProgress.complete', {}, 'Filename template apply complete')
         });
     }
 

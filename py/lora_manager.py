@@ -14,7 +14,7 @@ standalone_mode = (
 if not standalone_mode:
     setup_logging()
 
-from server import PromptServer  # type: ignore
+from server import PromptServer  # pyright: ignore[reportMissingImports]
 
 from .config import config
 from .services.model_service_factory import (
@@ -25,15 +25,18 @@ from .routes.recipe_routes import RecipeRoutes
 from .routes.stats_routes import StatsRoutes
 from .routes.update_routes import UpdateRoutes
 from .routes.misc_routes import MiscRoutes
+from .routes.pending_delete_routes import PendingDeleteRoutes
 from .routes.preview_routes import PreviewRoutes
 from .routes.example_images_routes import ExampleImagesRoutes
 from .services.service_registry import ServiceRegistry
 from .services.settings_manager import get_settings_manager
+from .services.pending_delete_service import get_pending_delete_service
 from .utils.example_images_migration import ExampleImagesMigration
 from .services.websocket_manager import ws_manager
 from .services.example_images_cleanup_service import ExampleImagesCleanupService
 from .middleware.csp_middleware import relax_csp_for_remote_media
 from .middleware.error_middleware import api_json_error
+from .utils.gc_utils import freeze_long_lived_objects
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +173,7 @@ class LoraManager:
         RecipeRoutes.setup_routes(app)
         UpdateRoutes.setup_routes(app)
         MiscRoutes.setup_routes(app)
+        PendingDeleteRoutes.setup_routes(app)
         ExampleImagesRoutes.setup_routes(app, ws_manager=ws_manager)
         PreviewRoutes.setup_routes(app)
 
@@ -190,6 +194,15 @@ class LoraManager:
     async def _initialize_services(cls):
         """Initialize all services using the ServiceRegistry"""
         try:
+            from .services.first_run_manager import get_first_run_manager
+
+            first_run_manager = get_first_run_manager()
+            # Upgrading users already have a persisted cache snapshot: mark the
+            # first-run gate as completed for them. Must happen before any
+            # scanner is constructed, because construction creates an empty
+            # snapshot file that would masquerade as an existing library.
+            first_run_manager.check_and_mark_upgrade()
+
             # Initialize CivitaiClient first to ensure it's ready for other services
             await ServiceRegistry.get_civitai_client()
 
@@ -208,37 +221,36 @@ class LoraManager:
             # Initialize WebSocket manager
             await ServiceRegistry.get_websocket_manager()
 
-            # Initialize scanners in background
-            lora_scanner = await ServiceRegistry.get_lora_scanner()
-            checkpoint_scanner = await ServiceRegistry.get_checkpoint_scanner()
-            embedding_scanner = await ServiceRegistry.get_embedding_scanner()
+            # Preload LLM model catalog (background task, non-blocking)
+            from .services.llm_service import LLMService
+            await LLMService.get_instance()
 
-            # Initialize recipe scanner if needed
-            recipe_scanner = await ServiceRegistry.get_recipe_scanner()
-
-            # Create low-priority initialization tasks
-            init_tasks = [
-                asyncio.create_task(
-                    lora_scanner.initialize_in_background(), name="lora_cache_init"
-                ),
-                asyncio.create_task(
-                    checkpoint_scanner.initialize_in_background(),
-                    name="checkpoint_cache_init",
-                ),
-                asyncio.create_task(
-                    embedding_scanner.initialize_in_background(),
-                    name="embedding_cache_init",
-                ),
-                asyncio.create_task(
-                    recipe_scanner.initialize_in_background(), name="recipe_cache_init"
-                ),
-            ]
+            # Initialize scanners in background. On a fresh install the
+            # first-run gate holds this until the user confirms the welcome
+            # page; FirstRunManager.start_initial_scan() then launches the
+            # same tasks via launch_scanner_initialization().
+            if first_run_manager.is_awaiting_first_scan():
+                logger.info(
+                    "LoRA Manager: awaiting first-run confirmation; scanner "
+                    "initialization deferred until the initial scan is started"
+                )
+            else:
+                await cls.launch_scanner_initialization()
 
             await ExampleImagesMigration.check_and_run_migrations()
 
-            # Schedule post-initialization tasks to run after scanners complete
+            # Startup sweep: purge pending-delete batches that expired during a
+            # previous run. Non-blocking (fire-and-forget); purge_expired only
+            # removes already-expired batches, so a staged undo that survived a
+            # restart stays restorable. scan_roots=True runs the reconciliation
+            # pass first so leftover batches (the in-process registry is empty
+            # after a restart) are re-discovered on disk. Covers both plugin
+            # and standalone modes (StandaloneLoraManager reuses this
+            # classmethod).
+            pending_delete_service = await get_pending_delete_service()
             asyncio.create_task(
-                cls._run_post_initialization_tasks(init_tasks), name="post_init_tasks"
+                pending_delete_service.purge_expired(scan_roots=True),
+                name="pending_delete_startup_sweep",
             )
 
             logger.debug(
@@ -251,6 +263,61 @@ class LoraManager:
             )
 
     @classmethod
+    async def launch_scanner_initialization(cls) -> list:
+        """Create the background cache-initialization tasks for every scanner.
+
+        Shared by the normal startup path (``_initialize_services``) and the
+        first-run confirmation flow (``FirstRunManager.start_initial_scan``),
+        so both launch the exact same task set. Also schedules the
+        post-initialization follow-up. Returns the scanner init tasks.
+        """
+        lora_scanner = await ServiceRegistry.get_lora_scanner()
+        checkpoint_scanner = await ServiceRegistry.get_checkpoint_scanner()
+        embedding_scanner = await ServiceRegistry.get_embedding_scanner()
+        other_scanner = await ServiceRegistry.get_other_scanner()
+        # Opt-in but always initialized: an empty-roots scan is trivial, and
+        # without a cache the /workflows page would sit on the initialization
+        # screen forever (even the "feature disabled" empty state needs the
+        # scanner past the initializing check).
+        workflow_scanner = await ServiceRegistry.get_workflow_scanner()
+
+        # Initialize recipe scanner if needed
+        recipe_scanner = await ServiceRegistry.get_recipe_scanner()
+
+        # Create low-priority initialization tasks
+        init_tasks = [
+            asyncio.create_task(
+                lora_scanner.initialize_in_background(), name="lora_cache_init"
+            ),
+            asyncio.create_task(
+                checkpoint_scanner.initialize_in_background(),
+                name="checkpoint_cache_init",
+            ),
+            asyncio.create_task(
+                embedding_scanner.initialize_in_background(),
+                name="embedding_cache_init",
+            ),
+            asyncio.create_task(
+                other_scanner.initialize_in_background(),
+                name="other_cache_init",
+            ),
+            asyncio.create_task(
+                workflow_scanner.initialize_in_background(),
+                name="workflow_cache_init",
+            ),
+            asyncio.create_task(
+                recipe_scanner.initialize_in_background(), name="recipe_cache_init"
+            ),
+        ]
+
+        # Schedule post-initialization tasks to run after scanners complete
+        asyncio.create_task(
+            cls._run_post_initialization_tasks(init_tasks), name="post_init_tasks"
+        )
+
+        return init_tasks
+
+    @classmethod
     async def _run_post_initialization_tasks(cls, init_tasks):
         """Run post-initialization tasks after all scanners complete"""
         try:
@@ -260,6 +327,11 @@ class LoraManager:
 
             # Wait for all scanner initialization tasks to complete
             await asyncio.gather(*init_tasks, return_exceptions=True)
+
+            # The caches are hydrated now: move their long-lived objects out of
+            # GC tracking so ComfyUI's post-prompt gc.collect() no longer walks
+            # them on every prompt (issue #1147).
+            freeze_long_lived_objects("cache initialization")
 
             logger.debug(
                 "LoRA Manager: Scanner initialization completed, starting post-initialization tasks..."
@@ -307,6 +379,7 @@ class LoraManager:
             all_roots.update(config.loras_roots)
             all_roots.update(config.base_models_roots or [])
             all_roots.update(config.embeddings_roots or [])
+            all_roots.update(config.other_roots or [])
 
             total_deleted = 0
             total_size_freed = 0
@@ -439,7 +512,7 @@ class LoraManager:
             # Cancel any in-flight scanner initialization tasks so thread-pool
             # workers (e.g. _initialize_cache_sync) can break out of their loops
             # when the server shuts down (e.g. Ctrl+C on WSL).
-            for name in ("lora_scanner", "checkpoint_scanner", "embedding_scanner"):
+            for name in ("lora_scanner", "checkpoint_scanner", "embedding_scanner", "other_scanner"):
                 scanner = ServiceRegistry.get_service_sync(name)
                 if scanner is not None and hasattr(scanner, "cancel_task"):
                     scanner.cancel_task()

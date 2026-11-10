@@ -1,14 +1,17 @@
+import asyncio
 import logging
 import os
 import re
 import random
 import string
+from typing import Any
 from aiohttp import web
 from ..utils.constants import SUPPORTED_MEDIA_EXTENSIONS
 from ..services.service_registry import ServiceRegistry
 from ..services.settings_manager import get_settings_manager
 from ..utils.example_images_paths import get_model_folder, get_model_relative_path
-from .example_images_metadata import MetadataUpdater
+from .example_images_metadata import MetadataUpdater, update_cache_from_metadata
+from .file_utils import detect_media_extension
 from ..utils.metadata_manager import MetadataManager
 
 logger = logging.getLogger(__name__)
@@ -23,6 +26,42 @@ class ExampleImagesValidationError(ExampleImagesImportError):
 
 class ExampleImagesProcessor:
     """Processes and manipulates example images"""
+
+    @staticmethod
+    async def _model_scanners() -> list:
+        """Return every scanner whose models can carry example images."""
+        return [
+            await ServiceRegistry.get_lora_scanner(),
+            await ServiceRegistry.get_checkpoint_scanner(),
+            await ServiceRegistry.get_embedding_scanner(),
+            await ServiceRegistry.get_other_scanner(),
+        ]
+
+    @staticmethod
+    async def resolve_hash_for_file_path(file_path: str) -> str:
+        """Return the SHA256 for a cached model file, computing it on demand.
+
+        Checkpoint and Other scanners record ``hash_status="pending"`` with an
+        empty sha256 until something needs the hash; importing example images
+        is such a moment because example folders are keyed by hash.  Returns
+        ``''`` when the file is unknown to every scanner or hashing failed.
+        """
+        if not file_path:
+            return ''
+        normalized = file_path.replace(os.sep, '/')
+        for scanner in await ExampleImagesProcessor._model_scanners():
+            cache = await scanner.get_cached_data()
+            for item in cache.raw_data:
+                if item.get('file_path') != normalized:
+                    continue
+                sha256 = (item.get('sha256') or '').strip()
+                if sha256 and item.get('hash_status', 'completed') == 'completed':
+                    return sha256
+                calculate = getattr(scanner, 'calculate_hash_for_model', None)
+                if calculate is None:
+                    return sha256
+                return (await calculate(normalized)) or ''
+        return ''
 
     @staticmethod
     def generate_short_id(length=8):
@@ -44,63 +83,10 @@ class ExampleImagesProcessor:
     
     @staticmethod
     def _get_file_extension_from_content_or_headers(content, headers, fallback_url=None, media_type_hint=None):
-        """Determine file extension from content magic bytes or headers
-        
-        Args:
-            content: File content bytes
-            headers: HTTP response headers
-            fallback_url: Original URL for extension extraction
-            media_type_hint: Optional media type hint from metadata (e.g., "video" or "image")
-        """
-        # Check magic bytes for common formats
-        if content:
-            if content.startswith(b'\xFF\xD8\xFF'):
-                return '.jpg'
-            elif content.startswith(b'\x89PNG\r\n\x1A\n'):
-                return '.png'
-            elif content.startswith(b'GIF87a') or content.startswith(b'GIF89a'):
-                return '.gif'
-            elif content.startswith(b'RIFF') and b'WEBP' in content[:12]:
-                return '.webp'
-            elif len(content) >= 12 and content[4:8] == b'ftyp' and b'avif' in content[8:24]:
-                return '.avif'
-            elif content.startswith(b'\x00\x00\x00\x0cJXL \x0d\x0a\x87\x0a'):
-                return '.jxl'
-            elif content.startswith(b'\x00\x00\x00\x18ftypmp4') or content.startswith(b'\x00\x00\x00\x20ftypmp4'):
-                return '.mp4'
-            elif content.startswith(b'\x1A\x45\xDF\xA3'):
-                return '.webm'
-        
-        # Check Content-Type header
-        if headers:
-            content_type = headers.get('content-type', '').lower()
-            type_map = {
-                'image/jpeg': '.jpg',
-                'image/png': '.png',
-                'image/gif': '.gif',
-                'image/webp': '.webp',
-                'image/avif': '.avif',
-                'image/jxl': '.jxl',
-                'video/mp4': '.mp4',
-                'video/webm': '.webm',
-                'video/quicktime': '.mov'
-            }
-            if content_type in type_map:
-                return type_map[content_type]
-        
-        # Fallback to URL extension if available
-        if fallback_url:
-            filename = os.path.basename(fallback_url.split('?')[0])
-            ext = os.path.splitext(filename)[1].lower()
-            if ext in SUPPORTED_MEDIA_EXTENSIONS['images'] or ext in SUPPORTED_MEDIA_EXTENSIONS['videos']:
-                return ext
-        
-        # Use media type hint from metadata if available
-        if media_type_hint == "video":
-            return '.mp4'
-        
-        # Default fallback
-        return '.jpg'
+        """Determine file extension from content magic bytes or headers"""
+        return detect_media_extension(
+            content, headers, fallback_url=fallback_url, media_type_hint=media_type_hint
+        )
 
     @staticmethod
     def _is_not_found_error(error) -> bool:
@@ -111,6 +97,26 @@ class ExampleImagesProcessor:
 
         message = str(error).lower()
         return '404' in message or 'file not found' in message
+
+    @staticmethod
+    def _example_image_file_exists(model_dir: str, index: int, media_type_hint: str | None = None) -> bool:
+        """Return True when the file that would be written for a media index already exists.
+
+        The final filename (``image_{index}{extension}``) depends on the downloaded
+        content, so the extension cannot be known ahead of time. The post-download
+        check skips the write when the exact target file exists; this pre-check
+        approximates that with the candidate extensions for the media type (videos
+        only when the metadata hints at a video) so the network request is avoided
+        for files that already exist on disk.
+        """
+        if media_type_hint == "video":
+            extensions = SUPPORTED_MEDIA_EXTENSIONS['videos']
+        else:
+            extensions = SUPPORTED_MEDIA_EXTENSIONS['images']
+        return any(
+            os.path.exists(os.path.join(model_dir, f"image_{index}{ext}"))
+            for ext in extensions
+        )
 
     @staticmethod
     async def download_model_images(model_hash, model_name, model_images, model_dir, optimize, downloader):
@@ -138,7 +144,12 @@ class ExampleImagesProcessor:
             original_url = image_url
             if optimize and 'civitai.com' in image_url:
                 image_url = ExampleImagesProcessor.get_civitai_optimized_url(image_url)
-            
+
+            # Skip the download when the file already exists on disk
+            if ExampleImagesProcessor._example_image_file_exists(model_dir, i, image.get("type")):
+                logger.debug("File already exists, skipping download for %s", image_url)
+                continue
+
             # Download the file first to determine the actual file type
             try:
                 logger.debug(f"Downloading media file {i} for {model_name}")
@@ -195,15 +206,21 @@ class ExampleImagesProcessor:
         return model_success, False  # (success, is_metadata_stale)
     
     @staticmethod
+    def _extract_retry_after(error_message: str) -> int:
+        if not error_message:
+            return 60
+        match = re.search(r"retry after (\d+)s", str(error_message))
+        if match:
+            return max(1, int(match.group(1)))
+        return 60
+
+    @staticmethod
     async def download_model_images_with_tracking(model_hash, model_name, model_images, model_dir, optimize, downloader):
-        """Download images for a single model with tracking of failed image URLs
-        
-        Returns:
-            tuple: (success, is_stale_metadata, failed_images) - whether download was successful, whether metadata is stale, list of failed image URLs
-        """
         model_success = True
         failed_images = []
-        
+        rate_limited_images = []
+        any_successful_download = False
+
         for i, image in enumerate(model_images):
             image_url = image.get('url')
             if not image_url:
@@ -221,64 +238,115 @@ class ExampleImagesProcessor:
             original_url = image_url
             if optimize and 'civitai.com' in image_url:
                 image_url = ExampleImagesProcessor.get_civitai_optimized_url(image_url)
-            
-            # Download the file first to determine the actual file type
-            try:
-                logger.debug(f"Downloading media file {i} for {model_name}")
-                
-                # Download using the unified downloader with headers
-                success, content, headers = await downloader.download_to_memory(
+
+            # Skip the download when the file already exists on disk
+            if ExampleImagesProcessor._example_image_file_exists(model_dir, i, image.get("type")):
+                logger.debug("File already exists, skipping download for %s", image_url)
+                continue
+
+            async def _attempt_download() -> tuple[bool, Any, Any]:
+                logger.debug("Downloading media file %s for %s", i, model_name)
+                return await downloader.download_to_memory(
                     image_url,
-                    use_auth=False,  # Example images don't need auth
-                    return_headers=True
+                    use_auth=False,
+                    return_headers=True,
                 )
-                
+
+            try:
+                success, content, headers = await _attempt_download()
+
                 if success:
-                    # Determine file extension from content or headers
                     media_ext = ExampleImagesProcessor._get_file_extension_from_content_or_headers(
                         content, headers, original_url, image.get("type")
                     )
-                    
-                    # Check if the detected file type is supported
                     is_image = media_ext in SUPPORTED_MEDIA_EXTENSIONS['images']
                     is_video = media_ext in SUPPORTED_MEDIA_EXTENSIONS['videos']
-                    
+
                     if not (is_image or is_video):
-                        logger.debug(f"Skipping unsupported file type: {media_ext}")
+                        logger.debug("Skipping unsupported file type: %s", media_ext)
                         continue
-                    
-                    # Use 0-based indexing with the detected extension
+
                     save_filename = f"image_{i}{media_ext}"
                     save_path = os.path.join(model_dir, save_filename)
-                    
-                    # Check if already downloaded
+
                     if os.path.exists(save_path):
-                        logger.debug(f"File already exists: {save_path}")
+                        logger.debug("File already exists: %s", save_path)
                         continue
-                    
-                    # Save the file
+
                     with open(save_path, 'wb') as f:
                         f.write(content)
-                    
+                    any_successful_download = True
+
                 elif ExampleImagesProcessor._is_not_found_error(content):
                     error_msg = f"Failed to download file: {image_url}, status code: 404 - Model metadata might be stale"
                     logger.warning(error_msg)
-                    model_success = False  # Mark the model as failed due to 404 error
-                    failed_images.append(image_url)  # Track failed URL
-                    # Return early to trigger metadata refresh attempt
-                    return False, True, failed_images  # (success, is_metadata_stale, failed_images)
+                    model_success = False
+                    failed_images.append(image_url)
+                    return False, True, failed_images, rate_limited_images
+
+                elif "Rate limited (429)" in str(content):
+                    max_attempts = 3
+                    for attempt in range(1, max_attempts + 1):
+                        wait = ExampleImagesProcessor._extract_retry_after(str(content)) * (2 ** (attempt - 1))
+                        logger.warning(
+                            "Rate limited (429) for %s, retry %d/%d after %ds",
+                            image_url, attempt, max_attempts, wait,
+                        )
+                        await asyncio.sleep(wait)
+
+                        success, content, headers = await _attempt_download()
+                        if success:
+                            media_ext = ExampleImagesProcessor._get_file_extension_from_content_or_headers(
+                                content, headers, original_url, image.get("type")
+                            )
+                            is_image = media_ext in SUPPORTED_MEDIA_EXTENSIONS['images']
+                            is_video = media_ext in SUPPORTED_MEDIA_EXTENSIONS['videos']
+
+                            if not (is_image or is_video):
+                                logger.debug("Skipping unsupported file type: %s", media_ext)
+                                break
+
+                            save_filename = f"image_{i}{media_ext}"
+                            save_path = os.path.join(model_dir, save_filename)
+                            if os.path.exists(save_path):
+                                logger.debug("File already exists: %s", save_path)
+                                break
+
+                            with open(save_path, 'wb') as f:
+                                f.write(content)
+                            any_successful_download = True
+                            break
+                        elif "Rate limited (429)" in str(content):
+                            continue
+                        elif ExampleImagesProcessor._is_not_found_error(content):
+                            logger.warning("Failed to download file: %s, status code: 404", image_url)
+                            model_success = False
+                            failed_images.append(image_url)
+                            break
+                        else:
+                            logger.warning("Failed to download file: %s, error: %s", image_url, content)
+                            model_success = False
+                            failed_images.append(image_url)
+                            break
+                    else:
+                        logger.warning(
+                            "Giving up on %s after %d retries due to rate limiting",
+                            image_url, max_attempts,
+                        )
+                        rate_limited_images.append(image_url)
+                        model_success = False
                 else:
                     error_msg = f"Failed to download file: {image_url}, error: {content}"
                     logger.warning(error_msg)
-                    model_success = False  # Mark the model as failed
-                    failed_images.append(image_url)  # Track failed URL
+                    model_success = False
+                    failed_images.append(image_url)
             except Exception as e:
                 error_msg = f"Error downloading file {image_url}: {str(e)}"
                 logger.error(error_msg)
-                model_success = False  # Mark the model as failed
-                failed_images.append(image_url)  # Track failed URL
-        
-        return model_success, False, failed_images  # (success, is_metadata_stale, failed_images)
+                model_success = False
+                failed_images.append(image_url)
+
+        return any_successful_download or model_success, False, failed_images, rate_limited_images
     
     @staticmethod
     async def process_local_examples(model_file_path, model_file_name, model_name, model_dir, optimize):
@@ -366,15 +434,11 @@ class ExampleImagesProcessor:
                 raise ExampleImagesValidationError('No example images path configured')
 
             # Find the model and get current metadata
-            lora_scanner = await ServiceRegistry.get_lora_scanner()
-            checkpoint_scanner = await ServiceRegistry.get_checkpoint_scanner()
-            embedding_scanner = await ServiceRegistry.get_embedding_scanner()
-
             model_data = None
             scanner = None
 
-            # Check both scanners to find the model
-            for scan_obj in [lora_scanner, checkpoint_scanner, embedding_scanner]:
+            # Check every scanner to find the model
+            for scan_obj in await ExampleImagesProcessor._model_scanners():
                 cache = await scan_obj.get_cached_data()
                 for item in cache.raw_data:
                     if item.get('sha256') == model_hash:
@@ -452,6 +516,7 @@ class ExampleImagesProcessor:
                 'errors': errors,
                 'regular_images': regular_images,
                 'custom_images': custom_images,
+                'model_hash': model_hash,
                 "model_file_path": model_data.get('file_path', ''),
             }
 
@@ -493,15 +558,11 @@ class ExampleImagesProcessor:
                 }, status=400)
             
             # Find the model and get current metadata
-            lora_scanner = await ServiceRegistry.get_lora_scanner()
-            checkpoint_scanner = await ServiceRegistry.get_checkpoint_scanner()
-            embedding_scanner = await ServiceRegistry.get_embedding_scanner()
-            
             model_data = None
             scanner = None
-            
-            # Check both scanners to find the model
-            for scan_obj in [lora_scanner, checkpoint_scanner, embedding_scanner]:
+
+            # Check every scanner to find the model
+            for scan_obj in await ExampleImagesProcessor._model_scanners():
                 if scan_obj.has_hash(model_hash):
                     cache = await scan_obj.get_cached_data()
                     for item in cache.raw_data:
@@ -511,13 +572,13 @@ class ExampleImagesProcessor:
                             break
                 if model_data:
                     break
-            
+
             if not model_data:
                 return web.json_response({
                     'success': False,
                     'error': f"Model with hash {model_hash} not found in cache"
                 }, status=404)
-            
+
             await MetadataManager.hydrate_model_data(model_data)
             civitai_data = model_data.setdefault('civitai', {})
             custom_images = civitai_data.get('customImages')
@@ -591,7 +652,7 @@ class ExampleImagesProcessor:
                     }, status=500)
             
                 # Update cache
-                await scanner.update_single_model_cache(file_path, file_path, model_data)
+                await update_cache_from_metadata(scanner, file_path, model_data)
             
             # Get regular images array (might be None)
             regular_images = civitai_data.get('images', [])
@@ -653,14 +714,10 @@ class ExampleImagesProcessor:
                 )
 
         try:
-            lora_scanner = await ServiceRegistry.get_lora_scanner()
-            checkpoint_scanner = await ServiceRegistry.get_checkpoint_scanner()
-            embedding_scanner = await ServiceRegistry.get_embedding_scanner()
-
             model_data = None
             scanner = None
 
-            for scan_obj in [lora_scanner, checkpoint_scanner, embedding_scanner]:
+            for scan_obj in await ExampleImagesProcessor._model_scanners():
                 if scan_obj.has_hash(model_hash):
                     cache = await scan_obj.get_cached_data()
                     for item in cache.raw_data:
@@ -706,7 +763,7 @@ class ExampleImagesProcessor:
                 model_copy = model_data.copy()
                 model_copy.pop('folder', None)
                 await MetadataManager.save_metadata(file_path, model_copy)
-                await scanner.update_single_model_cache(file_path, file_path, model_data)
+                await update_cache_from_metadata(scanner, file_path, model_copy)
 
             return web.json_response({
                 'success': True,

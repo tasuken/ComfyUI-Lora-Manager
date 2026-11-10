@@ -4,6 +4,7 @@ import asyncio
 import logging
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from aiohttp import web
@@ -127,10 +128,21 @@ async def test_lora_manager_lifecycle(monkeypatch: pytest.MonkeyPatch, tmp_path:
     monkeypatch.setattr(lora_manager.config, "base_models_roots", [str(checkpoints_root)])
     monkeypatch.setattr(lora_manager.config, "embeddings_roots", [str(embeddings_root)])
 
+    # The first-run gate defers scanner initialization on fresh installs; this
+    # lifecycle test exercises the established-install path where the gate is
+    # already completed. Point the upgrade-probe cache paths at nonexistent
+    # files so the real user cache directory is never consulted.
+    from py.services.settings_manager import get_settings_manager
+
+    get_settings_manager().set("initial_scan_completed", True)
+    monkeypatch.setenv("LORA_MANAGER_CACHE_DB", str(tmp_path / "no-model-cache.sqlite"))
+    monkeypatch.setenv("LORA_MANAGER_RECIPE_CACHE_DB", str(tmp_path / "no-recipe-cache.sqlite"))
+
     scanners = {
         "lora": _DummyScanner("lora"),
         "checkpoint": _DummyScanner("checkpoint"),
         "embedding": _DummyScanner("embedding"),
+        "other": _DummyScanner("other"),
         "recipe": _DummyScanner("recipe"),
     }
 
@@ -146,6 +158,7 @@ async def test_lora_manager_lifecycle(monkeypatch: pytest.MonkeyPatch, tmp_path:
     monkeypatch.setattr(lora_manager.ServiceRegistry, "get_lora_scanner", lambda: _stub("lora_scanner", scanners["lora"]))
     monkeypatch.setattr(lora_manager.ServiceRegistry, "get_checkpoint_scanner", lambda: _stub("checkpoint_scanner", scanners["checkpoint"]))
     monkeypatch.setattr(lora_manager.ServiceRegistry, "get_embedding_scanner", lambda: _stub("embedding_scanner", scanners["embedding"]))
+    monkeypatch.setattr(lora_manager.ServiceRegistry, "get_other_scanner", lambda: _stub("other_scanner", scanners["other"]))
     monkeypatch.setattr(lora_manager.ServiceRegistry, "get_recipe_scanner", lambda: _stub("recipe_scanner", scanners["recipe"]))
 
     migration_calls: list[bool] = []
@@ -159,8 +172,17 @@ async def test_lora_manager_lifecycle(monkeypatch: pytest.MonkeyPatch, tmp_path:
         staticmethod(fake_migration),
     )
 
+    freeze_calls: list[tuple[str, bool]] = []
+
+    def record_freeze(reason: str) -> None:
+        freeze_calls.append(
+            (reason, all(scanner.initialized for scanner in scanners.values()))
+        )
+
+    monkeypatch.setattr(lora_manager, "freeze_long_lived_objects", record_freeze)
+
     original_create_task = asyncio.create_task
-    scheduled_tasks: list[asyncio.Task] = []
+    scheduled_tasks: list[asyncio.Task[Any]] = []
 
     def track_create_task(coro, *, name=None):
         task = original_create_task(coro, name=name)
@@ -204,14 +226,119 @@ async def test_lora_manager_lifecycle(monkeypatch: pytest.MonkeyPatch, tmp_path:
         await asyncio.gather(*pending)
 
     task_names = {task.get_name() for task in scheduled_tasks}
-    assert {"lora_cache_init", "checkpoint_cache_init", "embedding_cache_init", "recipe_cache_init", "post_init_tasks", "cleanup_bak_files"}.issubset(task_names)
+    assert {"lora_cache_init", "checkpoint_cache_init", "embedding_cache_init", "other_cache_init", "recipe_cache_init", "post_init_tasks", "cleanup_bak_files"}.issubset(task_names)
+
+    # Startup sweep: an expired pending-delete purge task is spawned during
+    # service initialization (covers both plugin and standalone modes).
+    assert "pending_delete_startup_sweep" in task_names
 
     for scanner in scanners.values():
         assert scanner.initialized is True
+
+    # GC freeze runs once, only after every scanner cache has been hydrated
+    # (issue #1147).
+    assert freeze_calls == [("cache initialization", True)]
 
     assert migration_calls == [True]
 
     for root in (loras_root, checkpoints_root, embeddings_root):
         assert not any(path.suffix == ".bak" for path in root.rglob("*")), f"Backup files remain in {root}"
 
-    assert {"civitai_client", "download_manager", "websocket_manager", "lora_scanner", "checkpoint_scanner", "embedding_scanner", "recipe_scanner"}.issubset(registry_calls)
+    assert {"civitai_client", "download_manager", "websocket_manager", "lora_scanner", "checkpoint_scanner", "embedding_scanner", "other_scanner", "recipe_scanner"}.issubset(registry_calls)
+
+
+async def test_initialize_services_defers_scanners_during_first_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Fresh install (no snapshot, gate flag False): startup must not launch
+    scanner initialization; the rest of service init still runs."""
+    from py.services.settings_manager import get_settings_manager
+    from py.services.first_run_manager import get_first_run_manager
+
+    monkeypatch.setenv("LORA_MANAGER_CACHE_DB", str(tmp_path / "no-model-cache.sqlite"))
+    monkeypatch.setenv("LORA_MANAGER_RECIPE_CACHE_DB", str(tmp_path / "no-recipe-cache.sqlite"))
+
+    registry_calls: list[str] = []
+
+    async def _stub(name: str):
+        registry_calls.append(name)
+        return object()
+
+    monkeypatch.setattr(lora_manager.ServiceRegistry, "get_civitai_client", lambda: _stub("civitai_client"))
+    monkeypatch.setattr(lora_manager.ServiceRegistry, "get_download_manager", lambda: _stub("download_manager"))
+    monkeypatch.setattr(lora_manager.ServiceRegistry, "get_download_queue_service", lambda: _stub("download_queue_service"))
+    monkeypatch.setattr(lora_manager.ServiceRegistry, "get_backup_service", lambda: _stub("backup_service"))
+    monkeypatch.setattr(lora_manager.ServiceRegistry, "get_websocket_manager", lambda: _stub("websocket_manager"))
+
+    scanner_getters: list[str] = []
+    for name in ("lora", "checkpoint", "embedding", "other", "recipe"):
+        async def _scanner_stub(name=name):
+            scanner_getters.append(name)
+            return _DummyScanner(name)
+        monkeypatch.setattr(
+            lora_manager.ServiceRegistry, f"get_{name}_scanner", _scanner_stub
+        )
+
+    import py.services.metadata_service as metadata_service
+    monkeypatch.setattr(
+        metadata_service, "initialize_metadata_providers", lambda: _stub("metadata_providers")
+    )
+
+    import py.services.llm_service as llm_service
+    monkeypatch.setattr(llm_service.LLMService, "get_instance", classmethod(lambda cls: _stub("llm_service")))
+
+    migration_calls: list[bool] = []
+
+    async def fake_migration() -> None:
+        migration_calls.append(True)
+
+    monkeypatch.setattr(
+        lora_manager.ExampleImagesMigration,
+        "check_and_run_migrations",
+        staticmethod(fake_migration),
+    )
+
+    purge_calls: list[bool] = []
+
+    class _FakePendingDeleteService:
+        async def purge_expired(self, *, scan_roots: bool = False) -> None:
+            purge_calls.append(scan_roots)
+
+    async def _fake_pending_delete_service():
+        return _FakePendingDeleteService()
+
+    monkeypatch.setattr(
+        lora_manager, "get_pending_delete_service", _fake_pending_delete_service
+    )
+
+    original_create_task = asyncio.create_task
+    scheduled_tasks: list[asyncio.Task[Any]] = []
+
+    def track_create_task(coro, *, name=None):
+        task = original_create_task(coro, name=name)
+        scheduled_tasks.append(task)
+        return task
+
+    monkeypatch.setattr(asyncio, "create_task", track_create_task)
+
+    assert get_first_run_manager().is_awaiting_first_scan() is True
+
+    await lora_manager.LoraManager._initialize_services()
+
+    pending = [task for task in scheduled_tasks if not task.done()]
+    if pending:
+        await asyncio.gather(*pending)
+
+    task_names = {task.get_name() for task in scheduled_tasks}
+    assert not any(name.endswith("_cache_init") for name in task_names)
+    assert "post_init_tasks" not in task_names
+    assert scanner_getters == []
+
+    # Non-scanner startup work still runs while the gate holds.
+    assert migration_calls == [True]
+    assert purge_calls == [True]
+    assert "civitai_client" in registry_calls
+
+    # The gate is still awaiting user confirmation afterwards.
+    assert get_settings_manager().get("initial_scan_completed") is False
+    assert get_first_run_manager().is_awaiting_first_scan() is True

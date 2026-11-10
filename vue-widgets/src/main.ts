@@ -5,6 +5,7 @@ import LoraRandomizerWidget from '@/components/LoraRandomizerWidget.vue'
 import LoraCyclerWidget from '@/components/LoraCyclerWidget.vue'
 import JsonDisplayWidget from '@/components/JsonDisplayWidget.vue'
 import AutocompleteTextWidget from '@/components/AutocompleteTextWidget.vue'
+import LoraInfoWidget from '@/components/LoraInfoWidget.vue'
 import { createVueWidgetCleanup } from './vue-widget-cleanup'
 import type { LoraPoolConfig, RandomizerConfig, CyclerConfig } from './composables/types'
 import {
@@ -23,6 +24,8 @@ const LORA_CYCLER_WIDGET_MIN_HEIGHT = 408
 const LORA_CYCLER_WIDGET_MAX_HEIGHT = LORA_CYCLER_WIDGET_MIN_HEIGHT
 const JSON_DISPLAY_WIDGET_MIN_WIDTH = 300
 const JSON_DISPLAY_WIDGET_MIN_HEIGHT = 200
+const LORA_INFO_WIDGET_MIN_WIDTH = 300
+const LORA_INFO_WIDGET_MIN_HEIGHT = 200
 const AUTOCOMPLETE_TEXT_WIDGET_MIN_HEIGHT = 60
 const AUTOCOMPLETE_TEXT_WIDGET_MAX_HEIGHT = 100
 // Per-modelType min size hints for node initial sizing.
@@ -33,12 +36,38 @@ const AUTOCOMPLETE_TEXT_MIN_HEIGHT_DEFAULT = 300
 const AUTOCOMPLETE_METADATA_VERSION = 1
 const LORA_MANAGER_WIDGET_IDS_PROPERTY = '__lm_widget_ids'
 
+// Access LiteGraph global for Vue DOM mode detection (matches AutocompleteTextWidget.vue)
+declare const LiteGraph: { vueNodesMode?: boolean } | undefined
+
 // @ts-ignore - ComfyUI external module
 import { app } from '../../../scripts/app.js'
 // @ts-ignore - ComfyUI external module
 import { api } from '../../../scripts/api.js'
 // @ts-ignore
 import { getPoolConfigFromConnectedNode, getActiveLorasFromNode, updateConnectedTriggerWords, updateDownstreamLoaders } from '../../web/comfyui/utils.js'
+// @ts-ignore
+import { stripAutocompleteMetadataFromPromptResult } from '../../web/comfyui/autocomplete.js'
+// @ts-ignore
+import { ensureLmStyles } from '../../web/comfyui/lm_styles_loader.js'
+
+// Strip the autocomplete lastAccepted boundary from exported workflows.
+// lastAccepted carries old prompt text (insertedText/textSnapshot) and is
+// session-only state; it must not leak into exported JSON (#1093).
+// graphToPrompt is shared by workflow export, Export API and queueing.
+// Local saves go through the change-tracker snapshot (no graphToPrompt) and
+// are intentionally left untouched so cross-session caret continuity is kept.
+// Post-processing the resolved result avoids any window/race with
+// change-tracker or copy/paste serialization of live state.
+// Vue widgets consume the shared --lm-* theme tokens, so the token layer and
+// widget stylesheet must be present before the first widget mounts.
+ensureLmStyles()
+
+const originalGraphToPrompt = app.graphToPrompt.bind(app)
+app.graphToPrompt = async (...args: unknown[]) => {
+  const result = await originalGraphToPrompt(...args)
+  stripAutocompleteMetadataFromPromptResult(result)
+  return result
+}
 
 function forwardMiddleMouseToCanvas(container: HTMLElement) {
   if (!container) return
@@ -71,16 +100,44 @@ function forwardMiddleMouseToCanvas(container: HTMLElement) {
   })
 }
 
-const vueApps = new Map<number, VueApp>()
+const vueApps = new Map<number | string, VueApp>()
 let autocompleteTextWidgetInstanceId = 0
+
+/** Whether ComfyUI currently renders nodes with the Vue node renderer. */
+function isVueNodesMode(): boolean {
+  const enabled = app.ui?.settings?.getSettingValue?.('Comfy.VueNodes.Enabled')
+  if (typeof enabled === 'boolean') return enabled
+  return typeof LiteGraph !== 'undefined' && LiteGraph.vueNodesMode === true
+}
+
+/**
+ * Tag an LM widget container with the classes that resolve the LM theme
+ * tokens (web/comfyui/lm_theme.css).
+ *
+ * `lm-vue-node` selects the token family the built-in widgets use in that
+ * renderer, so an LM widget always matches its neighbours: the canvas
+ * widget palette (--comfy-input-bg) in canvas mode, the component node
+ * palette (--component-node-widget-background) in Vue node mode.
+ */
+function applyWidgetThemeClasses(container: HTMLElement): void {
+  container.classList.add('lm-widget-root')
+  container.classList.toggle('lm-vue-node', isVueNodesMode())
+}
+
+// Keep every mounted LM widget in sync when the renderer is switched at
+// runtime. One document-level listener for all widgets avoids per-node
+// listener bookkeeping (containers are removed together with their node).
+document.addEventListener('lora-manager:vue-mode-change', (event) => {
+  const isVueNodes = Boolean((event as CustomEvent).detail?.isVueDomMode)
+  for (const el of document.querySelectorAll<HTMLElement>('.lm-widget-root')) {
+    el.classList.toggle('lm-vue-node', isVueNodes)
+  }
+})
 
 export function createAutocompleteTextWidgetInstanceId() {
   autocompleteTextWidgetInstanceId += 1
   return autocompleteTextWidgetInstanceId
 }
-
-// Cache for dynamically loaded addLorasWidget module
-let addLorasWidgetCache: any = null
 
 // @ts-ignore
 function createLoraPoolWidget(node) {
@@ -92,6 +149,7 @@ function createLoraPoolWidget(node) {
   container.style.flexDirection = 'column'
   container.style.overflow = 'hidden'
 
+  applyWidgetThemeClasses(container)
   forwardMiddleMouseToCanvas(container)
 
   let internalValue: LoraPoolConfig | undefined
@@ -110,6 +168,11 @@ function createLoraPoolWidget(node) {
         // No need for custom onSetValue mechanism
       },
       serialize: true,
+      // Keep LM DOM widgets out of the right-side Properties Panel: the panel
+      // falls back to WidgetLegacy for unknown widget types and writes
+      // widget.width onto the real widget, squashing the canvas overlay
+      // (ComfyUI_frontend #11574).
+      hideInPanel: true,
       // Per dev guide: providing getMinHeight via options allows the system to
       // skip expensive DOM measurements during rendering loop, improving performance
       getMinHeight() {
@@ -159,6 +222,7 @@ function createLoraRandomizerWidget(node) {
   container.style.flexDirection = 'column'
   container.style.overflow = 'hidden'
 
+  applyWidgetThemeClasses(container)
   forwardMiddleMouseToCanvas(container)
 
   // Initialize with default config to avoid sending undefined/empty string to backend
@@ -193,6 +257,7 @@ function createLoraRandomizerWidget(node) {
         // No need for custom onSetValue mechanism
       },
       serialize: true,
+      hideInPanel: true,
       getMinHeight() {
         return LORA_RANDOMIZER_WIDGET_MIN_HEIGHT
       }
@@ -254,6 +319,7 @@ function createLoraCyclerWidget(node) {
   container.style.flexDirection = 'column'
   container.style.overflow = 'hidden'
 
+  applyWidgetThemeClasses(container)
   forwardMiddleMouseToCanvas(container)
 
   const defaultConfig: CyclerConfig = {
@@ -294,6 +360,7 @@ function createLoraCyclerWidget(node) {
         }
       },
       serialize: true,
+      hideInPanel: true,
       getMinHeight() {
         return LORA_CYCLER_WIDGET_MIN_HEIGHT
       }
@@ -346,6 +413,7 @@ function createJsonDisplayWidget(node) {
   container.style.flexDirection = 'column'
   container.style.overflow = 'hidden'
 
+  applyWidgetThemeClasses(container)
   forwardMiddleMouseToCanvas(container)
 
   let internalValue: Record<string, unknown> | undefined
@@ -365,6 +433,7 @@ function createJsonDisplayWidget(node) {
         }
       },
       serialize: false, // Display-only widget - don't save metadata in workflows
+      hideInPanel: true,
       getMinHeight() {
         return JSON_DISPLAY_WIDGET_MIN_HEIGHT
       }
@@ -402,7 +471,6 @@ function createJsonDisplayWidget(node) {
   return { widget }
 }
 
-// Store nodeData options per widget type for autocomplete widgets
 const widgetInputOptions: Map<string, { placeholder?: string }> = new Map()
 
 function getSerializableWidgetNames(node: any): string[] {
@@ -553,22 +621,22 @@ function normalizeAutocompleteWidgetValues(node: any, info: any) {
 
 function applyAutocompleteTextLayoutFix(
   widget: any,
-  container: HTMLElement | undefined,
+  _container: HTMLElement | undefined,
   isVueMode: boolean
 ): void {
+  // In Vue rendering mode the WidgetDOM wrapper handles sizing, so we
+  // only provide a computeSize hint and leave the container unconstrained.
+  // In canvas mode we clear all custom sizing so LiteGraph's default
+  // widget-area layout takes over.  Neither path sets a hard max-height;
+  // the textarea can grow freely (e.g. in app mode where
+  // [&_textarea]:resize-y applies).
   if (isVueMode) {
     ;(widget as any).computeLayoutSize = undefined
     widget.computeSize = (width?: number) =>
       [width ?? 200, AUTOCOMPLETE_TEXT_WIDGET_MAX_HEIGHT - 4]
-    if (container) {
-      container.style.minHeight = `${AUTOCOMPLETE_TEXT_WIDGET_MAX_HEIGHT}px`
-    }
   } else {
     delete (widget as any).computeLayoutSize
     delete (widget as any).computeSize
-    if (container) {
-      container.style.minHeight = ''
-    }
   }
 }
 
@@ -642,25 +710,111 @@ if (app.ui?.settings) {
   }, 100)
 }
 
-// Factory function for creating autocomplete text widgets
 // @ts-ignore
-function createAutocompleteTextWidgetFactory(
-  node: any,
-  widgetName: string,
-  modelType: 'loras' | 'embeddings' | 'prompt',
-  inputOptions: { placeholder?: string } = {}
-) {
-  const metadataWidgetName = `__lm_autocomplete_meta_${widgetName}`
-  const instanceId = createAutocompleteTextWidgetInstanceId()
+function createLoraInfoWidget(node: any) {
   const container = document.createElement('div')
-  container.id = `autocomplete-text-widget-${instanceId}`
+  container.id = `lora-info-widget-${node.id}`
   container.style.width = '100%'
   container.style.height = '100%'
   container.style.display = 'flex'
   container.style.flexDirection = 'column'
   container.style.overflow = 'hidden'
 
+  applyWidgetThemeClasses(container)
   forwardMiddleMouseToCanvas(container)
+
+  let internalValue: { name?: string; notes?: string; filePath?: string; activeTab?: string } | undefined
+
+  const widget = node.addDOMWidget(
+    'lora_info_display',
+    'LORA_INFO_DISPLAY',
+    container,
+    {
+      getValue() {
+        return internalValue
+      },
+      setValue(v: { name?: string; notes?: string; filePath?: string; activeTab?: string }) {
+        internalValue = v
+        if (typeof widget.onSetValue === 'function') {
+          widget.onSetValue(v)
+        }
+      },
+      serialize: true,
+      hideInPanel: true,
+      getMinHeight() {
+        return LORA_INFO_WIDGET_MIN_HEIGHT
+      }
+    }
+  )
+
+  const vueApp = createApp(LoraInfoWidget, {
+    widget,
+    node,
+    api,
+    app,
+    isVueMode: typeof LiteGraph !== 'undefined' && LiteGraph.vueNodesMode,
+  })
+
+  vueApp.use(PrimeVue, {
+    unstyled: true,
+    ripple: false
+  })
+
+  vueApp.mount(container)
+  vueApps.set(node.id + 40000, vueApp) // Offset to avoid collision
+
+  widget.computeLayoutSize = () => {
+    const minWidth = LORA_INFO_WIDGET_MIN_WIDTH
+    const minHeight = LORA_INFO_WIDGET_MIN_HEIGHT
+
+    return { minHeight, minWidth }
+  }
+
+  widget.onRemove = () => {
+    const vueApp = vueApps.get(node.id + 40000)
+    if (vueApp) {
+      vueApp.unmount()
+      vueApps.delete(node.id + 40000)
+    }
+  }
+
+  return { widget }
+}
+
+// Factory function for creating autocomplete text widgets
+// @ts-ignore
+function createAutocompleteTextWidgetFactory(
+  node: any,
+  widgetName: string,
+  modelType: 'loras' | 'prompt',
+  inputOptions: { placeholder?: string } = {}
+) {
+  const metadataWidgetName = `__lm_autocomplete_meta_${widgetName}`
+
+  let container: HTMLElement | null = null
+
+  const existingContainers = document.querySelectorAll<HTMLElement>(
+    '[id^="autocomplete-text-widget-"]'
+  )
+  for (const el of existingContainers) {
+    if (el.children.length === 0) {
+      container = el
+      break
+    }
+  }
+
+  if (!container) {
+    const instanceId = String(createAutocompleteTextWidgetInstanceId())
+    container = document.createElement('div')
+    container.id = `autocomplete-text-widget-${instanceId}`
+    container.style.width = '100%'
+    container.style.height = '100%'
+    container.style.display = 'flex'
+    container.style.flexDirection = 'column'
+    container.style.overflow = 'hidden'
+    applyWidgetThemeClasses(container)
+    forwardMiddleMouseToCanvas(container)
+  }
 
   // Store textarea reference on the container element so cloned widgets can access it
   // This is necessary because when widgets are promoted to subgraph nodes,
@@ -706,6 +860,7 @@ function createAutocompleteTextWidgetFactory(
         }
       },
       serialize: true,
+      hideInPanel: true,
       getMinHeight() {
         return AUTOCOMPLETE_TEXT_WIDGET_MIN_HEIGHT
       },
@@ -739,25 +894,28 @@ function createAutocompleteTextWidgetFactory(
   })
 
   vueApp.mount(container)
-  const appKey = instanceId
+  const appKey = container.id
   vueApps.set(appKey, vueApp)
 
   if (maxHeight) {
-    container.style.maxHeight = `${maxHeight}px`
-    container.style.minHeight = `${maxHeight}px`
+    container.style.minHeight = `${AUTOCOMPLETE_TEXT_WIDGET_MIN_HEIGHT}px`
   }
 
   if (modelType === 'loras') {
     applyAutocompleteTextLayoutFix(
       widget,
       container,
-      typeof LiteGraph !== 'undefined' && LiteGraph.vueNodesMode
+      typeof LiteGraph !== 'undefined' && LiteGraph.vueNodesMode === true
     )
   }
 
-  widget.onRemove = createVueWidgetCleanup(vueApp, () => {
+  const vueCleanup = createVueWidgetCleanup(vueApp, () => {
     vueApps.delete(appKey)
   })
+
+  widget.onRemove = () => {
+    vueCleanup()
+  }
 
   // Return minWidth/minHeight hints so ComfyUI's _initialMinSize mechanism
   // sets a sensible initial node width (and height for prompt/embeddings).
@@ -785,41 +943,18 @@ app.registerExtension({
       CYCLER_CONFIG(node) {
         return createLoraCyclerWidget(node)
       },
-      // @ts-ignore
-      async LORAS(node: any) {
-        if (!addLorasWidgetCache) {
-          // @ts-ignore
-          const module = await import(/* @vite-ignore */ '../loras_widget.js')
-          addLorasWidgetCache = module.addLorasWidget
-        }
-        // Check if this is a randomizer node to enable lock buttons
-        const isRandomizerNode = node.comfyClass === 'Lora Randomizer (LoraManager)'
-
-        // For randomizer nodes, add a callback to update connected trigger words
-        const callback = isRandomizerNode ? () => {
-          updateDownstreamLoaders(node)
-        } : null
-
-        return addLorasWidgetCache(node, 'loras', { isRandomizerNode }, callback)
-      },
       // Autocomplete text widget for LoRAs (used by Lora Loader, Lora Stacker, WanVideo Lora Select)
       // @ts-ignore
       AUTOCOMPLETE_TEXT_LORAS(node) {
         const options = widgetInputOptions.get(`${node.comfyClass}:text`) || {}
         return createAutocompleteTextWidgetFactory(node, 'text', 'loras', options)
       },
-      // Autocomplete text widget for embeddings (used by Prompt node)
-      // @ts-ignore
-      AUTOCOMPLETE_TEXT_EMBEDDINGS(node) {
-        const options = widgetInputOptions.get(`${node.comfyClass}:text`) || {}
-        return createAutocompleteTextWidgetFactory(node, 'text', 'embeddings', options)
-      },
-      // Autocomplete text widget for prompt (supports both embeddings and custom words)
+      // Autocomplete text widget for prompt (used by Prompt and Text nodes)
       // @ts-ignore
       AUTOCOMPLETE_TEXT_PROMPT(node) {
         const options = widgetInputOptions.get(`${node.comfyClass}:text`) || {}
         return createAutocompleteTextWidgetFactory(node, 'text', 'prompt', options)
-      }
+      },
     }
   },
 
@@ -864,9 +999,7 @@ app.registerExtension({
           info.widgets_values = [...(info.widgets_values ?? []), null]
         }
 
-        const result = originalConfigure?.apply(this, arguments)
-
-        return result
+        return originalConfigure?.apply(this, arguments)
       }
     }
 
@@ -897,6 +1030,18 @@ app.registerExtension({
 
         // Add the JSON display widget
         createJsonDisplayWidget(this)
+      }
+    }
+
+    // Add the Lora Info display widget
+    if (nodeData.name === 'Lora Info (LoraManager)') {
+      const onNodeCreated = nodeType.prototype.onNodeCreated
+
+      nodeType.prototype.onNodeCreated = function () {
+        onNodeCreated?.apply(this, [])
+
+        // Create the lora info display widget
+        createLoraInfoWidget(this)
       }
     }
   }

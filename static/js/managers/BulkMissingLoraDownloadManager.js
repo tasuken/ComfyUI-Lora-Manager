@@ -1,7 +1,9 @@
 import { showToast } from '../utils/uiHelpers.js';
+import { isUnresolvableDownloadError } from '../utils/uiHelpers.js';
 import { translate } from '../utils/i18nHelpers.js';
 import { getModelApiClient } from '../api/modelApiFactory.js';
 import { MODEL_TYPES } from '../api/apiConfig.js';
+import { extractRecipeId } from '../api/recipeApi.js';
 import { state } from '../state/index.js';
 import { modalManager } from './ModalManager.js';
 
@@ -13,6 +15,7 @@ export class BulkMissingLoraDownloadManager {
         this.loraApiClient = getModelApiClient(MODEL_TYPES.LORA);
         this.pendingLoras = [];
         this.pendingRecipes = [];
+        this.pendingMissingByRecipe = null;
     }
 
     /**
@@ -30,8 +33,9 @@ export class BulkMissingLoraDownloadManager {
             
             if (recipe.loras && Array.isArray(recipe.loras)) {
                 recipe.loras.forEach(lora => {
-                    // Only include LoRAs not in library and not deleted
-                    if (!lora.inLibrary && !lora.isDeleted) {
+                    // Only include LoRAs not in library and still downloadable
+                    // (not deleted from the source, hash still resolvable)
+                    if (!lora.inLibrary && !lora.isDeleted && !lora.hashInvalid) {
                         const uniqueKey = lora.hash || lora.id || lora.modelVersionId;
                         
                         if (uniqueKey && !uniqueLoras.has(uniqueKey)) {
@@ -135,6 +139,7 @@ export class BulkMissingLoraDownloadManager {
         // Execute download
         await this.executeDownload(this.pendingLoras);
         this.pendingLoras = [];
+        this.pendingMissingByRecipe = null;
     }
 
     /**
@@ -152,6 +157,9 @@ export class BulkMissingLoraDownloadManager {
 
         // Collect missing LoRAs with deduplication
         const stats = this.collectMissingLoras(selectedRecipes);
+        // Kept so executeDownload can mark unresolvable failures back onto
+        // every recipe occurrence (hashInvalid → reconnect candidacy).
+        this.pendingMissingByRecipe = stats.missingLorasByRecipe;
         
         if (stats.uniqueCount === 0) {
             showToast('toast.recipes.noMissingLorasInSelection', {}, 'info');
@@ -195,7 +203,19 @@ export class BulkMissingLoraDownloadManager {
 
         let completedDownloads = 0;
         let failedDownloads = 0;
+        let markedInvalidCount = 0;
         let currentLoraProgress = 0;
+        let cancelled = false;
+
+        loadingManager.showCancelButton(async () => {
+            if (cancelled) return;
+            cancelled = true;
+            try {
+                await this.loraApiClient.cancelDownload(batchDownloadId);
+            } catch (e) {
+                console.error('Cancel request failed:', e);
+            }
+        });
 
         // Set up WebSocket message handler
         ws.onmessage = (event) => {
@@ -204,6 +224,11 @@ export class BulkMissingLoraDownloadManager {
             // Handle download ID confirmation
             if (data.type === 'download_id') {
                 console.log(`Connected to batch download progress with ID: ${data.download_id}`);
+                return;
+            }
+
+            if (data.status === 'cancelled') {
+                cancelled = true;
                 return;
             }
 
@@ -249,6 +274,8 @@ export class BulkMissingLoraDownloadManager {
 
         // Download each LoRA sequentially
         for (let i = 0; i < lorasToDownload.length; i++) {
+            if (cancelled) break;
+
             const lora = lorasToDownload[i];
             
             currentLoraProgress = 0;
@@ -275,21 +302,34 @@ export class BulkMissingLoraDownloadManager {
                     modelId,
                     versionId,
                     loraRoot,
-                    '', // Empty relative path, use default paths
+                    '',
                     useDefaultPaths,
                     batchDownloadId
                 );
 
+                if (cancelled) break;
+
                 if (!response.success) {
                     console.error(`Failed to download LoRA ${lora.name || lora.file_name}: ${response.error}`);
                     failedDownloads++;
+                    // An unresolvable failure (model gone on CivitAI) flips
+                    // every recipe occurrence to reconnect candidacy — same
+                    // rule as the single-LoRA download in RecipeModal.
+                    if (isUnresolvableDownloadError(response.error)) {
+                        markedInvalidCount += await this.markLoraHashInvalidInRecipes(lora);
+                    }
                 } else {
                     completedDownloads++;
                     updateProgress(100, completedDownloads, '');
                 }
             } catch (error) {
-                console.error(`Error downloading LoRA ${lora.name || lora.file_name}:`, error);
-                failedDownloads++;
+                if (!cancelled) {
+                    console.error(`Error downloading LoRA ${lora.name || lora.file_name}:`, error);
+                    failedDownloads++;
+                    if (isUnresolvableDownloadError(error?.message)) {
+                        markedInvalidCount += await this.markLoraHashInvalidInRecipes(lora);
+                    }
+                }
             }
         }
 
@@ -300,7 +340,10 @@ export class BulkMissingLoraDownloadManager {
         loadingManager.hide();
 
         // Show completion message
-        if (failedDownloads === 0) {
+        if (cancelled) {
+            showToast('toast.downloads.downloadStopped', {}, 'info',
+                `Download cancelled. ${completedDownloads} item(s) completed.`);
+        } else if (failedDownloads === 0) {
             showToast('toast.loras.allDownloadSuccessful', { count: completedDownloads }, 'success');
         } else {
             showToast('toast.loras.downloadPartialSuccess', {
@@ -309,9 +352,16 @@ export class BulkMissingLoraDownloadManager {
             }, 'warning');
         }
 
+        // Unresolvable failures were marked hash-invalid during the loop;
+        // tell the user those entries now offer reconnect instead of download.
+        if (markedInvalidCount > 0) {
+            showToast('toast.recipes.unresolvableMarkedForReconnect', {
+                count: markedInvalidCount
+            }, 'info', `${markedInvalidCount} unresolvable entr(ies) marked — they can now be reconnected to a local LoRA.`);
+        }
+
         // Update each affected recipe card with fresh data (LoRA inLibrary flags changed)
         if (state.virtualScroller) {
-            const { extractRecipeId } = await import('../api/recipeApi.js');
             for (const recipe of this.pendingRecipes) {
                 const recipeId = extractRecipeId(recipe.file_path);
                 if (!recipeId) continue;
@@ -326,6 +376,59 @@ export class BulkMissingLoraDownloadManager {
                 }
             }
         }
+    }
+
+    /**
+     * Mark every recipe occurrence of a failed LoRA as hash-invalid.
+     *
+     * Mirrors RecipeModal.markLoraHashInvalid for the bulk flow: the flag
+     * makes each occurrence an unresolved rematch candidate and swaps its
+     * action from download to reconnect. Only called for unresolvable
+     * failures — transient errors leave entries untouched.
+     *
+     * @param {Object} failedLora - The deduplicated LoRA that failed
+     * @returns {Promise<number>} - How many recipe entries were marked
+     */
+    async markLoraHashInvalidInRecipes(failedLora) {
+        const failedKey = failedLora.hash || failedLora.id || failedLora.modelVersionId;
+        if (!failedKey || !this.pendingMissingByRecipe) {
+            return 0;
+        }
+
+        let marked = 0;
+        for (const { recipe, missingLoras } of this.pendingMissingByRecipe.values()) {
+            const recipeId = extractRecipeId(recipe.file_path) || recipe.id;
+            if (!recipeId || !Array.isArray(recipe.loras)) {
+                continue;
+            }
+            for (const entry of missingLoras) {
+                const entryKey = entry.hash || entry.id || entry.modelVersionId;
+                if (entryKey !== failedKey) {
+                    continue;
+                }
+                const loraIndex = recipe.loras.indexOf(entry);
+                if (loraIndex < 0) {
+                    continue;
+                }
+                try {
+                    const response = await fetch('/api/lm/recipe/lora/mark-hash-invalid', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            recipe_id: recipeId,
+                            lora_index: loraIndex,
+                        }),
+                    });
+                    if (response.ok) {
+                        entry.hashInvalid = true;
+                        marked++;
+                    }
+                } catch (error) {
+                    console.warn('Failed to mark LoRA hash invalid:', error);
+                }
+            }
+        }
+        return marked;
     }
 
     /**
